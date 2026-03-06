@@ -1,0 +1,39 @@
+# Gradle
+.gradle/
+build/
+**/build/
+out/
+
+# IDE
+.idea/
+*.iml
+.vscode/
+*.classpath
+*.project
+.settings/
+
+# JVM
+*.class
+*.jar
+!gradle/wrapper/gradle-wrapper.jar
+!libs/*.jar
+!ju-to-jmh/*.jar
+
+# Pipeline outputs
+jmh-result.json
+amber-results/*
+!amber-results/.gitkeep
+smelly_methods.txt
+clean_methods.txt
+added_methods.txt
+modified_methods.txt
+deleted_methods.txt
+modified_classes.txt
+
+# Secrets
+.secrets
+*.env
+
+# OS
+.DS_Store
+Thumbs.db
