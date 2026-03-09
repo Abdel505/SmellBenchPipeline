@@ -233,6 +233,75 @@ push to main
 
 ---
 
+## Chat2Benchmark
+
+### Location
+```
+../chat2benchmark/                                          # source repo
+../chat2benchmark/target/chat2benchmark-2.0-SNAPSHOT-jar-with-dependencies.jar  # built JAR
+```
+
+### Build
+```bash
+cd ../chat2benchmark
+JAVA_HOME=/usr mvn clean package -q
+# Output: target/chat2benchmark-2.0-SNAPSHOT-jar-with-dependencies.jar
+```
+
+### CLI Invocation
+```bash
+java -jar ../chat2benchmark/target/chat2benchmark-2.0-SNAPSHOT-jar-with-dependencies.jar \
+  <input.json> \
+  -host <llm_endpoint> \
+  [-mdl <model_name>] \
+  [-tmp <temperature>]
+```
+
+| Argument | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `input.json` | Yes | — | Path to input JSON file |
+| `-host <url>` | Yes | — | LLM endpoint URL (`/v1/chat/completions`) |
+| `-mdl <model>` | No | `codellama-13b-instruct` | Model name |
+| `-tmp <temp>` | No | `0.3` | Temperature (0.0–1.0) |
+
+### Input Format
+JSON map of **absolute Java file path** → **list of method names** (as a string):
+```json
+{
+  "/abs/path/to/app/src/main/java/com/pipeline/demo/Calculator.java": "[add, subtract]",
+  "/abs/path/to/app/src/main/java/com/pipeline/demo/StringUtils.java": "[reverse]"
+}
+```
+
+### Output Format
+- Writes `[ClassName]Benchmark.java` to `src/jmh/java/` (replaces `main` with `jmh` in path)
+- **Important for SmellBenchPipeline**: default output path must be overridden — benchmarks go to `app/src/test/java/` not `src/jmh/java/`. Handle by moving/copying after generation in `generate_benchmark.sh`.
+
+### LLM API Requirements
+- Must expose OpenAI-compatible endpoint: `POST /v1/chat/completions`
+- Accepts: `{"model": "...", "temperature": 0.3, "messages": [{"role": "user", "content": "..."}]}`
+- **Auth**: reads `OPENAI_API_KEY` env var; Bearer token added only if endpoint contains `openai.com`
+- Local/custom endpoints (e.g. Ollama, LM Studio): no auth required
+
+### Key Classes
+| Class | Role |
+|-------|------|
+| `it.unisa.generator.Main` | Entry point, CLI arg parsing |
+| `it.unisa.generator.LLMClient` | HTTP POST to LLM, response extraction |
+| `it.unisa.generator.JsonInputParser` | Reads input.json → `Map<String, List<String>>` |
+| `it.unisa.generator.PromptBuilder` | Builds prompt: class source + method list |
+| `it.unisa.generator.BenchmarkFileWriter` | Writes `[Class]Benchmark.java` to filesystem |
+
+### Prompt sent to LLM (summary)
+```
+Generate a JMH 1.37 benchmark class called [ClassName]Benchmark for the Java class [ClassName]:
+[full source of ClassName.java]
+Include @Benchmark methods to measure performance ONLY of methods: [method1, method2, ...]
+IMPORTANT: Output ONLY valid Java code, directly compilable, no markdown or comments.
+```
+
+---
+
 ## Coverage Matrix
 
 ### File location

@@ -178,32 +178,32 @@ Complete these tasks in order. Each task has subtasks to check off.
 - [x] Update if any details changed during setup
 
 ### Task 2.6 — Push initial commit ✅ CHECKPOINT
-- [ ] `git add . && git commit -m "Initial project structure mirroring EvoBench"`
-- [ ] Create GitHub repo and push
-- [ ] **VERIFY**: `./gradlew build` passes, structure matches EvoBench, repo is live
+- [x] `git add . && git commit -m "Initial project structure mirroring EvoBench"`
+- [x] Create GitHub repo and push
+- [x] **VERIFY**: `./gradlew build` passes, structure matches EvoBench, repo is live
 
 ---
 
 ## Phase 3 — Replace Unit Test Generation with Microbenchmark Generation
 
 ### Task 3.1 — Clone and analyze Chat2Benchmark
-- [ ] `git clone https://github.com/AntonioTrovato/chat2benchmark.git ../chat2benchmark`
-- [ ] Analyze: invocation method, input format, output format, LLM API requirements
-- [ ] Install dependencies if needed
-- [ ] Document findings in REFERENCE.md
+- [x] `git clone https://github.com/AntonioTrovato/chat2benchmark.git ../chat2benchmark`
+- [x] Analyze: invocation method, input format, output format, LLM API requirements
+- [x] Install dependencies if needed
+- [x] Document findings in REFERENCE.md
 
 ### Task 3.2 — Write generate_benchmark.sh
-- [ ] Create `generate_benchmark.sh` at project root
-- [ ] Accept args: Java source file path, method name
-- [ ] Call Chat2Benchmark with correct invocation
-- [ ] Retry loop: up to 10 attempts on failure
-- [ ] After each attempt: validate with `./gradlew compileTestJava`
-- [ ] On success: save benchmark to `app/src/test/java/` with proper package/naming
-- [ ] On failure (10 attempts): log error, exit non-zero
-- [ ] Use env vars: `LLM_API_KEY`, `LLM_ENDPOINT`
-- [ ] Add `set -euo pipefail` at top
-- [ ] Add timestamped logging per retry
-- [ ] `chmod +x generate_benchmark.sh`
+- [x] Create `generate_benchmark.sh` at project root
+- [x] Accept args: Java source file path, method name
+- [x] Call Chat2Benchmark with correct invocation
+- [x] Retry loop: up to 10 attempts on failure
+- [x] After each attempt: validate with `./gradlew compileTestJava`
+- [x] On success: save benchmark to `app/src/test/java/` with proper package/naming
+- [x] On failure (10 attempts): log error, exit non-zero
+- [x] Use env vars: `LLM_API_KEY`, `LLM_ENDPOINT`
+- [x] Add `set -euo pipefail` at top
+- [x] Add timestamped logging per retry
+- [x] `chmod +x generate_benchmark.sh`
 
 ### Task 3.3 — Remove Chat2UnitTest and Ju2Jmh from workflow
 - [ ] In `.github/workflows/`, remove ALL Chat2UnitTest references

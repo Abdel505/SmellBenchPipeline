@@ -30,9 +30,13 @@ modified_methods.txt
 deleted_methods.txt
 modified_classes.txt
 
+# Local docs (session notes, not for repo)
+docs/
+
 # Secrets
 .secrets
 *.env
+test_generate.sh
 
 # OS
 .DS_Store
