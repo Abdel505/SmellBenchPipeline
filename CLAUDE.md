@@ -138,44 +138,44 @@ Complete these tasks in order. Each task has subtasks to check off.
 ## Phase 2 — Set Up the New Project
 
 ### Task 2.1 — Scaffold SmellBenchPipeline repo
-- [ ] `mkdir SmellBenchPipeline && cd SmellBenchPipeline && git init`
-- [ ] Create Gradle wrapper (`gradlew`, `gradle/wrapper/`)
-- [ ] Create root `build.gradle.kts` and `settings.gradle.kts` with `app` subproject
-- [ ] Create `app/build.gradle.kts` with: Java plugin, JUnit 5, JMH dependencies, JaCoCo
-- [ ] Create 5 Java classes in `app/src/main/java/com/pipeline/demo/`:
+- [x] `mkdir SmellBenchPipeline && cd SmellBenchPipeline && git init`
+- [x] Create Gradle wrapper (`gradlew`, `gradle/wrapper/`)
+- [x] Create root `build.gradle.kts` and `settings.gradle.kts` with `app` subproject
+- [x] Create `app/build.gradle.kts` with: Java plugin, JUnit 5, JMH dependencies, JaCoCo
+- [x] Create 5 Java classes in `app/src/main/java/com/pipeline/demo/`:
   - `Calculator.java` — arithmetic ops (add, subtract, multiply, divide, power, factorial, gcd, modulo) — 5+ public methods
   - `StringUtils.java` — string manipulation (reverse, isPalindrome, countVowels, capitalize, compress) — 5+ public methods
   - `SortUtils.java` — sorting algorithms (bubbleSort, mergeSort, quickSort, insertionSort, selectionSort) — 5+ public methods
   - `CollectionHelper.java` — list operations (flatten, removeDuplicates, intersection, union, partition) — 5+ public methods
   - `MathHelper.java` — math functions (fibonacci, isPrime, sieveOfEratosthenes, nthRoot, combinations) — 5+ public methods
-- [ ] Create empty `app/src/test/java/` directory
-- [ ] Create empty directories: `amber-results/`, `libs/`, `tools/`, `ju-to-jmh/`, `ju2jmh/`
-- [ ] Create placeholder scripts: `benchmark_tests.sh`, `modified_classes_detector.sh`, `test_case_selection.sh`
-- [ ] Create `.gitignore` for Java/Gradle
+- [x] Create empty `app/src/test/java/` directory
+- [x] Create empty directories: `amber-results/`, `libs/`, `tools/`, `ju-to-jmh/`, `ju2jmh/`
+- [x] Create placeholder scripts: `benchmark_tests.sh`, `modified_classes_detector.sh`, `test_case_selection.sh`
+- [x] Create `.gitignore` for Java/Gradle
 
 ### Task 2.2 — Verify Gradle build passes
-- [ ] Run `./gradlew build`
-- [ ] Fix any errors until BUILD SUCCESSFUL
-- [ ] Verify `compileJava` and `compileTestJava` succeed
-- [ ] Run `./gradlew test` to confirm test framework
+- [x] Run `./gradlew build`
+- [x] Fix any errors until BUILD SUCCESSFUL
+- [x] Verify `compileJava` and `compileTestJava` succeed
+- [x] Run `./gradlew test` to confirm test framework
 
 ### Task 2.3 — Copy and adapt workflow YAML
-- [ ] `mkdir -p .github/workflows`
-- [ ] Copy EvoBench workflows: `cp ../EvoBench/.github/workflows/*.yml .github/workflows/`
-- [ ] Replace ALL EvoBench SUT paths with `app/src/main/java/com/pipeline/demo/`
-- [ ] Fix Gradle module references to `app`
-- [ ] Fix script paths relative to repo root
-- [ ] Set Java version to 17
-- [ ] Do NOT change pipeline logic — paths only
+- [x] `mkdir -p .github/workflows`
+- [x] Copy EvoBench workflows: `cp ../EvoBench/.github/workflows/*.yml .github/workflows/`
+- [x] Replace ALL EvoBench SUT paths with `app/src/main/java/com/pipeline/demo/`
+- [x] Fix Gradle module references to `app`
+- [x] Fix script paths relative to repo root
+- [x] Set Java version to 17
+- [x] Do NOT change pipeline logic — paths only
 
 ### Task 2.4 — Set up coverage matrix
-- [ ] Create initial empty coverage matrix file in correct format and location (from REFERENCE.md)
-- [ ] Verify format matches EvoBench convention
-- [ ] Verify column headers are present
+- [x] Create initial empty coverage matrix file in correct format and location (from REFERENCE.md)
+- [x] Verify format matches EvoBench convention
+- [x] Verify column headers are present
 
 ### Task 2.5 — Create CLAUDE.md
-- [ ] This file already exists — verify it's at project root
-- [ ] Update if any details changed during setup
+- [x] This file already exists — verify it's at project root
+- [x] Update if any details changed during setup
 
 ### Task 2.6 — Push initial commit ✅ CHECKPOINT
 - [ ] `git add . && git commit -m "Initial project structure mirroring EvoBench"`

@@ -37,3 +37,6 @@ modified_classes.txt
 # OS
 .DS_Store
 Thumbs.db
+
+# Nested repo — reference only, never commit
+EvoBench/
