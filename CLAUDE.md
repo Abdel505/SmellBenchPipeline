@@ -232,16 +232,16 @@ Complete these tasks in order. Each task has subtasks to check off.
 - [x] Save sample output for next task
 
 ### Task 4.2 — Write filter_methods.sh
-- [ ] Create `filter_methods.sh` at project root
-- [ ] Accept AST output file as input
-- [ ] Parse AST output format
-- [ ] Run smell detection on each method
-- [ ] Output `smelly_methods.txt`: smelly methods + ALL deleted methods
-- [ ] Output `clean_methods.txt`: non-smelly added/modified methods
-- [ ] Log which methods went where and why
-- [ ] Add `set -euo pipefail`
-- [ ] `chmod +x filter_methods.sh`
-- [ ] Handle edge cases: empty input, all clean, all smelly
+- [x] Create `filter_methods.sh` at project root
+- [x] Accept AST output file as input
+- [x] Parse AST output format
+- [x] Run smell detection on each method
+- [x] Output `smelly_methods.txt`: smelly methods + ALL deleted methods
+- [x] Output `clean_methods.txt`: non-smelly added/modified methods
+- [x] Log which methods went where and why
+- [x] Add `set -euo pipefail`
+- [x] `chmod +x filter_methods.sh`
+- [x] Handle edge cases: empty input, all clean, all smelly
 
 ### Task 4.3 — Test filter ✅ CHECKPOINT
 - [ ] Create `sample_ast_output.json` with 3 added, 2 modified, 1 deleted methods
