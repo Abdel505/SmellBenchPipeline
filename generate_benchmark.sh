@@ -24,7 +24,7 @@ PACKAGE_PATH="$(dirname "$SOURCE_FILE" | sed 's|.*/main/java/||')"
 GENERATED="$(echo "$SOURCE_FILE" | sed 's|/main/|/jmh/|; s|\.java$|Benchmark.java|')"
 
 TARGET="app/src/test/java/${PACKAGE_PATH}/${CLASS_NAME}Benchmark.java"
-JAR="$(realpath "../chat2benchmark/target/chat2benchmark-2.0-SNAPSHOT-jar-with-dependencies.jar")"
+JAR="$(realpath "libs/chat2benchmark.jar")"
 LLM_MODEL="${LLM_MODEL:-llama-3.3-70b-versatile}"
 MAX_ATTEMPTS=10
 
