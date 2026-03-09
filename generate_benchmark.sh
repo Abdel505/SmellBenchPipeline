@@ -48,7 +48,7 @@ for attempt in $(seq 1 $MAX_ATTEMPTS); do
   export OPENAI_API_KEY="$LLM_API_KEY"
 
   # Run Chat2Benchmark (allow failure so we can retry)
-  JAVA_HOME=/usr java -jar "$JAR" "$INPUT_JSON" -host "$LLM_ENDPOINT" -mdl "$LLM_MODEL" || true
+  java -jar "$JAR" "$INPUT_JSON" -host "$LLM_ENDPOINT" -mdl "$LLM_MODEL" || true
 
   if [[ -f "$GENERATED" ]]; then
     log "Chat2Benchmark produced output — moving to target location"
@@ -64,7 +64,7 @@ for attempt in $(seq 1 $MAX_ATTEMPTS); do
     fi
 
     log "Validating with compileTestJava..."
-    if JAVA_HOME=/usr ./gradlew compileTestJava -q 2>&1; then
+    if ./gradlew compileTestJava -q 2>&1; then
       log "SUCCESS — benchmark written to $TARGET"
       exit 0
     else

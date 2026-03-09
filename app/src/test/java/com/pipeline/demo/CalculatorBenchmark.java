@@ -13,26 +13,23 @@ import org.openjdk.jmh.annotations.Warmup;
 import org.openjdk.jmh.infra.Blackhole;
 import java.util.concurrent.TimeUnit;
 
-@State(Scope.Thread)
-@Fork(1)
-@Warmup(iterations = 1)
-@Measurement(iterations = 1)
+@State(Scope.Benchmark)
 @BenchmarkMode(Mode.AverageTime)
 @OutputTimeUnit(TimeUnit.NANOSECONDS)
+@Fork(value = 1)
+@Warmup(iterations = 5)
+@Measurement(iterations = 10)
 public class CalculatorBenchmark {
 
     private Calculator calculator;
-    @Param({"1", "10", "100"})
-    private int a;
-    @Param({"1", "10", "100"})
-    private int b;
 
     public CalculatorBenchmark() {
-        calculator = new Calculator();
+        this.calculator = new Calculator();
     }
 
     @Benchmark
     public void add(Blackhole bh) {
-        bh.consume(calculator.add(a, b));
+        int result = calculator.add(10, 20);
+        bh.consume(result);
     }
 }
