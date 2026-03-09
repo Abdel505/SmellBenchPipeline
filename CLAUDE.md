@@ -206,19 +206,19 @@ Complete these tasks in order. Each task has subtasks to check off.
 - [x] `chmod +x generate_benchmark.sh`
 
 ### Task 3.3 — Remove Chat2UnitTest and Ju2Jmh from workflow
-- [ ] In `.github/workflows/`, remove ALL Chat2UnitTest references
-- [ ] Remove ALL Ju2Jmh references
-- [ ] Replace with calls to `generate_benchmark.sh`
-- [ ] Wire `LLM_API_KEY` from GitHub Secrets
-- [ ] Keep all other pipeline steps intact
+- [x] In `.github/workflows/`, remove ALL Chat2UnitTest references
+- [x] Remove ALL Ju2Jmh references
+- [x] Replace with calls to `generate_benchmark.sh`
+- [x] Wire `LLM_API_KEY` from GitHub Secrets
+- [x] Keep all other pipeline steps intact
 
 ### Task 3.4 — Test on a single method ✅ CHECKPOINT
-- [ ] Set `LLM_API_KEY` in terminal
-- [ ] Run: `bash generate_benchmark.sh app/src/main/java/com/pipeline/demo/Calculator.java add`
-- [ ] Verify benchmark file in `app/src/test/java/`
-- [ ] Verify `./gradlew compileTestJava` passes
-- [ ] Test a second method on a different class
-- [ ] **VERIFY**: Script produces valid, compiling JMH benchmarks
+- [x] Set `LLM_API_KEY` in terminal
+- [x] Run: `bash generate_benchmark.sh app/src/main/java/com/pipeline/demo/Calculator.java add`
+- [x] Verify benchmark file in `app/src/test/java/`
+- [x] Verify `./gradlew compileTestJava` passes
+- [x] Test a second method on a different class
+- [x] **VERIFY**: Script produces valid, compiling JMH benchmarks
 
 ---
 
