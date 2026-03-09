@@ -225,11 +225,11 @@ Complete these tasks in order. Each task has subtasks to check off.
 ## Phase 4 — Add the Performance Smell Filter
 
 ### Task 4.1 — Set up AST jar
-- [ ] Place `ast-generator.jar` in `libs/` (from supervisor)
-- [ ] Analyze jar: CLI arguments, input format, output format
-- [ ] If no docs: decompile and find main class
-- [ ] Test: `java -jar libs/ast-generator.jar` on a sample file
-- [ ] Save sample output for next task
+- [x] Place `ast-generator.jar` in `libs/`
+- [x] Analyze jar: CLI arguments, input format, output format
+- [x] If no docs: decompile and find main class
+- [x] Test: `java -jar libs/ast-generator.jar` on a sample file
+- [x] Save sample output for next task
 
 ### Task 4.2 — Write filter_methods.sh
 - [ ] Create `filter_methods.sh` at project root
