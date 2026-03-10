@@ -13,8 +13,10 @@ git diff → AST analysis → smell filter → microbenchmark generation → cov
 
 ```
 SmellBenchPipeline/
-├── .github/workflows/pipeline.yml   # GitHub Actions pipeline
-├── app/                              # Simple Java app (the SUT)
+├── .github/workflows/               # GitHub Actions pipelines
+│   ├── build.yml                    # Main pipeline (build + benchmark generation)
+│   └── test_suite_executor.yml      # Scheduled test runs + matrix update
+├── app/                             # Simple Java app (the SUT)
 │   ├── build.gradle.kts
 │   └── src/
 │       ├── main/java/com/pipeline/demo/   # Production code
@@ -24,25 +26,34 @@ SmellBenchPipeline/
 │       │   ├── CollectionHelper.java
 │       │   └── MathHelper.java
 │       └── test/java/                     # Generated benchmarks go here
-├── amber-results/                    # AMBER output directory
-├── docs/                             # Developer documentation (crlf-fix.md, etc.)
-├── libs/                             # External JARs (ast-generator.jar)
-├── tools/                            # Helper scripts and utilities
-├── benchmark_tests.sh                # Benchmark execution script
-├── modified_classes_detector.sh      # Git diff → changed classes
-├── test_case_selection.sh            # Coverage matrix query script
-├── generate_benchmark.sh             # Chat2Benchmark with 10-retry
-├── filter_methods.sh                 # Smell filter orchestration (smelly vs clean split)
-├── smell_rules.sh                    # Project-specific smell detection rules (sourced by filter_methods.sh)
-├── update_coverage_matrix.sh         # Matrix CRUD (add/modify/delete)
-├── coverage-matrix.csv               # Maps production methods → benchmark classes
-├── build.gradle.kts                  # Root Gradle build file
-├── settings.gradle.kts               # Gradle settings
-├── gradlew / gradlew.bat             # Gradle wrapper
-├── jmh-result.json                   # JMH benchmark results
-├── REFERENCE.md                      # Pipeline documentation
-├── VALIDATION_REPORT.md              # Final validation report
-└── CLAUDE.md                         # This file
+├── scripts/                         # All shell scripts
+│   ├── filter_methods.sh            # Smell filter orchestration (smelly vs clean split)
+│   ├── smell_rules.sh               # Project-specific smell detection rules (sourced by filter_methods.sh)
+│   ├── generate_benchmark.sh        # Chat2Benchmark with 10-retry
+│   ├── benchmark_tests.sh           # JMH benchmark execution
+│   ├── modified_classes_detector.sh # Git diff → changed classes
+│   ├── test_case_selection.sh       # Coverage matrix query
+│   ├── update_coverage_matrix.sh    # Matrix CRUD (add/modify/delete)
+│   └── test_generate.sh             # Manual test helper
+├── pipeline-output/                 # Runtime artifacts produced by pipeline
+│   ├── added_methods.txt
+│   ├── modified_methods.txt
+│   ├── deleted_methods.txt
+│   ├── smelly_methods.txt
+│   └── clean_methods.txt
+├── data/                            # Persistent data files
+│   ├── coverage-matrix.csv          # Maps production methods → benchmark classes
+│   └── jmh-result.json             # JMH benchmark results
+├── docs/                            # Developer documentation
+│   ├── REFERENCE.md                 # Pipeline documentation
+│   ├── VALIDATION_REPORT.md         # Final validation report
+│   └── crlf-fix.md                  # CRLF line ending fix guide
+├── amber-results/                   # AMBER statistical analysis output
+├── libs/                            # External JARs (ast-generator.jar, chat2benchmark.jar)
+├── build.gradle.kts                 # Root Gradle build file
+├── settings.gradle.kts              # Gradle settings
+├── gradlew / gradlew.bat            # Gradle wrapper
+└── CLAUDE.md                        # This file
 ```
 
 ## Tech Stack

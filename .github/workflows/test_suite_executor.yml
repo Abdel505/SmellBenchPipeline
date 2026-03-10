@@ -48,7 +48,7 @@ jobs:
       - name: Commit coverage matrix changes
         if: github.event_name == 'schedule'
         run: |
-          git add coverage-matrix.csv
+          git add data/coverage-matrix.csv
           git diff --cached --quiet && echo "No changes to commit" && exit 0
           git commit -m "Update coverage matrix [skip ci]"
 

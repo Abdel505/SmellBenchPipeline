@@ -40,19 +40,19 @@ jobs:
 
       - name: Set execute permission for pipeline scripts
         run: |
-          chmod +x modified_classes_detector.sh
-          chmod +x benchmark_tests.sh
-          chmod +x test_case_selection.sh
-          chmod +x generate_benchmark.sh
+          chmod +x scripts/modified_classes_detector.sh
+          chmod +x scripts/benchmark_tests.sh
+          chmod +x scripts/test_case_selection.sh
+          chmod +x scripts/generate_benchmark.sh
 
       - name: Run Modified Classes Detector
-        run: ./modified_classes_detector.sh
+        run: bash scripts/modified_classes_detector.sh
         env:
           ACTIONS_TOKEN: ${{ secrets.ACTIONS_TOKEN }}
 
       - name: Generate Benchmarks for Smelly Methods
         run: |
-          if [[ ! -f smelly_methods.txt ]]; then
+          if [[ ! -f pipeline-output/smelly_methods.txt ]]; then
             echo "No smelly_methods.txt found — skipping benchmark generation (filter not yet run)"
             exit 0
           fi
@@ -60,8 +60,8 @@ jobs:
             java_file="$(echo "$java_file" | xargs)"
             method="$(echo "$method" | xargs)"
             echo "Generating benchmark for $java_file :: $method"
-            bash generate_benchmark.sh "$java_file" "$method"
-          done < smelly_methods.txt
+            bash scripts/generate_benchmark.sh "$java_file" "$method"
+          done < pipeline-output/smelly_methods.txt
         env:
           LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
           LLM_ENDPOINT: ${{ secrets.LLM_ENDPOINT }}
