@@ -25,14 +25,17 @@ SmellBenchPipeline/
 │       │   └── MathHelper.java
 │       └── test/java/                     # Generated benchmarks go here
 ├── amber-results/                    # AMBER output directory
-├── libs/                             # External JARs (AST jar, etc.)
+├── docs/                             # Developer documentation (crlf-fix.md, etc.)
+├── libs/                             # External JARs (ast-generator.jar)
 ├── tools/                            # Helper scripts and utilities
 ├── benchmark_tests.sh                # Benchmark execution script
 ├── modified_classes_detector.sh      # Git diff → changed classes
 ├── test_case_selection.sh            # Coverage matrix query script
 ├── generate_benchmark.sh             # Chat2Benchmark with 10-retry
-├── filter_methods.sh                 # Smell filter (smelly vs clean split)
+├── filter_methods.sh                 # Smell filter orchestration (smelly vs clean split)
+├── smell_rules.sh                    # Project-specific smell detection rules (sourced by filter_methods.sh)
 ├── update_coverage_matrix.sh         # Matrix CRUD (add/modify/delete)
+├── coverage-matrix.csv               # Maps production methods → benchmark classes
 ├── build.gradle.kts                  # Root Gradle build file
 ├── settings.gradle.kts               # Gradle settings
 ├── gradlew / gradlew.bat             # Gradle wrapper
@@ -58,9 +61,10 @@ SmellBenchPipeline/
 | Tool | Purpose | Location |
 |------|---------|----------|
 | Chat2Benchmark | Generate JMH microbenchmarks via LLM | `../chat2benchmark/` |
-| AST jar | Analyze Java code, detect performance smells | `libs/ast-generator.jar` |
+| AST jar | Git diff → added/modified/deleted method lists | `libs/ast-generator.jar` |
+| smell_rules.sh | Project-specific performance smell detection | `smell_rules.sh` (sourced by filter_methods.sh) |
 | AMBER | Statistical analysis of JMH results | Configured in workflow |
-| Coverage Matrix | Maps production methods → benchmark classes | Root directory |
+| Coverage Matrix | Maps production methods → benchmark classes | `coverage-matrix.csv` |
 
 ## Environment Variables
 
@@ -72,10 +76,13 @@ SmellBenchPipeline/
 - Production code lives in `app/src/main/java/com/pipeline/demo/`
 - Generated benchmarks go to `app/src/test/java/` with JMH annotations
 - Shell scripts use `set -euo pipefail` and are executable (`chmod +x`)
+- **All shell scripts must use LF line endings** — CRLF causes `$'\r': command not found` on WSL. Fix with `tr -d '\r' < file > /tmp/f && cp /tmp/f file`. See `docs/crlf-fix.md`.
 - Coverage matrix rows map: `production_class | method | benchmark_class`
 - Deleted methods ALWAYS go through the full pipeline (never skipped)
 - Non-smelly added/modified methods skip benchmark generation (go to push)
 - Smelly methods + deleted methods continue through the pipeline
+- Smell detection rules live in `smell_rules.sh` (not in `filter_methods.sh`) — swap this file to change rules per project
+- Smell checks (Smells 1 & 2) run against **loop body only** (via `extract_loop_bodies()`), not the full method body, to avoid false positives
 
 ## Pipeline Flow (Detailed)
 
@@ -92,7 +99,7 @@ SmellBenchPipeline/
 
 ## Task Reference
 
-When working on this project, follow the tasks in `tasks.md` sequentially. Each phase builds on the previous one.
+All implementation tasks are in this file under `# Implementation Tasks`. Follow them sequentially — each phase builds on the previous one.
 
 ---
 
