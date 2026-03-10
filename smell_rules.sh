@@ -25,6 +25,27 @@ extract_method_body() {
     ' "$file"
 }
 
+# --- Extract only lines that are inside loop blocks ---
+# Uses brace counting to isolate for/while body content
+extract_loop_bodies() {
+    local body="$1"
+    echo "$body" | awk '
+    BEGIN { in_loop=0; depth=0 }
+    !in_loop && /\b(for|while)\s*\(/ { in_loop=1; depth=0 }
+    in_loop {
+        print
+        for (i=1; i<=length($0); i++) {
+            c = substr($0, i, 1)
+            if (c == "{") depth++
+            if (c == "}") {
+                depth--
+                if (depth == 0) { in_loop=0; depth=0 }
+            }
+        }
+    }
+    '
+}
+
 # --- Smell detection on method body ---
 # Returns 0 (smelly) or 1 (clean)
 is_smelly() {
@@ -38,16 +59,19 @@ is_smelly() {
         return 1
     fi
 
+    local loop_bodies
+    loop_bodies="$(extract_loop_bodies "$body")"
+
     # Smell 1: String concatenation in loop
-    if echo "$body" | grep -qE '(for|while)\s*\(' && \
-       echo "$body" | grep -qE '"\s*\+|(\+=\s*[a-zA-Z"])'; then
+    if [[ -n "$loop_bodies" ]] && \
+       echo "$loop_bodies" | grep -qE '"\s*\+|(\+=\s*[a-zA-Z"])'; then
         log "  [SMELLY] $method — string concatenation in loop"
         return 0
     fi
 
-    # Smell 2: Object creation inside loop
-    if echo "$body" | grep -qE '(for|while)\s*\(' && \
-       echo "$body" | grep -qE '\bnew\s+[A-Z][a-zA-Z0-9]*\s*\('; then
+    # Smell 2: Object creation inside loop (checked only within loop body)
+    if [[ -n "$loop_bodies" ]] && \
+       echo "$loop_bodies" | grep -qE '\bnew\s+[A-Z][a-zA-Z0-9]*\s*\('; then
         log "  [SMELLY] $method — object creation inside loop"
         return 0
     fi

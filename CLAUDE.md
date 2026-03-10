@@ -244,12 +244,12 @@ Complete these tasks in order. Each task has subtasks to check off.
 - [x] Handle edge cases: empty input, all clean, all smelly
 
 ### Task 4.3 — Test filter ✅ CHECKPOINT
-- [ ] Create `sample_ast_output.json` with 3 added, 2 modified, 1 deleted methods
-- [ ] Run: `bash filter_methods.sh sample_ast_output.json`
-- [ ] Verify `smelly_methods.txt` has smelly + deleted
-- [ ] Verify `clean_methods.txt` has non-smelly only
-- [ ] Verify deleted method is NEVER in clean
-- [ ] **VERIFY**: Filter correctly classifies all methods
+- [x] Create input files: 3 added, 2 modified, 1 deleted methods
+- [x] Run: `bash filter_methods.sh added_methods.txt modified_methods.txt deleted_methods.txt`
+- [x] Verify `smelly_methods.txt` has smelly + deleted
+- [x] Verify `clean_methods.txt` has non-smelly only
+- [x] Verify deleted method is NEVER in clean
+- [x] **VERIFY**: Filter correctly classifies all methods
 
 ---
 
