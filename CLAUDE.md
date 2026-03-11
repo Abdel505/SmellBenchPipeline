@@ -64,7 +64,7 @@ SmellBenchPipeline/
 - **JaCoCo** for coverage
 - **Chat2Benchmark** for LLM-based benchmark generation (lives at `../chat2benchmark/`)
 - **AST jar** in `libs/` for code analysis and smell detection
-- **AMBER** for statistical analysis of benchmark results
+- **AMBER** — AI-enabled extension of JMH; uses Time Series Classification (OSCNN, FCN, ROCKET) to auto-detect steady-state and dynamically halt warm-up iterations, reducing benchmark runtime
 - **GitHub Actions** for CI/CD pipeline
 
 ## Key Tools
@@ -74,7 +74,7 @@ SmellBenchPipeline/
 | Chat2Benchmark | Generate JMH microbenchmarks via LLM | `../chat2benchmark/` |
 | AST jar | Git diff → added/modified/deleted method lists | `libs/ast-generator.jar` |
 | smell_rules.sh | Project-specific performance smell detection | `smell_rules.sh` (sourced by filter_methods.sh) |
-| AMBER | Statistical analysis of JMH results | Configured in workflow |
+| AMBER | AI-enabled JMH extension; uses TSC (OSCNN/FCN/ROCKET) to auto-detect steady-state and halt warm-up early | Configured in workflow (`@DynamicHalt` / `-hmodel`) |
 | Coverage Matrix | Maps production methods → benchmark classes | `coverage-matrix.csv` |
 
 ## Environment Variables
