@@ -1,1 +1,2 @@
 production_class|method|benchmark_class
+app/src/main/java/com/pipeline/demo/StringUtils.java|countVowels|StringUtilsBenchmark

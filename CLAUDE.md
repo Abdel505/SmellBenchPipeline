@@ -250,7 +250,7 @@ Complete these tasks in order. Each task has subtasks to check off.
 - [x] Save sample output for next task
 
 ### Task 4.2 — Write filter_methods.sh
-- [x] Create `filter_methods.sh` at project root
+- [x] Create `filter_methods.sh` in `scripts/`
 - [x] Accept AST output file as input
 - [x] Parse AST output format
 - [x] Run smell detection on each method
@@ -274,25 +274,26 @@ Complete these tasks in order. Each task has subtasks to check off.
 ## Phase 5 — Adapt the Coverage Matrix Logic
 
 ### Task 5.1 — Analyze EvoBench matrix format
-- [ ] Document: file format, columns, method-to-test mapping, update mechanism
-- [ ] Document how `test_case_selection.sh` queries the matrix
+- [x] Document: file format, columns, method-to-test mapping, update mechanism
+- [x] Document how `test_case_selection.sh` queries the matrix
+- [x] See `docs/coverage-matrix-analysis.md`
 
 ### Task 5.2 — Write update_coverage_matrix.sh
-- [ ] Create `update_coverage_matrix.sh` at project root
-- [ ] Handle MODIFIED: query matrix → delete old benchmarks → call `generate_benchmark.sh` → update rows
-- [ ] Handle DELETED: query matrix → delete benchmark files → remove rows
-- [ ] Handle ADDED: call `generate_benchmark.sh` → add new row
-- [ ] Accept method list + action type as args
-- [ ] Save matrix and git commit after changes
-- [ ] Error handling: log failures, continue to next method
-- [ ] Handle empty method lists gracefully
-- [ ] `chmod +x update_coverage_matrix.sh`
+- [x] Create `update_coverage_matrix.sh` at project root
+- [x] Handle MODIFIED: atomic backup-then-swap (Risk #1 mitigation) — generate first, rollback on failure - (READ docs/modified-method-risk-fix.md for more details)
+- [x] Handle DELETED: query matrix → delete benchmark files → remove rows
+- [x] Handle ADDED: call `generate_benchmark.sh` → add new row
+- [x] Accept smelly_file + deleted_file as args; auto-detect ADDED vs MODIFIED via matrix lookup
+- [x] Error handling: log failures, continue to next method, exit non-zero on any error
+- [x] Handle empty method lists gracefully
+- [x] `chmod +x update_coverage_matrix.sh`
 
 ### Task 5.3 — Update test_case_selection.sh
-- [ ] Adapt for microbenchmarks (not unit tests)
-- [ ] Query matrix, return benchmark class names for a production method
-- [ ] Handle "method not found" gracefully
-- [ ] `chmod +x test_case_selection.sh`
+- [x] Adapt for microbenchmarks (not unit tests)
+- [x] Query matrix, return benchmark class names for a production method
+- [x] Handle "method not found" gracefully (exit 1, log to stderr)
+- [x] `chmod +x test_case_selection.sh`
+- [x] Supports both FQN form and java_file+method form
 
 ### Task 5.4 — Integration test ✅ CHECKPOINT
 - [ ] Create `test_matrix_flow.sh`
@@ -303,7 +304,7 @@ Complete these tasks in order. Each task has subtasks to check off.
 - [ ] **VERIFY**: Full CRUD lifecycle works
 
 ---
-
+** Should adjust the  AMBER integration onthe phase 6 **
 ## Phase 6 — Rewire the GitHub Actions Workflow
 
 ### Task 6.1 — Write complete pipeline.yml

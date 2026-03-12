@@ -12,11 +12,11 @@ public class StringUtils {
     }
 
     public int countVowels(String s) {
-        int count = 0;
+        String found = "";
         for (char c : s.toLowerCase().toCharArray()) {
-            if ("aeiou".indexOf(c) >= 0) count++;
+            if ("aeiou".indexOf(c) >= 0) found += c;   // smell: string concat in loop
         }
-        return count;
+        return found.length();
     }
 
     public String capitalize(String s) {
