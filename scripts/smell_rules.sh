@@ -31,7 +31,7 @@ extract_loop_bodies() {
     local body="$1"
     echo "$body" | awk '
     BEGIN { in_loop=0; depth=0 }
-    !in_loop && /\b(for|while)\s*\(/ { in_loop=1; depth=0 }
+    !in_loop && /(^|[[:space:]])(for|while)[[:space:]]*\(/ { in_loop=1; depth=0 }
     in_loop {
         print
         for (i=1; i<=length($0); i++) {
