@@ -296,12 +296,12 @@ Complete these tasks in order. Each task has subtasks to check off.
 - [x] Supports both FQN form and java_file+method form
 
 ### Task 5.4 — Integration test ✅ CHECKPOINT
-- [ ] Create `test_matrix_flow.sh`
-- [ ] Simulate ADD → verify benchmark + matrix row created
-- [ ] Simulate MODIFY → verify old replaced, row updated (not duplicated)
-- [ ] Simulate DELETE → verify benchmark + row removed
-- [ ] Verify no orphaned rows or files at end
-- [ ] **VERIFY**: Full CRUD lifecycle works
+- [x] Create `test_matrix_flow.sh`
+- [x] Simulate ADD → verify benchmark + matrix row created
+- [x] Simulate MODIFY → verify old replaced, row updated (not duplicated)
+- [x] Simulate DELETE → verify benchmark + row removed
+- [x] Verify no orphaned rows or files at end
+- [x] **VERIFY**: Full CRUD lifecycle works — 24/24 tests PASS
 
 ---
 ** Should adjust the  AMBER integration onthe phase 6 **
