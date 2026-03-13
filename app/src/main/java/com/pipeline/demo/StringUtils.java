@@ -14,7 +14,7 @@ public class StringUtils {
     public int countVowels(String s) {
         String found = "";
         for (char c : s.toLowerCase().toCharArray()) {
-            if ("aeiou".indexOf(c) >= 0) found += c;   // smell: string concat in loop
+            if ("aeiou".indexOf(c) >= 0) found += c;   // smell: string concat in loop (v2)
         }
         return found.length();
     }
