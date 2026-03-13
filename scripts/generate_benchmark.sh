@@ -1,6 +1,14 @@
 #!/bin/bash
 set -euo pipefail
 
+# --- Load local secrets if .env exists ---
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+if [[ -f "${ROOT_DIR}/.env" ]]; then
+  set -o allexport
+  source "${ROOT_DIR}/.env"
+  set +o allexport
+fi
+
 # --- Args validation ---
 if [[ $# -lt 2 ]]; then
   echo "Usage: $0 <java_source_file> <method_name>"

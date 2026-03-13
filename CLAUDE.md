@@ -71,7 +71,7 @@ SmellBenchPipeline/
 
 | Tool | Purpose | Location |
 |------|---------|----------|
-| Chat2Benchmark | Generate JMH microbenchmarks via LLM | `../chat2benchmark/` |
+| Chat2Benchmark | Generate JMH microbenchmarks via LLM | `libs/chat2benchmark.jar` |
 | AST jar | Git diff → added/modified/deleted method lists | `libs/ast-generator.jar` |
 | smell_rules.sh | Project-specific performance smell detection | `smell_rules.sh` (sourced by filter_methods.sh) |
 | AMBER | AI-enabled JMH extension; uses TSC (OSCNN/FCN/ROCKET) to auto-detect steady-state and halt warm-up early | Configured in workflow (`@DynamicHalt` / `-hmodel`) |
