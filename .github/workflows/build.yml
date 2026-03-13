@@ -41,27 +41,58 @@ jobs:
       - name: Set execute permission for pipeline scripts
         run: |
           chmod +x scripts/modified_classes_detector.sh
+          chmod +x scripts/filter_methods.sh
+          chmod +x scripts/update_coverage_matrix.sh
           chmod +x scripts/benchmark_tests.sh
           chmod +x scripts/test_case_selection.sh
           chmod +x scripts/generate_benchmark.sh
+          chmod +x tools/dashboard/generate_dashboard.sh
 
       - name: Run Modified Classes Detector
         run: bash scripts/modified_classes_detector.sh
         env:
           ACTIONS_TOKEN: ${{ secrets.ACTIONS_TOKEN }}
 
-      - name: Generate Benchmarks for Smelly Methods
-        run: |
-          if [[ ! -f pipeline-output/smelly_methods.txt ]]; then
-            echo "No smelly_methods.txt found — skipping benchmark generation (filter not yet run)"
-            exit 0
-          fi
-          while IFS='|' read -r java_file method; do
-            java_file="$(echo "$java_file" | xargs)"
-            method="$(echo "$method" | xargs)"
-            echo "Generating benchmark for $java_file :: $method"
-            bash scripts/generate_benchmark.sh "$java_file" "$method"
-          done < pipeline-output/smelly_methods.txt
+      - name: Run Smell Filter
+        run: bash scripts/filter_methods.sh
+
+      - name: Update Coverage Matrix (smelly + deleted methods)
+        run: bash scripts/update_coverage_matrix.sh
         env:
           LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
           LLM_ENDPOINT: ${{ secrets.LLM_ENDPOINT }}
+
+      - name: Run JMH Benchmarks with AMBER
+        run: bash scripts/benchmark_tests.sh
+        env:
+          AMBER_MODEL: oscnn
+          AMBER_FORKS: "5"
+          AMBER_WI: "1"
+          AMBER_WTIME: "1s"
+          AMBER_MI: "2"
+          AMBER_MTIME: "1s"
+          AMBER_TIMEOUT: "1m"
+          RUN_AMBER: "1"
+
+      - name: Compile and run tests
+        run: ./gradlew :app:test
+
+      - name: Commit and push results
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add data/coverage-matrix.csv data/jmh-result.json \
+                  amber-results/ app/src/test/java/ || true
+          git diff --cached --quiet || \
+            git commit -m "chore: update benchmark results [skip ci]"
+          git push
+
+      - name: Upload benchmark artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-results-${{ github.sha }}
+          path: |
+            data/jmh-result.json
+            amber-results/
+          retention-days: 30
