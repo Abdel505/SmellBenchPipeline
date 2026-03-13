@@ -2,98 +2,68 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-AMBER_JAR="${ROOT_DIR}/libs/jmh-core-1.37-all.jar"
-AMBER_MODEL="${AMBER_MODEL:-oscnn}"
-AMBER_HOST="${AMBER_HOST:-localhost}"
-AMBER_PORT="${AMBER_PORT:-5001}"
-AMBER_FORKS="${AMBER_FORKS:-5}"
-AMBER_WI="${AMBER_WI:-1}"
-AMBER_WTIME="${AMBER_WTIME:-1s}"
-AMBER_MI="${AMBER_MI:-2}"
-AMBER_MTIME="${AMBER_MTIME:-1s}"
-AMBER_TIMEOUT="${AMBER_TIMEOUT:-1m}"
 AMBER_RESULTS="${ROOT_DIR}/amber-results"
-RUN_AMBER="${RUN_AMBER:-1}"
+OUTFILE="${ROOT_DIR}/data/jmh-result.json"
+RUN_AMBER="${RUN_AMBER:-0}"
 
-if [[ ! -f "${AMBER_JAR}" ]]; then
-  echo "[benchmark_tests] ERROR: AMBER JAR not found at ${AMBER_JAR}" >&2
+mkdir -p "${ROOT_DIR}/data" "${AMBER_RESULTS}/by-benchmark"
+
+cd "${ROOT_DIR}"
+
+echo "[benchmark_tests] Running JMH benchmarks via Gradle jmhRun..."
+echo "[benchmark_tests] RUN_AMBER=${RUN_AMBER} (set RUN_AMBER=1 to enable AMBER server flags)"
+
+# Gradle jmhRun handles classpath + BenchmarkList correctly.
+# AMBER flags (-hmodel/-hhost/-hport) are passed through env vars and added
+# by the jmhRun task only when RUN_AMBER=1.
+./gradlew :app:jmhRun
+
+if [[ ! -f "${OUTFILE}" ]]; then
+  echo "[benchmark_tests] ERROR: expected ${OUTFILE} was not produced." >&2
   exit 1
 fi
 
-echo "[benchmark_tests] Building test classes..."
-cd "${ROOT_DIR}"
-./gradlew :app:testClasses -q
-
-# Build classpath: AMBER JAR + compiled test + main classes
-TEST_CP_DIRS=""
-for d in app/build/classes/java/test app/build/classes/java/main; do
-  [[ -d "${ROOT_DIR}/${d}" ]] && TEST_CP_DIRS="${TEST_CP_DIRS}:${ROOT_DIR}/${d}"
-done
-# Include any JARs produced by the build
-for jar in app/build/libs/*.jar; do
-  [[ -f "${ROOT_DIR}/${jar}" ]] && TEST_CP_DIRS="${TEST_CP_DIRS}:${ROOT_DIR}/${jar}"
-done
-# Include annotation-processor generated sources (JMH generated benchmarks)
-for d in app/build/generated/sources/annotationProcessor/java/test \
-          app/build/generated-sources/annotations; do
-  [[ -d "${ROOT_DIR}/${d}" ]] && TEST_CP_DIRS="${TEST_CP_DIRS}:${ROOT_DIR}/${d}"
-done
-
-FULL_CP="${AMBER_JAR}${TEST_CP_DIRS}"
-
-TIMESTAMP="$(date +%Y%m%d_%H%M%S)"
-SHA="$(git -C "${ROOT_DIR}" rev-parse --short HEAD 2>/dev/null || echo "unknown")"
-mkdir -p "${AMBER_RESULTS}/by-benchmark"
-
-OUTFILE="${ROOT_DIR}/data/jmh-result.json"
-mkdir -p "${ROOT_DIR}/data"
-
-echo "[benchmark_tests] Running JMH benchmarks with AMBER (model=${AMBER_MODEL})..."
-java -cp "${FULL_CP}" org.openjdk.jmh.Main \
-  -rf json -rff "${OUTFILE}" \
-  -f  "${AMBER_FORKS}" \
-  -wi "${AMBER_WI}"  -w  "${AMBER_WTIME}" \
-  -i  "${AMBER_MI}"  -r  "${AMBER_MTIME}" \
-  -to "${AMBER_TIMEOUT}" -t 1 \
-  -hmodel "${AMBER_MODEL}" -hhost "${AMBER_HOST}" -hport "${AMBER_PORT}"
-
 echo "[benchmark_tests] JMH run complete. Results -> ${OUTFILE}"
 
-# Archive result with timestamp
+# Archive result with timestamp + SHA for AMBER bootstrap comparison
+TIMESTAMP="$(date +%Y%m%d_%H%M%S)"
+SHA="$(git -C "${ROOT_DIR}" rev-parse --short HEAD 2>/dev/null || echo "unknown")"
 ARCH="${AMBER_RESULTS}/result_${TIMESTAMP}_${SHA}.json"
 cp "${OUTFILE}" "${ARCH}"
 echo "[benchmark_tests] Archived -> ${ARCH}"
 
-# AMBER statistical comparison (if a previous archived result exists)
-PREV="$(ls -t "${AMBER_RESULTS}"/result_*.json 2>/dev/null | grep -v "result_${TIMESTAMP}_" | head -1 || true)"
-CURR="${ARCH}"
+# Hierarchical bootstrap comparison (if a previous archived result exists)
+PREV="$(ls -t "${AMBER_RESULTS}"/result_*.json 2>/dev/null | grep -v "${ARCH}" | head -1 || true)"
 
 if [[ -n "${PREV}" && -f "${PREV}" ]]; then
-  echo "[benchmark_tests] Running bootstrap comparison: ${PREV} vs ${CURR}"
+  echo "[benchmark_tests] Running bootstrap comparison: prev=${PREV}"
   BOOTSTRAP_OUT="${AMBER_RESULTS}/bootstrap_latest.json"
   python3 "${ROOT_DIR}/tools/bootstrap/hierarchical_bootstrap_compare.py" \
-    "${PREV}" "${CURR}" > "${BOOTSTRAP_OUT}" || echo "[benchmark_tests] WARN: bootstrap comparison failed (non-fatal)"
+    "${PREV}" "${ARCH}" > "${BOOTSTRAP_OUT}" \
+    || { echo "[benchmark_tests] WARN: bootstrap comparison failed (non-fatal)"; BOOTSTRAP_OUT=""; }
 
-  # Generate HTML dashboard
+  # HTML dashboard with comparison
   bash "${ROOT_DIR}/tools/dashboard/generate_dashboard.sh" \
     --kind "modified" \
     --bench-dir "${AMBER_RESULTS}" \
-    --json "${CURR}" \
+    --json "${ARCH}" \
     --out "${AMBER_RESULTS}/dashboard_${TIMESTAMP}.html" \
     --sha "${SHA}" \
     --ts "${TIMESTAMP}" \
-    --bootstrap-json "${BOOTSTRAP_OUT}" || echo "[benchmark_tests] WARN: dashboard generation failed (non-fatal)"
+    ${BOOTSTRAP_OUT:+--bootstrap-json "${BOOTSTRAP_OUT}"} \
+    || echo "[benchmark_tests] WARN: dashboard generation failed (non-fatal)"
 else
-  echo "[benchmark_tests] No previous result to compare against — skipping bootstrap."
+  echo "[benchmark_tests] No previous result found — skipping bootstrap."
 
-  # Generate initial dashboard (no comparison)
+  # Initial dashboard (no comparison)
   bash "${ROOT_DIR}/tools/dashboard/generate_dashboard.sh" \
     --kind "added" \
     --bench-dir "${AMBER_RESULTS}" \
-    --json "${CURR}" \
+    --json "${ARCH}" \
     --out "${AMBER_RESULTS}/dashboard_${TIMESTAMP}.html" \
     --sha "${SHA}" \
-    --ts "${TIMESTAMP}" || echo "[benchmark_tests] WARN: dashboard generation failed (non-fatal)"
+    --ts "${TIMESTAMP}" \
+    || echo "[benchmark_tests] WARN: dashboard generation failed (non-fatal)"
 fi
 
 echo "[benchmark_tests] Done."

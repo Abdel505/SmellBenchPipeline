@@ -20,8 +20,8 @@ dependencies {
     testImplementation("org.junit.jupiter:junit-jupiter-api:$jUnitJupiterVersion")
     testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:$jUnitJupiterVersion")
 
-    // JMH — AMBER-patched JAR (local); annotation processor from Maven for compile-time codegen
-    testImplementation(files("../libs/jmh-core-1.37-all.jar"))
+    // JMH — standard Maven JMH for consistent annotation-processing + runtime format
+    testImplementation("org.openjdk.jmh:jmh-core:$jmhVersion")
     testAnnotationProcessor("org.openjdk.jmh:jmh-generator-annprocess:$jmhVersion")
 }
 
@@ -40,14 +40,16 @@ tasks.jacocoTestReport {
     }
 }
 
-// Task to run JMH benchmarks after compiling test sources (with AMBER flags)
+// Task to run JMH benchmarks after compiling test sources
+// AMBER flags (-hmodel/-hhost/-hport) are added only when RUN_AMBER=1 (requires live AMBER server)
 tasks.register<JavaExec>("jmhRun") {
     dependsOn(tasks.testClasses)
     group = "benchmark"
-    description = "Run all JMH benchmarks with AMBER steady-state detection"
+    description = "Run all JMH benchmarks (with optional AMBER steady-state detection)"
     classpath = sourceSets.test.get().runtimeClasspath
     mainClass.set("org.openjdk.jmh.Main")
-    args(
+
+    val jmhArgs = mutableListOf(
         "-rf", "json", "-rff", "../data/jmh-result.json",
         "-f",  System.getenv("AMBER_FORKS")   ?: "5",
         "-wi", System.getenv("AMBER_WI")      ?: "1",
@@ -55,9 +57,15 @@ tasks.register<JavaExec>("jmhRun") {
         "-i",  System.getenv("AMBER_MI")      ?: "2",
         "-r",  System.getenv("AMBER_MTIME")   ?: "1s",
         "-to", System.getenv("AMBER_TIMEOUT") ?: "1m",
-        "-t",  "1",
-        "-hmodel", System.getenv("AMBER_MODEL") ?: "oscnn",
-        "-hhost",  System.getenv("AMBER_HOST")  ?: "localhost",
-        "-hport",  System.getenv("AMBER_PORT")  ?: "5001"
+        "-t",  "1"
     )
+    // AMBER-specific flags: only add when running against a live AMBER server
+    if (System.getenv("RUN_AMBER") == "1") {
+        jmhArgs += listOf(
+            "-hmodel", System.getenv("AMBER_MODEL") ?: "oscnn",
+            "-hhost",  System.getenv("AMBER_HOST")  ?: "localhost",
+            "-hport",  System.getenv("AMBER_PORT")  ?: "5001"
+        )
+    }
+    args(jmhArgs)
 }
