@@ -51,12 +51,20 @@ for attempt in $(seq 1 $MAX_ATTEMPTS); do
   java -jar "$JAR" "$INPUT_JSON" -host "$LLM_ENDPOINT" -mdl "$LLM_MODEL" || true
 
   if [[ -f "$GENERATED" ]]; then
-    log "Chat2Benchmark produced output — moving to target location"
+    log "Chat2Benchmark produced output — post-processing and moving to target location"
+
+    # Fix: inject missing package declaration (Chat2Benchmark never adds it)
+    PACKAGE_NAME="${PACKAGE_PATH//\//.}"
+    if ! grep -q "^package " "$GENERATED"; then
+      log "  Injecting missing package declaration: package ${PACKAGE_NAME};"
+      { echo "package ${PACKAGE_NAME};"; echo ""; cat "$GENERATED"; } > "${GENERATED}.fixed"
+      mv "${GENERATED}.fixed" "$GENERATED"
+    fi
+
     mkdir -p "$(dirname "$TARGET")"
     mv "$GENERATED" "$TARGET"
 
     # Clean up jmh dir left by BenchmarkFileWriter
-    # Find the jmh root (app/src/jmh) and remove if empty or fully cleaned
     JMH_DIR="$(echo "$SOURCE_FILE" | sed 's|/main/.*||')/jmh"
     if [[ -d "$JMH_DIR" ]]; then
       rm -rf "$JMH_DIR"
