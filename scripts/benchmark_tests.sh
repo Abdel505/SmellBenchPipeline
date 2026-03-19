@@ -4,9 +4,22 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 AMBER_RESULTS="${ROOT_DIR}/amber-results"
 OUTFILE="${ROOT_DIR}/data/jmh-result.json"
-RUN_AMBER="${RUN_AMBER:-0}"
+RUN_AMBER="${RUN_AMBER:-1}"
 
 mkdir -p "${ROOT_DIR}/data" "${AMBER_RESULTS}/by-benchmark"
+
+# Pre-flight: verify AMBER server is reachable when RUN_AMBER=1
+if [[ "${RUN_AMBER}" == "1" ]]; then
+  AMBER_HOST="${AMBER_HOST:-localhost}"
+  AMBER_PORT="${AMBER_PORT:-5001}"
+  echo "[benchmark_tests] Checking AMBER server at ${AMBER_HOST}:${AMBER_PORT}..."
+  if ! nc -z -w3 "${AMBER_HOST}" "${AMBER_PORT}" 2>/dev/null; then
+    echo "[benchmark_tests] ERROR: AMBER server not reachable at ${AMBER_HOST}:${AMBER_PORT}" >&2
+    echo "[benchmark_tests] Start it with: cd AMBER/jpt_service && source venv/bin/activate && python service.py" >&2
+    exit 1
+  fi
+  echo "[benchmark_tests] AMBER server is up."
+fi
 
 cd "${ROOT_DIR}"
 

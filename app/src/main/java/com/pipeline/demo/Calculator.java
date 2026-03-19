@@ -1,5 +1,7 @@
 package com.pipeline.demo;
 
+import java.util.List;
+
 public class Calculator {
 
     public int add(int a, int b) {
@@ -46,5 +48,20 @@ public class Calculator {
     public int modulo(int a, int b) {
         if (b == 0) throw new ArithmeticException("Modulo by zero");
         return a % b;
+    }
+
+    public long sumRange(int from, int to) {
+        long sum = 0;
+        for (int i = from; i <= to; i++) sum += i;
+        return sum;
+    }
+
+    public List<Integer> buildMultiples(int base, int count) {
+        List<Integer> result = new java.util.ArrayList<>();
+        for (int i = 1; i <= count; i++) {
+            Integer multiple = new Integer(base * i);
+            result.add(multiple);
+        }
+        return result;
     }
 }

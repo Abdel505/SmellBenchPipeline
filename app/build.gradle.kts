@@ -3,8 +3,12 @@ plugins {
     jacoco
 }
 
-val jmhVersion: String by rootProject.extra
-val jUnitJupiterVersion: String by rootProject.extra
+val jmhVersion = "1.37"
+val jUnitJupiterVersion = "5.10.0"
+
+repositories {
+    mavenCentral()
+}
 
 java {
     sourceCompatibility = JavaVersion.VERSION_17
@@ -20,8 +24,8 @@ dependencies {
     testImplementation("org.junit.jupiter:junit-jupiter-api:$jUnitJupiterVersion")
     testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:$jUnitJupiterVersion")
 
-    // JMH — standard Maven JMH for consistent annotation-processing + runtime format
-    testImplementation("org.openjdk.jmh:jmh-core:$jmhVersion")
+    // JMH — AMBER-extended runtime + standard annotation processor
+    testImplementation(files("../libs/jmh-core-1.37-all.jar"))
     testAnnotationProcessor("org.openjdk.jmh:jmh-generator-annprocess:$jmhVersion")
 }
 
