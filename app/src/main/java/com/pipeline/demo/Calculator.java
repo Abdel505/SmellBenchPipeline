@@ -45,11 +45,6 @@ public class Calculator {
         return a;
     }
 
-    public int modulo(int a, int b) {
-        if (b == 0) throw new ArithmeticException("Modulo by zero");
-        return a % b;
-    }
-
     public long sumRange(int from, int to) {
         long sum = 0;
         for (int i = from; i <= to; i++) sum += i;

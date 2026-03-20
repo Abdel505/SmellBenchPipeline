@@ -1,5 +1,7 @@
 package com.pipeline.demo;
 
+import java.util.List;
+
 public class StringUtils {
 
     public String reverse(String s) {
@@ -19,9 +21,20 @@ public class StringUtils {
         return found.length();
     }
 
+    // SMELL: repeated .length() call in loop condition (Smell 4)
     public String capitalize(String s) {
         if (s == null || s.isEmpty()) return s;
-        return Character.toUpperCase(s.charAt(0)) + s.substring(1).toLowerCase();
+        char[] chars = s.toLowerCase().toCharArray();
+        for (int i = 0; i < chars.length; i++) {
+            if (i == 0 || chars[i - 1] == ' ') {
+                chars[i] = Character.toUpperCase(chars[i]);
+            }
+        }
+        String result = "";
+        for (int i = 0; i < chars.length; i++) {
+            result += chars[i];
+        }
+        return result;
     }
 
     public String compress(String s) {
@@ -42,5 +55,15 @@ public class StringUtils {
     public String[] splitWords(String s) {
         if (s == null || s.trim().isEmpty()) return new String[0];
         return s.trim().split("\\s+");
+    }
+
+    // SMELL: string concatenation inside loop (Smell 1)
+    public String joinWithSeparator(List<String> items, String separator) {
+        String result = "";
+        for (int i = 0; i < items.size(); i++) {
+            result += items.get(i);
+            if (i < items.size() - 1) result += separator;
+        }
+        return result;
     }
 }
