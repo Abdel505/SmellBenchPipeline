@@ -47,9 +47,12 @@ SmellBenchPipeline/
 ├── docs/                            # Developer documentation
 │   ├── REFERENCE.md                 # Pipeline documentation
 │   ├── VALIDATION_REPORT.md         # Final validation report
-│   └── crlf-fix.md                  # CRLF line ending fix guide
+│   ├── crlf-fix.md                  # CRLF line ending fix guide
+│   └── amber-integration-fixes.md  # AMBER errors and fixes log
 ├── amber-results/                   # AMBER statistical analysis output
 ├── libs/                            # External JARs (ast-generator.jar, chat2benchmark.jar)
+│   ├── jmh-core-1.37-all.jar                    # AMBER runtime (modified JMH core)
+│   └── jmh-generator-annprocess-1.37-amber.jar  # AMBER annotation processor (must match runtime)
 ├── build.gradle.kts                 # Root Gradle build file
 ├── settings.gradle.kts              # Gradle settings
 ├── gradlew / gradlew.bat            # Gradle wrapper
@@ -74,13 +77,29 @@ SmellBenchPipeline/
 | Chat2Benchmark | Generate JMH microbenchmarks via LLM | `libs/chat2benchmark.jar` |
 | AST jar | Git diff → added/modified/deleted method lists | `libs/ast-generator.jar` |
 | smell_rules.sh | Project-specific performance smell detection | `smell_rules.sh` (sourced by filter_methods.sh) |
-| AMBER | AI-enabled JMH extension; uses TSC (OSCNN/FCN/ROCKET) to auto-detect steady-state and halt warm-up early | Configured in workflow (`@DynamicHalt` / `-hmodel`) |
+| AMBER | AI-enabled JMH extension; uses TSC (OSCNN/FCN/ROCKET) to auto-detect steady-state and halt warm-up early | Controlled via CLI flags only (`-hmodel/-hhost/-hport`), never via `@DynamicHalt` in source |
 | Coverage Matrix | Maps production methods → benchmark classes | `coverage-matrix.csv` |
 
 ## Environment Variables
 
 - `LLM_API_KEY` — API key for Chat2Benchmark LLM calls
 - `LLM_ENDPOINT` — LLM API endpoint (if configurable)
+
+### AMBER / benchmark_tests.sh variables
+
+| Variable | Default | Purpose |
+|---|---|---|
+| `RUN_AMBER` | `1` | `1` = pass `-hmodel/-hhost/-hport` to JMH; `0` = standard fixed-iteration run |
+| `AMBER_INCLUDE` | *(all)* | JMH regex filter — run a specific benchmark (e.g. `CalculatorBenchmark.buildMultiples`). Also accepted as `$1` positional arg to `benchmark_tests.sh` |
+| `AMBER_HOST` | `localhost` | AMBER server host |
+| `AMBER_PORT` | `5001` | AMBER server port |
+| `AMBER_MODEL` | `oscnn` | TSC model (`oscnn`, `fcn`, `rocket`) |
+| `AMBER_FORKS` | `5` | JMH `-f` forks |
+| `AMBER_WI` | `1` | JMH `-wi` warmup iterations (overridden to 500×100ms by AMBER when active) |
+| `AMBER_WTIME` | `1s` | JMH `-w` warmup time |
+| `AMBER_MI` | `2` | JMH `-i` measurement iterations (overridden to 100×100ms by AMBER when active) |
+| `AMBER_MTIME` | `1s` | JMH `-r` measurement time |
+| `AMBER_TIMEOUT` | `1m` | JMH `-to` per-iteration timeout |
 
 ## Important Conventions
 
@@ -94,6 +113,9 @@ SmellBenchPipeline/
 - Smelly methods + deleted methods continue through the pipeline
 - Smell detection rules live in `smell_rules.sh` (not in `filter_methods.sh`) — swap this file to change rules per project
 - Smell checks (Smells 1 & 2) run against **loop body only** (via `extract_loop_bodies()`), not the full method body, to avoid false positives
+- **AMBER must be controlled via CLI flags only** — never add `@DynamicHalt` annotations to benchmark source. The annotation takes priority over CLI flags in AMBER's 3-level resolution chain (`options → annotation → Defaults`), causing AMBER to activate even with `RUN_AMBER=0`
+- **Both JARs must be from AMBER's build** — `jmh-core-1.37-all.jar` (runtime) and `jmh-generator-annprocess-1.37-amber.jar` (annotation processor) must be kept in sync. Using the standard `jmh-generator-annprocess:1.37` from Maven Central causes `Error: unexpected tag = I` at startup because AMBER's `BenchmarkListEntry` expects 3 extra fields (`dynamicHaltHost/Port/Model`) that the standard processor never writes
+- **`benchmark_tests.sh` accepts an optional first arg** as a JMH regex filter (maps to `AMBER_INCLUDE`). Use the exact class name: `CalculatorBenchmark.buildMultiples` not `CalculatorBench.buildMultiples`
 
 ## Pipeline Flow (Detailed)
 
@@ -304,10 +326,63 @@ Complete these tasks in order. Each task has subtasks to check off.
 - [x] **VERIFY**: Full CRUD lifecycle works — 24/24 tests PASS
 
 ---
-** Should adjust the  AMBER integration onthe phase 6 **
-## Phase 6 — Rewire the GitHub Actions Workflow
 
-### Task 6.1 — Write complete pipeline.yml
+## Phase 6 — Implement benchmark_tests.sh with AMBER Integration
+
+### Task 6.1 — Set up AMBER JARs in libs/
+- [x] Copy AMBER's pre-built annotation processor (must match the runtime JAR — never use Maven Central's standard one):
+  ```bash
+  cp AMBER/jmh-1.37/jmh-generator-annprocess/target/jmh-generator-annprocess-1.37.jar \
+     libs/jmh-generator-annprocess-1.37-amber.jar
+  ```
+- [x] Verify both files are present in `libs/`:
+  - `jmh-core-1.37-all.jar` — AMBER runtime
+  - `jmh-generator-annprocess-1.37-amber.jar` — AMBER annotation processor
+- [x] Configure `app/build.gradle.kts` with both JARs for `annotationProcessor`, `testAnnotationProcessor`, `implementation`, and `testImplementation`
+
+### Task 6.2 — Configure Gradle jmhRun task
+- [x] Register a `JavaExec` task named `jmhRun` in `app/build.gradle.kts`
+- [x] Set `mainClass` to `org.openjdk.jmh.Main`, `classpath` to `sourceSets.test.get().runtimeClasspath`
+- [x] Wire all JMH params from env vars with defaults (`AMBER_FORKS`, `AMBER_WI`, `AMBER_WTIME`, `AMBER_MI`, `AMBER_MTIME`, `AMBER_TIMEOUT`)
+- [x] Add AMBER server flags (`-hmodel/-hhost/-hport`) **only when `RUN_AMBER=1`** — never unconditionally
+- [x] Add `AMBER_INCLUDE` filter: read from env var, prepend as JMH's first positional arg (must come before any `-rf`, `-f` flags)
+- [x] Output results to `../data/jmh-result.json` via `-rff`
+
+### Task 6.3 — Write benchmark_tests.sh
+- [x] Accept optional `$1` as benchmark filter, export as `AMBER_INCLUDE`
+- [x] Use `curl` (not `nc`) for AMBER server pre-flight check — `nc` is not available in WSL Ubuntu:
+  ```bash
+  if ! curl -sf --connect-timeout 3 "http://${AMBER_HOST}:${AMBER_PORT}" > /dev/null 2>&1; then
+  ```
+- [x] Run pre-flight only when `RUN_AMBER=1`, skip entirely when `RUN_AMBER=0`
+- [x] Call `./gradlew :app:jmhRun` and verify `data/jmh-result.json` is produced
+- [x] Archive result to `amber-results/result_<timestamp>_<sha>.json`
+- [x] Run hierarchical bootstrap comparison if a previous archived result exists
+- [x] Generate HTML dashboard via `tools/dashboard/generate_dashboard.sh`
+
+### Task 6.4 — Ensure generated benchmarks have no `@DynamicHalt` annotation
+- [x] Do NOT inject `@DynamicHalt` in `generate_benchmark.sh` — AMBER is activated exclusively via CLI flags (`-hmodel/-hhost/-hport`)
+- [x] Reason: AMBER's `Runner.java` resolves `dynamicHaltModel` as `options → annotation → Defaults`. If the annotation is present in the class, it wins over the missing CLI flag and AMBER activates even with `RUN_AMBER=0`
+- [x] Verify no `@DynamicHalt` import or annotation in any file under `app/src/test/`
+
+### Task 6.5 — Validate both modes ✅ CHECKPOINT
+- [x] Run `RUN_AMBER=0 bash scripts/benchmark_tests.sh` — verify:
+  - No pre-flight check line printed
+  - `The Dynamic Halt is NOT Active` printed once per benchmark
+  - Fixed iterations: 1 warmup × 1s, 2 measurement × 1s
+- [ ] Run `RUN_AMBER=1 bash scripts/benchmark_tests.sh` (start AMBER server first: `python service.py`) — verify:
+  - `[benchmark_tests] AMBER server is up.` printed
+  - Dynamic warmup (up to 500 × 100ms iterations per fork)
+  - `Halt eseguito` printed when TSC detects steady-state
+  - `amber-results/` populated with archived JSON and dashboard HTML
+- [ ] Run with filter: `RUN_AMBER=0 bash scripts/benchmark_tests.sh "CalculatorBenchmark.buildMultiples"` — verify only that method runs
+- [ ] **VERIFY**: see `docs/amber-integration-fixes.md` for a full list of pitfalls to avoid
+
+---
+
+## Phase 7 — Rewire the GitHub Actions Workflow
+
+### Task 7.1 — Write complete pipeline.yml
 - [ ] Create `.github/workflows/pipeline.yml` with full flow:
   1. Trigger: `on: push` to `main`
   2. `git diff HEAD~1 HEAD`
@@ -326,23 +401,23 @@ Complete these tasks in order. Each task has subtasks to check off.
 - [ ] Add: Artifact upload (`actions/upload-artifact@v4`)
 - [ ] Add: Error handling per step
 
-### Task 6.2 — Test locally with act
+### Task 7.2 — Test locally with act
 - [ ] Install act and Docker
 - [ ] Create `.secrets` file (add to `.gitignore`)
 - [ ] Run: `act push --secret-file .secrets`
 - [ ] Fix failures iteratively
 - [ ] Note steps that can't run locally
 
-### Task 6.3 — Push and validate ✅ CHECKPOINT
+### Task 7.3 — Push and validate ✅ CHECKPOINT
 - [ ] `git add . && git commit -m "Complete pipeline workflow" && git push`
 - [ ] Check GitHub Actions tab
 - [ ] **VERIFY**: Workflow runs with correct structure and step order
 
 ---
 
-## Phase 7 — Test on Simulated Commits
+## Phase 8 — Test on Simulated Commits
 
-### Task 7.1 — Design 8 test commits
+### Task 8.1 — Design 8 test commits
 - [ ] Commit 1: Add new method to Calculator.java (tests "added" path)
 - [ ] Commit 2: Modify existing method in StringUtils.java (tests "modified" path)
 - [ ] Commit 3: Delete a method from SortUtils.java (tests "deleted" path)
@@ -353,25 +428,25 @@ Complete these tasks in order. Each task has subtasks to check off.
 - [ ] Commit 8: Large refactor — rename + modify across classes (tests complex diff)
 - [ ] Write exact code changes for each commit
 
-### Task 7.2 — Execute commits 1–4
+### Task 8.2 — Execute commits 1–4
 - [ ] **Commit 1**: Apply change → commit → push → `gh run watch` → verify add path
 - [ ] **Commit 2**: Apply change → commit → push → watch → verify modify path (old benchmark replaced)
 - [ ] **Commit 3**: Apply change → commit → push → watch → verify delete path (benchmark + row removed)
 - [ ] **Commit 4**: Apply change → commit → push → watch → verify 3 new entries
 
-### Task 7.3 — Execute commits 5–8
+### Task 8.3 — Execute commits 5–8
 - [ ] **Commit 5**: Mixed changes → verify pipeline handles all in one run
 - [ ] **Commit 6**: Smelly method → verify filter catches it, benchmark generated
 - [ ] **Commit 7**: Remove smell → verify method now clean, skips benchmark gen
 - [ ] **Commit 8**: Large refactor → verify complex diff, matrix stays consistent
 
-### Task 7.4 — Debug and fix failures
+### Task 8.4 — Debug and fix failures
 - [ ] For each failure: copy GitHub Actions log → diagnose → fix → re-push
 - [ ] Use `gh run view --log-failed` for details
 - [ ] Document each bug and fix
 - [ ] Check for regressions after fixes
 
-### Task 7.5 — Generate VALIDATION_REPORT.md ✅ FINAL CHECKPOINT
+### Task 8.5 — Generate VALIDATION_REPORT.md ✅ FINAL CHECKPOINT
 - [ ] Verify all 8 commits processed correctly
 - [ ] Verify coverage matrix is consistent (no orphans, no duplicates)
 - [ ] Verify benchmark files follow naming conventions
