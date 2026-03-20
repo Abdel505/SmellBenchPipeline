@@ -4,7 +4,12 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 AMBER_RESULTS="${ROOT_DIR}/amber-results"
 OUTFILE="${ROOT_DIR}/data/jmh-result.json"
-RUN_AMBER="${RUN_AMBER:-1}"
+export RUN_AMBER="${RUN_AMBER:-1}"
+
+# Optional: filter to a specific benchmark. Pass as first arg or via env var AMBER_INCLUDE.
+# JMH treats this as a regex matched against "ClassName.methodName".
+# Example: RUN_AMBER=1 bash scripts/benchmark_tests.sh CalculatorBench.add
+export AMBER_INCLUDE="${1:-${AMBER_INCLUDE:-}}"
 
 mkdir -p "${ROOT_DIR}/data" "${AMBER_RESULTS}/by-benchmark"
 
@@ -25,6 +30,7 @@ cd "${ROOT_DIR}"
 
 echo "[benchmark_tests] Running JMH benchmarks via Gradle jmhRun..."
 echo "[benchmark_tests] RUN_AMBER=${RUN_AMBER} (set RUN_AMBER=1 to enable AMBER server flags)"
+echo "[benchmark_tests] AMBER_INCLUDE=${AMBER_INCLUDE:-<all benchmarks>}"
 
 # Gradle jmhRun handles classpath + BenchmarkList correctly.
 # AMBER flags (-hmodel/-hhost/-hport) are passed through env vars and added

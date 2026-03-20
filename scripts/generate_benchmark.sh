@@ -69,6 +69,38 @@ for attempt in $(seq 1 $MAX_ATTEMPTS); do
       mv "${GENERATED}.fixed" "$GENERATED"
     fi
 
+
+    # Fix: inject JMH runner imports required by the main() method
+    # Chat2Benchmark may omit these even when it generates a main() block.
+    RUNNER_IMPORTS=(
+      "import org.openjdk.jmh.runner.Runner;"
+      "import org.openjdk.jmh.runner.RunnerException;"
+      "import org.openjdk.jmh.runner.options.Options;"
+      "import org.openjdk.jmh.runner.options.OptionsBuilder;"
+    )
+    MISSING_RUNNER_IMPORTS=""
+    for imp in "${RUNNER_IMPORTS[@]}"; do
+      if ! grep -qF "$imp" "$GENERATED"; then
+        MISSING_RUNNER_IMPORTS="${MISSING_RUNNER_IMPORTS}${imp}\n"
+      fi
+    done
+    if [[ -n "$MISSING_RUNNER_IMPORTS" ]]; then
+      log "  Injecting missing JMH runner imports"
+      # Append missing imports after the last import line in the file
+      awk -v imports="$MISSING_RUNNER_IMPORTS" '
+        /^import / { last_import = NR }
+        { lines[NR] = $0 }
+        END {
+          for (i = 1; i <= NR; i++) {
+            print lines[i]
+            if (i == last_import) printf imports
+          }
+        }
+      ' "$GENERATED" > "${GENERATED}.fixed" && mv "${GENERATED}.fixed" "$GENERATED"
+      # Deduplicate import lines only, preserving all structural braces
+      awk '/^import / && seen[$0]++ { next } { print }' "$GENERATED" > "${GENERATED}.dedup" && mv "${GENERATED}.dedup" "$GENERATED"
+    fi
+
     mkdir -p "$(dirname "$TARGET")"
     mv "$GENERATED" "$TARGET"
 

@@ -20,13 +20,24 @@ jacoco {
 }
 
 dependencies {
+
     // JUnit 5
     testImplementation("org.junit.jupiter:junit-jupiter-api:$jUnitJupiterVersion")
     testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:$jUnitJupiterVersion")
 
-    // JMH — AMBER-extended runtime + standard annotation processor
+    // AMBER JAR: runtime classes (DynamicHalt, modified Runner, steady-state logic)
+    implementation(files("../libs/jmh-core-1.37-all.jar"))
     testImplementation(files("../libs/jmh-core-1.37-all.jar"))
-    testAnnotationProcessor("org.openjdk.jmh:jmh-generator-annprocess:$jmhVersion")
+
+    // AMBER-compatible annotation processor: generates BenchmarkList entries with the
+    // extra dynamicHaltHost/Port/Model fields that AMBER's BenchmarkListEntry expects.
+    // Using the standard jmh-generator-annprocess:1.37 from Maven Central causes
+    // "Error: unexpected tag = I" at runtime because the entry format is mismatched.
+    annotationProcessor(files("../libs/jmh-generator-annprocess-1.37-amber.jar"))
+    annotationProcessor(files("../libs/jmh-core-1.37-all.jar"))
+    testAnnotationProcessor(files("../libs/jmh-generator-annprocess-1.37-amber.jar"))
+    testAnnotationProcessor(files("../libs/jmh-core-1.37-all.jar"))
+
 }
 
 tasks.test {
@@ -53,6 +64,9 @@ tasks.register<JavaExec>("jmhRun") {
     classpath = sourceSets.test.get().runtimeClasspath
     mainClass.set("org.openjdk.jmh.Main")
 
+    // Optional benchmark filter: env var AMBER_INCLUDE is a JMH regex (e.g. "CalculatorBench.add")
+    val jmhInclude = System.getenv("AMBER_INCLUDE")
+
     val jmhArgs = mutableListOf(
         "-rf", "json", "-rff", "../data/jmh-result.json",
         "-f",  System.getenv("AMBER_FORKS")   ?: "5",
@@ -71,5 +85,7 @@ tasks.register<JavaExec>("jmhRun") {
             "-hport",  System.getenv("AMBER_PORT")  ?: "5001"
         )
     }
-    args(jmhArgs)
+    // Prepend the include pattern as JMH's positional arg (must come before flags)
+    val finalArgs = if (!jmhInclude.isNullOrBlank()) listOf(jmhInclude) + jmhArgs else jmhArgs
+    args(finalArgs)
 }

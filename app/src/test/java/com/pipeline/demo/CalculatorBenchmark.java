@@ -11,32 +11,36 @@ import org.openjdk.jmh.annotations.Scope;
 import org.openjdk.jmh.annotations.State;
 import org.openjdk.jmh.annotations.Warmup;
 import org.openjdk.jmh.infra.Blackhole;
-
+import java.util.List;
 import java.util.concurrent.TimeUnit;
+import org.openjdk.jmh.runner.Runner;
+import org.openjdk.jmh.runner.RunnerException;
+import org.openjdk.jmh.runner.options.Options;
+import org.openjdk.jmh.runner.options.OptionsBuilder;
 
+@State(Scope.Thread)
 @Fork(1)
 @Warmup(iterations = 5)
 @Measurement(iterations = 10)
 @BenchmarkMode(Mode.AverageTime)
 @OutputTimeUnit(TimeUnit.NANOSECONDS)
-@State(Scope.Thread)
 public class CalculatorBenchmark {
 
     private Calculator calculator;
 
     public CalculatorBenchmark() {
-        this.calculator = new Calculator();
+        calculator = new Calculator();
     }
 
-    @Param({"1", "10", "100"})
-    private int from;
+    @Param({"10"})
+    private int base;
 
-    @Param({"10", "100", "1000"})
-    private int to;
+    @Param({"1000"})
+    private int count;
 
     @Benchmark
-    public void sumRange(Blackhole bh) {
-        long result = calculator.sumRange(from, to);
+    public void buildMultiples(Blackhole bh) {
+        List<Integer> result = calculator.buildMultiples(base, count);
         bh.consume(result);
     }
 }
