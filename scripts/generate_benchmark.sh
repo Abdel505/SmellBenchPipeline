@@ -36,10 +36,23 @@ JAR="$(realpath "libs/chat2benchmark.jar")"
 LLM_MODEL="${LLM_MODEL:-llama-3.3-70b-versatile}"
 MAX_ATTEMPTS=10
 
+# --- Convert WSL path to Windows path for Java on Windows ---
+# WSL mounts drives as /c/, /d/, etc. Windows JRE turns /c/... into \c\... (no drive letter).
+# We convert /c/foo -> C:/foo so Files.readString() resolves correctly.
+to_win_path() {
+  local p="$1"
+  if [[ "$p" =~ ^/([a-zA-Z])/(.*) ]]; then
+    echo "${BASH_REMATCH[1]^^}:/${BASH_REMATCH[2]}"
+  else
+    echo "$p"
+  fi
+}
+SOURCE_FILE_WIN="$(to_win_path "$SOURCE_FILE")"
+
 # --- Input JSON (value must be a JSON array, not a string) ---
 INPUT_JSON="$(mktemp /tmp/c2b_input_XXXXXX.json)"
 trap 'rm -f "$INPUT_JSON"' EXIT
-printf '{ "%s": ["%s"] }\n' "$SOURCE_FILE" "$METHOD" > "$INPUT_JSON"
+printf '{ "%s": ["%s"] }\n' "$SOURCE_FILE_WIN" "$METHOD" > "$INPUT_JSON"
 
 log() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*"; }
 

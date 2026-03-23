@@ -48,7 +48,7 @@ process_method() {
     # Deleted always goes to smelly
     if [[ "$action" == "deleted" ]]; then
         log "  [SMELLY] $method — deleted method always triggers pipeline"
-        echo "$entry" >> "$SMELLY_OUT"
+        echo "${entry} | ${action}" >> "$SMELLY_OUT"
         return
     fi
 
@@ -59,7 +59,7 @@ process_method() {
     fi
 
     if is_smelly "$java_file" "$method"; then
-        echo "$entry" >> "$SMELLY_OUT"
+        echo "${entry} | ${action}" >> "$SMELLY_OUT"
     else
         log "  [CLEAN] $method — no performance smell detected"
         echo "$entry" >> "$CLEAN_OUT"

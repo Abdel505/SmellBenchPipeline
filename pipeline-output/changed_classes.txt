@@ -1,1 +1,2 @@
 com/pipeline/demo/Calculator
+com/pipeline/demo/StringUtils

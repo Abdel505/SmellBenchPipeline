@@ -25,13 +25,15 @@ log() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*"; }
 # Parsing helpers
 # ---------------------------------------------------------------------------
 
-# Parse "java_file | method" entry → echo "java_file|method" (no spaces)
+# Parse "java_file | method | type" entry → echo "java_file|method|type" (no spaces)
+# type field is optional for backward compatibility; defaults to empty string
 parse_filter_entry() {
     local entry="$1"
-    local java_file method
+    local java_file method type
     java_file="$(echo "$entry" | cut -d'|' -f1 | xargs)"
     method="$(echo "$entry"   | cut -d'|' -f2 | xargs)"
-    echo "${java_file}|${method}"
+    type="$(echo "$entry"     | cut -d'|' -f3 | xargs)"
+    echo "${java_file}|${method}|${type}"
 }
 
 # Parse FQN (com.pipeline.demo.Calculator.add) → echo "java_file|method"
@@ -198,14 +200,14 @@ declare -A DELETED_SET
 
 if [[ -f "$DELETED_FILE" && -s "$DELETED_FILE" ]]; then
     log "--- Processing DELETED methods ---"
-    while IFS= read -r line; do
+    while IFS= read -r line <&3; do
         [[ -z "$line" ]] && continue
         parsed="$(parse_fqn_entry "$line")"
         java_file="$(echo "$parsed" | cut -d'|' -f1)"
         method="$(echo "$parsed"   | cut -d'|' -f2)"
         DELETED_SET["$parsed"]=1
         handle_deleted "$java_file" "$method" || ERRORS=$((ERRORS + 1))
-    done < "$DELETED_FILE"
+    done 3< "$DELETED_FILE"
 else
     log "No deleted methods."
 fi
@@ -214,25 +216,36 @@ fi
 # Skip any entry that was already handled as DELETED above.
 if [[ -f "$SMELLY_FILE" && -s "$SMELLY_FILE" ]]; then
     log "--- Processing SMELLY (added/modified) methods ---"
-    while IFS= read -r line; do
+    while IFS= read -r line <&3; do
         [[ -z "$line" ]] && continue
         parsed="$(parse_filter_entry "$line")"
         java_file="$(echo "$parsed" | cut -d'|' -f1)"
         method="$(echo "$parsed"   | cut -d'|' -f2)"
+        type="$(echo "$parsed"     | cut -d'|' -f3)"
 
         # Skip deleted entries (already handled in step 1)
-        if [[ -n "${DELETED_SET[$parsed]+_}" ]]; then
+        key="${java_file}|${method}"
+        if [[ -n "${DELETED_SET[$key]+_}" ]]; then
             log "  [SKIP] ${method} was deleted — not re-adding"
             continue
         fi
 
-        # Auto-detect: ADDED if no matrix row exists, else MODIFIED
-        if grep -qF "${java_file}|${method}|" "$MATRIX" 2>/dev/null; then
+        # Route by type field written by filter_methods.sh.
+        # Fallback to matrix lookup for backward compatibility (no type field).
+        if [[ "$type" == "modified" ]]; then
             handle_modified "$java_file" "$method" || ERRORS=$((ERRORS + 1))
-        else
+        elif [[ "$type" == "added" ]]; then
             handle_added "$java_file" "$method" || ERRORS=$((ERRORS + 1))
+        else
+            # Legacy format (no type field): fall back to matrix-based detection
+            log "  [WARN] No type field for ${method} — falling back to matrix detection"
+            if grep -qF "${java_file}|${method}|" "$MATRIX" 2>/dev/null; then
+                handle_modified "$java_file" "$method" || ERRORS=$((ERRORS + 1))
+            else
+                handle_added "$java_file" "$method" || ERRORS=$((ERRORS + 1))
+            fi
         fi
-    done < "$SMELLY_FILE"
+    done 3< "$SMELLY_FILE"
 else
     log "No smelly methods."
 fi

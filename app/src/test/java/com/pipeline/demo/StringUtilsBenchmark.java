@@ -13,8 +13,12 @@ import org.openjdk.jmh.annotations.Warmup;
 import org.openjdk.jmh.infra.Blackhole;
 
 import java.util.concurrent.TimeUnit;
+import org.openjdk.jmh.runner.Runner;
+import org.openjdk.jmh.runner.RunnerException;
+import org.openjdk.jmh.runner.options.Options;
+import org.openjdk.jmh.runner.options.OptionsBuilder;
 
-@State(Scope.Thread)
+@State(Scope.Benchmark)
 @Fork(1)
 @Warmup(iterations = 5)
 @Measurement(iterations = 10)
@@ -23,10 +27,10 @@ import java.util.concurrent.TimeUnit;
 public class StringUtilsBenchmark {
 
     private StringUtils stringUtils = new StringUtils();
-    private String testString = "Hello World";
+    private String input = "hello world";
 
     @Benchmark
-    public void countVowels(Blackhole bh) {
-        bh.consume(stringUtils.countVowels(testString));
+    public void benchmarkCapitalize(Blackhole bh) {
+        bh.consume(stringUtils.capitalize(input));
     }
 }
