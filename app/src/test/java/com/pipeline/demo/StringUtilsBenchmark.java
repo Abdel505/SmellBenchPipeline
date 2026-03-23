@@ -10,7 +10,6 @@ import org.openjdk.jmh.annotations.Param;
 import org.openjdk.jmh.annotations.Scope;
 import org.openjdk.jmh.annotations.State;
 import org.openjdk.jmh.annotations.Warmup;
-import org.openjdk.jmh.infra.Blackhole;
 
 import java.util.concurrent.TimeUnit;
 import org.openjdk.jmh.runner.Runner;
@@ -30,7 +29,7 @@ public class StringUtilsBenchmark {
     private String input = "hello world";
 
     @Benchmark
-    public void benchmarkCapitalize(Blackhole bh) {
-        bh.consume(stringUtils.capitalize(input));
+    public String capitalize() {
+        return stringUtils.capitalize(input);
     }
 }
