@@ -11,7 +11,7 @@ fi
 
 # --- Args validation ---
 if [[ $# -lt 2 ]]; then
-  echo "Usage: $0 <java_source_file> <method_name>"
+  echo "Usage: $0 <java_source_file> <method_name> [method_name2 ...]"
   echo "  Example: $0 app/src/main/java/com/pipeline/demo/Calculator.java add"
   exit 1
 fi
@@ -22,7 +22,8 @@ fi
 
 # --- Path derivation ---
 SOURCE_FILE="$(realpath "$1")"
-METHOD="$2"
+shift
+METHODS=("$@")   # all remaining args are method names
 CLASS_NAME="$(basename "$SOURCE_FILE" .java)"
 PACKAGE_PATH="$(dirname "$SOURCE_FILE" | sed 's|.*/main/java/||')"
 
@@ -49,21 +50,31 @@ to_win_path() {
 }
 SOURCE_FILE_WIN="$(to_win_path "$SOURCE_FILE")"
 
-# --- Input JSON (value must be a JSON array, not a string) ---
+# --- Build JSON array from all methods ---
+# e.g. ["joinWithSeparator","capitalize"]
+json_methods=""
+for m in "${METHODS[@]}"; do
+  json_methods+="\"${m}\","
+done
+json_methods="[${json_methods%,}]"
+
+# --- Input JSON ---
 INPUT_JSON="$(mktemp /tmp/c2b_input_XXXXXX.json)"
 trap 'rm -f "$INPUT_JSON"' EXIT
-printf '{ "%s": ["%s"] }\n' "$SOURCE_FILE_WIN" "$METHOD" > "$INPUT_JSON"
+printf '{ "%s": %s }\n' "$SOURCE_FILE_WIN" "$json_methods" > "$INPUT_JSON"
+
+METHODS_LABEL="${METHODS[*]}"   # "joinWithSeparator capitalize" for log lines
 
 log() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*"; }
 
-log "Starting benchmark generation for ${CLASS_NAME}.${METHOD}"
+log "Starting benchmark generation for ${CLASS_NAME}.[${METHODS_LABEL}]"
 log "Source: $SOURCE_FILE"
 log "Target: $TARGET"
 log "Expected Chat2Benchmark output: $GENERATED"
 
 # --- Retry loop ---
 for attempt in $(seq 1 $MAX_ATTEMPTS); do
-  log "Attempt $attempt/$MAX_ATTEMPTS — ${CLASS_NAME}.${METHOD}"
+  log "Attempt $attempt/$MAX_ATTEMPTS — ${CLASS_NAME}.[${METHODS_LABEL}]"
 
   # LLMClient reads OPENAI_API_KEY from env
   export OPENAI_API_KEY="$LLM_API_KEY"

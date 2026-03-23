@@ -213,39 +213,72 @@ else
 fi
 
 # --- Step 2: process smelly (added/modified) methods ---
-# Skip any entry that was already handled as DELETED above.
+# Group by java_file so generate_benchmark.sh is called ONCE per file.
+# This prevents the second method from overwriting the first method's benchmark.
 if [[ -f "$SMELLY_FILE" && -s "$SMELLY_FILE" ]]; then
     log "--- Processing SMELLY (added/modified) methods ---"
+
+    # First pass: collect all methods per file (skip deleted)
+    declare -A FILE_METHODS_STR   # java_file -> "method1 method2 ..."
+    declare -A METHOD_TYPE        # "java_file|method" -> type
+
     while IFS= read -r line <&3; do
         [[ -z "$line" ]] && continue
         parsed="$(parse_filter_entry "$line")"
         java_file="$(echo "$parsed" | cut -d'|' -f1)"
         method="$(echo "$parsed"   | cut -d'|' -f2)"
         type="$(echo "$parsed"     | cut -d'|' -f3)"
-
-        # Skip deleted entries (already handled in step 1)
         key="${java_file}|${method}"
         if [[ -n "${DELETED_SET[$key]+_}" ]]; then
             log "  [SKIP] ${method} was deleted — not re-adding"
             continue
         fi
-
-        # Route by type field written by filter_methods.sh.
-        # Fallback to matrix lookup for backward compatibility (no type field).
-        if [[ "$type" == "modified" ]]; then
-            handle_modified "$java_file" "$method" || ERRORS=$((ERRORS + 1))
-        elif [[ "$type" == "added" ]]; then
-            handle_added "$java_file" "$method" || ERRORS=$((ERRORS + 1))
-        else
-            # Legacy format (no type field): fall back to matrix-based detection
-            log "  [WARN] No type field for ${method} — falling back to matrix detection"
-            if grep -qF "${java_file}|${method}|" "$MATRIX" 2>/dev/null; then
-                handle_modified "$java_file" "$method" || ERRORS=$((ERRORS + 1))
-            else
-                handle_added "$java_file" "$method" || ERRORS=$((ERRORS + 1))
-            fi
-        fi
+        FILE_METHODS_STR["$java_file"]+="${method} "
+        METHOD_TYPE["$key"]="$type"
     done 3< "$SMELLY_FILE"
+
+    # Second pass: process one file at a time — one generation call per file
+    for java_file in "${!FILE_METHODS_STR[@]}"; do
+        read -ra methods <<< "${FILE_METHODS_STR[$java_file]}"
+
+        bench_class="$(bench_class_for "$java_file")"
+        bench_file="$(bench_file_for "$java_file")"
+
+        # Backup if the benchmark file already exists (any method may be MODIFIED)
+        backup=""
+        if [[ -f "$bench_file" ]]; then
+            backup="$(mktemp /tmp/bench_backup_XXXXXX.java)"
+            cp "$bench_file" "$backup"
+            log "  Backed up ${bench_file} → ${backup}"
+        fi
+
+        log "  Generating benchmark for ${java_file} :: [${methods[*]}]"
+
+        if bash "${SCRIPT_DIR}/generate_benchmark.sh" "$java_file" "${methods[@]}"; then
+            # Update matrix row for each method
+            for method in "${methods[@]}"; do
+                if grep -qF "${java_file}|${method}|" "$MATRIX" 2>/dev/null; then
+                    grep -vF "${java_file}|${method}|" "$MATRIX" > "${MATRIX}.tmp" || true
+                    echo "${java_file}|${method}|${bench_class}" >> "${MATRIX}.tmp"
+                    mv "${MATRIX}.tmp" "$MATRIX"
+                    log "  [OK] Modified row: ${java_file}|${method}|${bench_class}"
+                else
+                    echo "${java_file}|${method}|${bench_class}" >> "$MATRIX"
+                    log "  [OK] Added row: ${java_file}|${method}|${bench_class}"
+                fi
+            done
+            [[ -n "$backup" ]] && rm -f "$backup"
+        else
+            # Rollback: restore old benchmark, leave matrix untouched
+            if [[ -n "$backup" ]]; then
+                mv "$backup" "$bench_file"
+                log "  [ROLLBACK] Restored old benchmark from backup"
+            fi
+            rm -f "${MATRIX}.tmp"
+            log "  [ERROR] Generation failed for [${methods[*]}] — matrix unchanged"
+            ERRORS=$((ERRORS + 1))
+        fi
+    done
 else
     log "No smelly methods."
 fi
