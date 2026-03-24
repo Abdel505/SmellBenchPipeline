@@ -75,7 +75,8 @@ tasks.register<JavaExec>("jmhRun") {
         "-i",  System.getenv("AMBER_MI")      ?: "2",
         "-r",  System.getenv("AMBER_MTIME")   ?: "1s",
         "-to", System.getenv("AMBER_TIMEOUT") ?: "1m",
-        "-t",  "1"
+        "-t",  "1",
+        "-v",  System.getenv("AMBER_VERBOSE") ?: "NORMAL"
     )
     // AMBER-specific flags: only add when running against a live AMBER server
     if (System.getenv("RUN_AMBER") == "1") {
