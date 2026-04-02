@@ -6,10 +6,23 @@ AMBER_RESULTS="${ROOT_DIR}/amber-results"
 OUTFILE="${ROOT_DIR}/data/jmh-result.json"
 export RUN_AMBER="${RUN_AMBER:-1}"
 
+# --- Parse args ---
+# --baseline  : after JMH run, copy jmh-result.json → data/unmutated-baseline.json
+# Any other first arg: JMH regex filter (AMBER_INCLUDE), same as before.
+SAVE_BASELINE=0
+FILTER_ARG=""
+for arg in "$@"; do
+  if [[ "$arg" == "--baseline" ]]; then
+    SAVE_BASELINE=1
+  else
+    FILTER_ARG="$arg"
+  fi
+done
+
 # Optional: filter to a specific benchmark. Pass as first arg or via env var AMBER_INCLUDE.
 # JMH treats this as a regex matched against "ClassName.methodName".
-# Example: RUN_AMBER=1 bash scripts/benchmark_tests.sh CalculatorBench.add
-export AMBER_INCLUDE="${1:-${AMBER_INCLUDE:-}}"
+# Example: RUN_AMBER=1 bash scripts/run-benchmarks.sh CalculatorBench.add
+export AMBER_INCLUDE="${FILTER_ARG:-${AMBER_INCLUDE:-}}"
 
 mkdir -p "${ROOT_DIR}/data" "${AMBER_RESULTS}/by-benchmark"
 
@@ -17,20 +30,20 @@ mkdir -p "${ROOT_DIR}/data" "${AMBER_RESULTS}/by-benchmark"
 if [[ "${RUN_AMBER}" == "1" ]]; then
   AMBER_HOST="${AMBER_HOST:-localhost}"
   AMBER_PORT="${AMBER_PORT:-5001}"
-  echo "[benchmark_tests] Checking AMBER server at ${AMBER_HOST}:${AMBER_PORT}..."
+  echo "[run-benchmarks] Checking AMBER server at ${AMBER_HOST}:${AMBER_PORT}..."
   if ! nc -z -w3 "${AMBER_HOST}" "${AMBER_PORT}" 2>/dev/null; then
-    echo "[benchmark_tests] ERROR: AMBER server not reachable at ${AMBER_HOST}:${AMBER_PORT}" >&2
-    echo "[benchmark_tests] Start it with: cd AMBER/jpt_service && source venv/bin/activate && python service.py" >&2
+    echo "[run-benchmarks] ERROR: AMBER server not reachable at ${AMBER_HOST}:${AMBER_PORT}" >&2
+    echo "[run-benchmarks] Start it with: cd AMBER/jpt_service && source venv/bin/activate && python service.py" >&2
     exit 1
   fi
-  echo "[benchmark_tests] AMBER server is up."
+  echo "[run-benchmarks] AMBER server is up."
 fi
 
 cd "${ROOT_DIR}"
 
-echo "[benchmark_tests] Running JMH benchmarks via Gradle jmhRun..."
-echo "[benchmark_tests] RUN_AMBER=${RUN_AMBER} (set RUN_AMBER=1 to enable AMBER server flags)"
-echo "[benchmark_tests] AMBER_INCLUDE=${AMBER_INCLUDE:-<all benchmarks>}"
+echo "[run-benchmarks] Running JMH benchmarks via Gradle jmhRun..."
+echo "[run-benchmarks] RUN_AMBER=${RUN_AMBER} (set RUN_AMBER=1 to enable AMBER server flags)"
+echo "[run-benchmarks] AMBER_INCLUDE=${AMBER_INCLUDE:-<all benchmarks>}"
 
 # Gradle jmhRun handles classpath + BenchmarkList correctly.
 # AMBER flags (-hmodel/-hhost/-hport) are passed through env vars and added
@@ -38,28 +51,34 @@ echo "[benchmark_tests] AMBER_INCLUDE=${AMBER_INCLUDE:-<all benchmarks>}"
 ./gradlew :app:jmhRun
 
 if [[ ! -f "${OUTFILE}" ]]; then
-  echo "[benchmark_tests] ERROR: expected ${OUTFILE} was not produced." >&2
+  echo "[run-benchmarks] ERROR: expected ${OUTFILE} was not produced." >&2
   exit 1
 fi
 
-echo "[benchmark_tests] JMH run complete. Results -> ${OUTFILE}"
+echo "[run-benchmarks] JMH run complete. Results -> ${OUTFILE}"
+
+# Save unmutated baseline if requested (used by mutation testing pipeline)
+if [[ "${SAVE_BASELINE}" == "1" ]]; then
+  cp "${OUTFILE}" "${ROOT_DIR}/data/unmutated-baseline.json"
+  echo "[run-benchmarks] Saved unmutated baseline -> ${ROOT_DIR}/data/unmutated-baseline.json"
+fi
 
 # Archive result with timestamp + SHA for AMBER bootstrap comparison
 TIMESTAMP="$(date +%Y%m%d_%H%M%S)"
 SHA="$(git -C "${ROOT_DIR}" rev-parse --short HEAD 2>/dev/null || echo "unknown")"
-ARCH="${AMBER_RESULTS}/result_${TIMESTAMP}_${SHA}.json"
+ARCH="${AMBER_RESULTS}/jmh-result-snapshot_${TIMESTAMP}_${SHA}.json"
 cp "${OUTFILE}" "${ARCH}"
-echo "[benchmark_tests] Archived -> ${ARCH}"
+echo "[run-benchmarks] Archived -> ${ARCH}"
 
 # Hierarchical bootstrap comparison (if a previous archived result exists)
-PREV="$(ls -t "${AMBER_RESULTS}"/result_*.json 2>/dev/null | grep -v "${ARCH}" | head -1 || true)"
+PREV="$(ls -t "${AMBER_RESULTS}"/jmh-result-snapshot_*.json 2>/dev/null | grep -v "${ARCH}" | head -1 || true)"
 
 if [[ -n "${PREV}" && -f "${PREV}" ]]; then
-  echo "[benchmark_tests] Running bootstrap comparison: prev=${PREV}"
+  echo "[run-benchmarks] Running bootstrap comparison: prev=${PREV}"
   BOOTSTRAP_OUT="${AMBER_RESULTS}/bootstrap_latest.json"
   python3 "${ROOT_DIR}/tools/bootstrap/hierarchical_bootstrap_compare.py" \
     "${PREV}" "${ARCH}" > "${BOOTSTRAP_OUT}" \
-    || { echo "[benchmark_tests] WARN: bootstrap comparison failed (non-fatal)"; BOOTSTRAP_OUT=""; }
+    || { echo "[run-benchmarks] WARN: bootstrap comparison failed (non-fatal)"; BOOTSTRAP_OUT=""; }
 
   # HTML dashboard with comparison
   bash "${ROOT_DIR}/tools/dashboard/generate_dashboard.sh" \
@@ -70,9 +89,9 @@ if [[ -n "${PREV}" && -f "${PREV}" ]]; then
     --sha "${SHA}" \
     --ts "${TIMESTAMP}" \
     ${BOOTSTRAP_OUT:+--bootstrap-json "${BOOTSTRAP_OUT}"} \
-    || echo "[benchmark_tests] WARN: dashboard generation failed (non-fatal)"
+    || echo "[run-benchmarks] WARN: dashboard generation failed (non-fatal)"
 else
-  echo "[benchmark_tests] No previous result found — skipping bootstrap."
+  echo "[run-benchmarks] No previous result found — skipping bootstrap."
 
   # Initial dashboard (no comparison)
   bash "${ROOT_DIR}/tools/dashboard/generate_dashboard.sh" \
@@ -82,7 +101,7 @@ else
     --out "${AMBER_RESULTS}/dashboard_${TIMESTAMP}.html" \
     --sha "${SHA}" \
     --ts "${TIMESTAMP}" \
-    || echo "[benchmark_tests] WARN: dashboard generation failed (non-fatal)"
+    || echo "[run-benchmarks] WARN: dashboard generation failed (non-fatal)"
 fi
 
-echo "[benchmark_tests] Done."
+echo "[run-benchmarks] Done."

@@ -33,6 +33,11 @@ modified_classes.txt
 # Local docs (session notes, not for repo)
 docs/
 
+# Python virtual environment
+.venv/
+__pycache__/
+*.pyc
+
 # Secrets
 .secrets
 *.env

@@ -1,16 +1,16 @@
 #!/bin/bash
 set -euo pipefail
 
-# test_case_selection.sh
+# lookup_benchmark.sh
 # Query the coverage matrix for a given production method.
 #
 # Usage:
-#   test_case_selection.sh <fqn>
-#   test_case_selection.sh <java_file> <method>
+#   lookup_benchmark.sh <fqn>
+#   lookup_benchmark.sh <java_file> <method>
 #
 # Examples:
-#   test_case_selection.sh com.pipeline.demo.Calculator.add
-#   test_case_selection.sh app/src/main/java/com/pipeline/demo/Calculator.java add
+#   lookup_benchmark.sh com.pipeline.demo.Calculator.add
+#   lookup_benchmark.sh app/src/main/java/com/pipeline/demo/Calculator.java add
 #
 # Output:
 #   One benchmark class name per line, or nothing if not found.

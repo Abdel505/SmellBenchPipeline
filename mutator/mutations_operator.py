@@ -1,17 +1,21 @@
 import json
+import os
 from pathlib import Path
 import openai
+from dotenv import load_dotenv
 from time import sleep
 
-# --- CONFIGURATION ---
-TARGET_JSON_PATH = "target_json_object.json"
-TEMPLATES_JSON_PATH = "generalized_templates.json"
-OUTPUT_JSON_PATH = "mutation_operations_solr.json"
-OPENAI_API_KEY = "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"  # set your key here or via environment variable
-BATCH_SIZE = 10          # quantos métodos processar por chamada GPT-5
-SLEEP_BETWEEN_BATCHES = 2  # segundos de pausa entre batches para evitar throttling
+# --- LOAD ENVIRONMENT ---
+load_dotenv()
+openai.api_key = os.environ["LLM_API_KEY"]
+openai.base_url = os.environ["LLM_ENDPOINT"].replace("/chat/completions", "")
 
-openai.api_key = OPENAI_API_KEY
+# --- CONFIGURATION ---
+TARGET_JSON_PATH    = "pipeline-output/mutation-target-methods.json"
+TEMPLATES_JSON_PATH = "mutator/generalized_templates.json"
+OUTPUT_JSON_PATH    = "data/generated-mutants.json"
+BATCH_SIZE = 10          # number of methods to process per LLM call
+SLEEP_BETWEEN_BATCHES = 2  # seconds between batches to avoid throttling
 
 # --- LOAD FILES ---
 print("Loading JSON files...")
@@ -162,13 +166,17 @@ def process_batch(batch_targets):
     batch_prompt = PROMPT_TEMPLATE.replace("{generalized_templates}", templates_json)\
                                   .replace("{target_json_object}", json.dumps(batch_targets, indent=2))
 
-    response = openai.ChatCompletion.create(
-        model="gpt-5",
+    client = openai.OpenAI(
+        api_key=os.environ["LLM_API_KEY"],
+        base_url=os.environ["LLM_ENDPOINT"].replace("/chat/completions", "")
+    )
+    response = client.chat.completions.create(
+        model=os.environ.get("LLM_MODEL", "llama-3.3-70b-versatile"),
         messages=[{"role": "user", "content": batch_prompt}],
         temperature=1
     )
 
-    output_text = response["choices"][0]["message"]["content"].strip()
+    output_text = response.choices[0].message.content.strip()
     try:
         output_json = json.loads(output_text)
         return output_json

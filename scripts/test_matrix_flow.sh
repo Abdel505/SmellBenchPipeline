@@ -20,7 +20,7 @@ MATRIX="data/coverage-matrix.csv"
 BENCH_PKG_DIR="app/src/test/java/com/pipeline/demo"
 GENERATE_SCRIPT="$SCRIPT_DIR/generate_benchmark.sh"
 MATRIX_SCRIPT="$SCRIPT_DIR/update_coverage_matrix.sh"
-SELECT_SCRIPT="$SCRIPT_DIR/test_case_selection.sh"
+SELECT_SCRIPT="$SCRIPT_DIR/lookup_benchmark.sh"
 
 PASS=0
 FAIL=0
@@ -180,24 +180,24 @@ assert_row_count    "${JAVA_CALC}|add|" 1
 log "=== Test 2: SELECT (file + method) ==="
 RESULT=$(bash "$SELECT_SCRIPT" "$JAVA_CALC" "add" 2>/dev/null)
 if [[ "$RESULT" == "CalculatorBenchmark" ]]; then
-    pass "test_case_selection.sh (file+method) → CalculatorBenchmark"
+    pass "lookup_benchmark.sh (file+method) → CalculatorBenchmark"
 else
-    fail "test_case_selection.sh (file+method) → '$RESULT' (expected CalculatorBenchmark)"
+    fail "lookup_benchmark.sh (file+method) → '$RESULT' (expected CalculatorBenchmark)"
 fi
 
 log "=== Test 2b: SELECT (FQN) ==="
 RESULT_FQN=$(bash "$SELECT_SCRIPT" "com.pipeline.demo.Calculator.add" 2>/dev/null)
 if [[ "$RESULT_FQN" == "CalculatorBenchmark" ]]; then
-    pass "test_case_selection.sh (FQN) → CalculatorBenchmark"
+    pass "lookup_benchmark.sh (FQN) → CalculatorBenchmark"
 else
-    fail "test_case_selection.sh (FQN) → '$RESULT_FQN' (expected CalculatorBenchmark)"
+    fail "lookup_benchmark.sh (FQN) → '$RESULT_FQN' (expected CalculatorBenchmark)"
 fi
 
 log "=== Test 2c: SELECT — unknown method exits 1 ==="
 if ! bash "$SELECT_SCRIPT" "$JAVA_CALC" "doesNotExist" 2>/dev/null; then
-    pass "test_case_selection.sh exits 1 for unknown method"
+    pass "lookup_benchmark.sh exits 1 for unknown method"
 else
-    fail "test_case_selection.sh should exit 1 for unknown method"
+    fail "lookup_benchmark.sh should exit 1 for unknown method"
 fi
 
 # ===========================================================================

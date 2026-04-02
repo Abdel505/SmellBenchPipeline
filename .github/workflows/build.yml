@@ -43,8 +43,8 @@ jobs:
           chmod +x scripts/modified_classes_detector.sh
           chmod +x scripts/filter_methods.sh
           chmod +x scripts/update_coverage_matrix.sh
-          chmod +x scripts/benchmark_tests.sh
-          chmod +x scripts/test_case_selection.sh
+          chmod +x scripts/run-benchmarks.sh
+          chmod +x scripts/lookup_benchmark.sh
           chmod +x scripts/generate_benchmark.sh
           chmod +x tools/dashboard/generate_dashboard.sh
 
@@ -63,7 +63,7 @@ jobs:
           LLM_ENDPOINT: ${{ secrets.LLM_ENDPOINT }}
 
       - name: Run JMH Benchmarks with AMBER
-        run: bash scripts/benchmark_tests.sh
+        run: bash scripts/run-benchmarks.sh
         env:
           AMBER_MODEL: oscnn
           AMBER_FORKS: "5"

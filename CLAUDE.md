@@ -30,9 +30,9 @@ SmellBenchPipeline/
 │   ├── filter_methods.sh            # Smell filter orchestration (smelly vs clean split)
 │   ├── smell_rules.sh               # Project-specific smell detection rules (sourced by filter_methods.sh)
 │   ├── generate_benchmark.sh        # Chat2Benchmark with 10-retry
-│   ├── benchmark_tests.sh           # JMH benchmark execution
+│   ├── run-benchmarks.sh           # JMH benchmark execution
 │   ├── modified_classes_detector.sh # Git diff → changed classes
-│   ├── test_case_selection.sh       # Coverage matrix query
+│   ├── lookup_benchmark.sh       # Coverage matrix query
 │   ├── update_coverage_matrix.sh    # Matrix CRUD (add/modify/delete)
 │   └── test_generate.sh             # Manual test helper
 ├── pipeline-output/                 # Runtime artifacts produced by pipeline
@@ -85,12 +85,12 @@ SmellBenchPipeline/
 - `LLM_API_KEY` — API key for Chat2Benchmark LLM calls
 - `LLM_ENDPOINT` — LLM API endpoint (if configurable)
 
-### AMBER / benchmark_tests.sh variables
+### AMBER / run-benchmarks.sh variables
 
 | Variable | Default | Purpose |
 |---|---|---|
 | `RUN_AMBER` | `1` | `1` = pass `-hmodel/-hhost/-hport` to JMH; `0` = standard fixed-iteration run |
-| `AMBER_INCLUDE` | *(all)* | JMH regex filter — run a specific benchmark (e.g. `CalculatorBenchmark.buildMultiples`). Also accepted as `$1` positional arg to `benchmark_tests.sh` |
+| `AMBER_INCLUDE` | *(all)* | JMH regex filter — run a specific benchmark (e.g. `CalculatorBenchmark.buildMultiples`). Also accepted as `$1` positional arg to `run-benchmarks.sh` |
 | `AMBER_HOST` | `localhost` | AMBER server host |
 | `AMBER_PORT` | `5001` | AMBER server port |
 | `AMBER_MODEL` | `oscnn` | TSC model (`oscnn`, `fcn`, `rocket`) |
@@ -115,7 +115,7 @@ SmellBenchPipeline/
 - Smell checks (Smells 1 & 2) run against **loop body only** (via `extract_loop_bodies()`), not the full method body, to avoid false positives
 - **AMBER must be controlled via CLI flags only** — never add `@DynamicHalt` annotations to benchmark source. The annotation takes priority over CLI flags in AMBER's 3-level resolution chain (`options → annotation → Defaults`), causing AMBER to activate even with `RUN_AMBER=0`
 - **Both JARs must be from AMBER's build** — `jmh-core-1.37-all.jar` (runtime) and `jmh-generator-annprocess-1.37-amber.jar` (annotation processor) must be kept in sync. Using the standard `jmh-generator-annprocess:1.37` from Maven Central causes `Error: unexpected tag = I` at startup because AMBER's `BenchmarkListEntry` expects 3 extra fields (`dynamicHaltHost/Port/Model`) that the standard processor never writes
-- **`benchmark_tests.sh` accepts an optional first arg** as a JMH regex filter (maps to `AMBER_INCLUDE`). Use the exact class name: `CalculatorBenchmark.buildMultiples` not `CalculatorBench.buildMultiples`
+- **`run-benchmarks.sh` accepts an optional first arg** as a JMH regex filter (maps to `AMBER_INCLUDE`). Use the exact class name: `CalculatorBenchmark.buildMultiples` not `CalculatorBench.buildMultiples`
 
 ## Pipeline Flow (Detailed)
 
@@ -126,7 +126,7 @@ SmellBenchPipeline/
 5. **Smell filter**: `filter_methods.sh` → split into `smelly_methods.txt` + `clean_methods.txt`
 6. **For smelly + deleted**: `update_coverage_matrix.sh` → calls `generate_benchmark.sh` (10-retry)
 7. **For clean**: skip to push (no benchmark generation)
-8. **Run benchmarks**: `benchmark_tests.sh` → `jmh-result.json`
+8. **Run benchmarks**: `run-benchmarks.sh` → `jmh-result.json`
 9. **AMBER analysis**: statistical analysis on JMH results → `amber-results/`
 10. **Commit & push**: save results back to repo
 
@@ -154,9 +154,9 @@ Complete these tasks in order. Each task has subtasks to check off.
 - [x] Identify Chat2UnitTest, Ju2Jmh, AMBER invocation points
 
 ### Task 1.3 — Analyze shell scripts
-- [x] Read `benchmark_tests.sh` — document JMH invocation, params, output path
+- [x] Read `run-benchmarks.sh` — document JMH invocation, params, output path
 - [x] Read `modified_classes_detector.sh` — document git diff command, class extraction, output format
-- [x] Read `test_case_selection.sh` — document matrix query mechanism, input/output format
+- [x] Read `lookup_benchmark.sh` — document matrix query mechanism, input/output format
 - [x] List ALL hardcoded paths referencing Byte Buddy SUT
 - [x] List ALL external tool dependencies (java, git, grep, jq, etc.)
 
@@ -190,7 +190,7 @@ Complete these tasks in order. Each task has subtasks to check off.
   - `MathHelper.java` — math functions (fibonacci, isPrime, sieveOfEratosthenes, nthRoot, combinations) — 5+ public methods
 - [x] Create empty `app/src/test/java/` directory
 - [x] Create empty directories: `amber-results/`, `libs/`, `tools/`, `ju-to-jmh/`, `ju2jmh/`
-- [x] Create placeholder scripts: `benchmark_tests.sh`, `modified_classes_detector.sh`, `test_case_selection.sh`
+- [x] Create placeholder scripts: `run-benchmarks.sh`, `modified_classes_detector.sh`, `lookup_benchmark.sh`
 - [x] Create `.gitignore` for Java/Gradle
 
 ### Task 2.2 — Verify Gradle build passes
@@ -297,7 +297,7 @@ Complete these tasks in order. Each task has subtasks to check off.
 
 ### Task 5.1 — Analyze EvoBench matrix format
 - [x] Document: file format, columns, method-to-test mapping, update mechanism
-- [x] Document how `test_case_selection.sh` queries the matrix
+- [x] Document how `lookup_benchmark.sh` queries the matrix
 - [x] See `docs/coverage-matrix-analysis.md`
 
 ### Task 5.2 — Write update_coverage_matrix.sh
@@ -310,11 +310,11 @@ Complete these tasks in order. Each task has subtasks to check off.
 - [x] Handle empty method lists gracefully
 - [x] `chmod +x update_coverage_matrix.sh`
 
-### Task 5.3 — Update test_case_selection.sh
+### Task 5.3 — Update lookup_benchmark.sh
 - [x] Adapt for microbenchmarks (not unit tests)
 - [x] Query matrix, return benchmark class names for a production method
 - [x] Handle "method not found" gracefully (exit 1, log to stderr)
-- [x] `chmod +x test_case_selection.sh`
+- [x] `chmod +x lookup_benchmark.sh`
 - [x] Supports both FQN form and java_file+method form
 
 ### Task 5.4 — Integration test ✅ CHECKPOINT
@@ -327,7 +327,7 @@ Complete these tasks in order. Each task has subtasks to check off.
 
 ---
 
-## Phase 6 — Implement benchmark_tests.sh with AMBER Integration
+## Phase 6 — Implement run-benchmarks.sh with AMBER Integration
 
 ### Task 6.1 — Set up AMBER JARs in libs/
 - [x] Copy AMBER's pre-built annotation processor (must match the runtime JAR — never use Maven Central's standard one):
@@ -348,7 +348,7 @@ Complete these tasks in order. Each task has subtasks to check off.
 - [x] Add `AMBER_INCLUDE` filter: read from env var, prepend as JMH's first positional arg (must come before any `-rf`, `-f` flags)
 - [x] Output results to `../data/jmh-result.json` via `-rff`
 
-### Task 6.3 — Write benchmark_tests.sh
+### Task 6.3 — Write run-benchmarks.sh
 - [x] Accept optional `$1` as benchmark filter, export as `AMBER_INCLUDE`
 - [x] Use `curl` (not `nc`) for AMBER server pre-flight check — `nc` is not available in WSL Ubuntu:
   ```bash
@@ -356,7 +356,7 @@ Complete these tasks in order. Each task has subtasks to check off.
   ```
 - [x] Run pre-flight only when `RUN_AMBER=1`, skip entirely when `RUN_AMBER=0`
 - [x] Call `./gradlew :app:jmhRun` and verify `data/jmh-result.json` is produced
-- [x] Archive result to `amber-results/result_<timestamp>_<sha>.json`
+- [x] Archive result to `amber-results/jmh-result-snapshot_<timestamp>_<sha>.json`
 - [x] Run hierarchical bootstrap comparison if a previous archived result exists
 - [x] Generate HTML dashboard via `tools/dashboard/generate_dashboard.sh`
 
@@ -366,16 +366,16 @@ Complete these tasks in order. Each task has subtasks to check off.
 - [x] Verify no `@DynamicHalt` import or annotation in any file under `app/src/test/`
 
 ### Task 6.5 — Validate both modes ✅ CHECKPOINT
-- [x] Run `RUN_AMBER=0 bash scripts/benchmark_tests.sh` — verify:
+- [x] Run `RUN_AMBER=0 bash scripts/run-benchmarks.sh` — verify:
   - No pre-flight check line printed
   - `The Dynamic Halt is NOT Active` printed once per benchmark
   - Fixed iterations: 1 warmup × 1s, 2 measurement × 1s
-- [ ] Run `RUN_AMBER=1 bash scripts/benchmark_tests.sh` (start AMBER server first: `python service.py`) — verify:
+- [ ] Run `RUN_AMBER=1 bash scripts/run-benchmarks.sh` (start AMBER server first: `python service.py`) — verify:
   - `[benchmark_tests] AMBER server is up.` printed
   - Dynamic warmup (up to 500 × 100ms iterations per fork)
   - `Halt eseguito` printed when TSC detects steady-state
   - `amber-results/` populated with archived JSON and dashboard HTML
-- [ ] Run with filter: `RUN_AMBER=0 bash scripts/benchmark_tests.sh "CalculatorBenchmark.buildMultiples"` — verify only that method runs
+- [ ] Run with filter: `RUN_AMBER=0 bash scripts/run-benchmarks.sh "CalculatorBenchmark.buildMultiples"` — verify only that method runs
 - [ ] **VERIFY**: see `docs/amber-integration-fixes.md` for a full list of pitfalls to avoid
 
 ---
@@ -391,7 +391,7 @@ Complete these tasks in order. Each task has subtasks to check off.
   5. `filter_methods.sh` (smelly vs clean)
   6. `update_coverage_matrix.sh` (smelly + deleted only)
   7. Skip clean methods
-  8. `benchmark_tests.sh`
+  8. `run-benchmarks.sh`
   9. AMBER analysis
   10. Save to `amber-results/` and `jmh-result.json`
   11. Commit & push results
