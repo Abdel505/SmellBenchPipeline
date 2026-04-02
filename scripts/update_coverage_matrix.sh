@@ -93,8 +93,8 @@ handle_added() {
     bench_file="$(bench_file_for "$java_file")"
 
     if bash "${SCRIPT_DIR}/generate_benchmark.sh" "$java_file" "$method"; then
-        echo "${java_file}|${method}|${bench_class}" >> "$MATRIX"
-        log "  [OK] Added row: ${java_file}|${method}|${bench_class}"
+        echo "${java_file}|${method}|${bench_class}|" >> "$MATRIX"
+        log "  [OK] Added row: ${java_file}|${method}|${bench_class}|"
     else
         log "  [ERROR] Generation failed for ${method} — no matrix row added"
         return 1
@@ -135,11 +135,11 @@ handle_modified() {
         new_bench_class="$(bench_class_for "$java_file")"
 
         grep -vF "${java_file}|${method}|" "$MATRIX" > "${MATRIX}.tmp" || true
-        echo "${java_file}|${method}|${new_bench_class}" >> "${MATRIX}.tmp"
+        echo "${java_file}|${method}|${new_bench_class}|" >> "${MATRIX}.tmp"
         mv "${MATRIX}.tmp" "$MATRIX"
 
         [[ -n "$backup" ]] && rm -f "$backup"
-        log "  [OK] Modified row: ${java_file}|${method}|${new_bench_class}"
+        log "  [OK] Modified row: ${java_file}|${method}|${new_bench_class}|"
     else
         # Generation failed — ROLLBACK: restore old benchmark, leave matrix untouched
         if [[ -n "$backup" ]]; then
@@ -259,12 +259,12 @@ if [[ -f "$SMELLY_FILE" && -s "$SMELLY_FILE" ]]; then
             for method in "${methods[@]}"; do
                 if grep -qF "${java_file}|${method}|" "$MATRIX" 2>/dev/null; then
                     grep -vF "${java_file}|${method}|" "$MATRIX" > "${MATRIX}.tmp" || true
-                    echo "${java_file}|${method}|${bench_class}" >> "${MATRIX}.tmp"
+                    echo "${java_file}|${method}|${bench_class}|" >> "${MATRIX}.tmp"
                     mv "${MATRIX}.tmp" "$MATRIX"
-                    log "  [OK] Modified row: ${java_file}|${method}|${bench_class}"
+                    log "  [OK] Modified row: ${java_file}|${method}|${bench_class}|"
                 else
-                    echo "${java_file}|${method}|${bench_class}" >> "$MATRIX"
-                    log "  [OK] Added row: ${java_file}|${method}|${bench_class}"
+                    echo "${java_file}|${method}|${bench_class}|" >> "$MATRIX"
+                    log "  [OK] Added row: ${java_file}|${method}|${bench_class}|"
                 fi
             done
             [[ -n "$backup" ]] && rm -f "$backup"
