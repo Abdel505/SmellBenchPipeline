@@ -53,7 +53,7 @@ if [[ ! -f "$MATRIX" ]]; then
     exit 1
 fi
 
-RESULTS="$(grep -F "${JAVA_FILE}|${METHOD}|" "$MATRIX" | cut -d'|' -f3 || true)"
+RESULTS="$(grep -F "${JAVA_FILE}|${METHOD}|" "$MATRIX" | cut -d'|' -f3 | tr -d ' ' || true)"
 
 if [[ -z "$RESULTS" ]]; then
     log "Not found in matrix: ${JAVA_FILE} :: ${METHOD}"

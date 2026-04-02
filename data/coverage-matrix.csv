@@ -2,5 +2,7 @@ production_class|method|benchmark_class|
 app/src/main/java/com/pipeline/demo/StringUtils.java|countVowels|StringUtilsBenchmark|
 app/src/main/java/com/pipeline/demo/Calculator.java|sumRange|CalculatorBenchmark|
 app/src/main/java/com/pipeline/demo/Calculator.java|buildMultiples|CalculatorBenchmark|
-app/src/main/java/com/pipeline/demo/StringUtils.java|joinWithSeparator|StringUtilsBenchmark|
-app/src/main/java/com/pipeline/demo/StringUtils.java|capitalize|StringUtilsBenchmark|
+app/src/main/java/com/pipeline/demo/Calculator.java|factorial|CalculatorBenchmark|
+app/src/main/java/com/pipeline/demo/StringUtils.java|joinWithSeparator|StringUtilsBenchmark_joinWithSeparator|
+app/src/main/java/com/pipeline/demo/StringUtils.java|capitalize|StringUtilsBenchmark_capitalize|
+app/src/main/java/com/pipeline/demo/Calculator.java|modulo|CalculatorBenchmark_modulo|

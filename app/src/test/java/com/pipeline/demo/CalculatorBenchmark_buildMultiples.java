@@ -8,18 +8,16 @@ import org.openjdk.jmh.annotations.Mode;
 import org.openjdk.jmh.annotations.OutputTimeUnit;
 import org.openjdk.jmh.annotations.Param;
 import org.openjdk.jmh.annotations.Scope;
-import org.openjdk.jmh.annotations.Setup;
 import org.openjdk.jmh.annotations.State;
 import org.openjdk.jmh.annotations.Warmup;
 import org.openjdk.jmh.infra.Blackhole;
-
-import java.util.ArrayList;
-import java.util.List;
-import java.util.concurrent.TimeUnit;
 import org.openjdk.jmh.runner.Runner;
 import org.openjdk.jmh.runner.RunnerException;
 import org.openjdk.jmh.runner.options.Options;
 import org.openjdk.jmh.runner.options.OptionsBuilder;
+
+import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 @State(Scope.Benchmark)
 @Fork(value = 2)
@@ -27,31 +25,31 @@ import org.openjdk.jmh.runner.options.OptionsBuilder;
 @Measurement(iterations = 10)
 @BenchmarkMode(Mode.AverageTime)
 @OutputTimeUnit(TimeUnit.NANOSECONDS)
-public class StringUtilsBenchmark {
+public class CalculatorBenchmark_buildMultiples {
 
-    private StringUtils stringUtils;
-    private List<String> items;
-    private String separator;
-    private String input;
+    private Calculator calculator;
 
-    @Setup
-    public void setup() {
-        stringUtils = new StringUtils();
-        items = new ArrayList<>();
-        for (int i = 0; i < 100; i++) {
-            items.add("item" + i);
-        }
-        separator = ",";
-        input = "hello world";
+    public CalculatorBenchmark_buildMultiples() {
+        calculator = new Calculator();
     }
 
-    @Benchmark
-    public void joinWithSeparator(Blackhole bh) {
-        bh.consume(stringUtils.joinWithSeparator(items, separator));
-    }
+    @Param({"10", "100", "1000"})
+    private int base;
+
+    @Param({"10", "100", "1000"})
+    private int count;
 
     @Benchmark
-    public void capitalize(Blackhole bh) {
-        bh.consume(stringUtils.capitalize(input));
+    public void buildMultiples(Blackhole bh) {
+        List<Integer> result = calculator.buildMultiples(base, count);
+        bh.consume(result);
+    }
+
+    public static void main(String[] args) throws RunnerException {
+        Options opt = new OptionsBuilder()
+                .include(CalculatorBenchmark.class.getSimpleName())
+                .build();
+
+        new Runner(opt).run();
     }
 }

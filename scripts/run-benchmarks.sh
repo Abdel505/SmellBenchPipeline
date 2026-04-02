@@ -21,8 +21,13 @@ done
 
 # Optional: filter to a specific benchmark. Pass as first arg or via env var AMBER_INCLUDE.
 # JMH treats this as a regex matched against "ClassName.methodName".
-# Example: RUN_AMBER=1 bash scripts/run-benchmarks.sh CalculatorBench.add
+# Example: RUN_AMBER=1 bash scripts/run-benchmarks.sh CalculatorBenchmark_buildMultiples
 export AMBER_INCLUDE="${FILTER_ARG:-${AMBER_INCLUDE:-}}"
+
+# Optional: extra ad-hoc JMH flags appended at the end of the JMH args list.
+# Example: AMBER_JMH_EXTRA="-p count=10" to override @Param values at runtime.
+# Example: AMBER_JMH_EXTRA="-p count=10 -p base=5" for multiple params.
+export AMBER_JMH_EXTRA="${AMBER_JMH_EXTRA:-}"
 
 mkdir -p "${ROOT_DIR}/data" "${AMBER_RESULTS}/by-benchmark"
 

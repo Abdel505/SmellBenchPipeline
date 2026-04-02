@@ -10,9 +10,9 @@ if [[ -f "${ROOT_DIR}/.env" ]]; then
 fi
 
 # --- Args validation ---
-if [[ $# -lt 2 ]]; then
-  echo "Usage: $0 <java_source_file> <method_name> [method_name2 ...]"
-  echo "  Example: $0 app/src/main/java/com/pipeline/demo/Calculator.java add"
+if [[ $# -ne 2 ]]; then
+  echo "Usage: $0 <java_source_file> <method_name>"
+  echo "  Example: $0 app/src/main/java/com/pipeline/demo/Calculator.java factorial"
   exit 1
 fi
 
@@ -22,8 +22,7 @@ fi
 
 # --- Path derivation ---
 SOURCE_FILE="$(realpath "$1")"
-shift
-METHODS=("$@")   # all remaining args are method names
+METHOD="$2"
 CLASS_NAME="$(basename "$SOURCE_FILE" .java)"
 PACKAGE_PATH="$(dirname "$SOURCE_FILE" | sed 's|.*/main/java/||')"
 
@@ -32,7 +31,9 @@ PACKAGE_PATH="$(dirname "$SOURCE_FILE" | sed 's|.*/main/java/||')"
 #       -> app/src/jmh/java/com/pipeline/demo/CalculatorBenchmark.java
 GENERATED="$(echo "$SOURCE_FILE" | sed 's|/main/|/jmh/|; s|\.java$|Benchmark.java|')"
 
-TARGET="app/src/test/java/${PACKAGE_PATH}/${CLASS_NAME}Benchmark.java"
+# Per-method bench class and target file
+BENCH_CLASS="${CLASS_NAME}Benchmark_${METHOD}"
+TARGET="app/src/test/java/${PACKAGE_PATH}/${BENCH_CLASS}.java"
 JAR="$(realpath "libs/chat2benchmark.jar")"
 LLM_MODEL="${LLM_MODEL:-llama-3.3-70b-versatile}"
 MAX_ATTEMPTS=10
@@ -50,31 +51,22 @@ to_win_path() {
 }
 SOURCE_FILE_WIN="$(to_win_path "$SOURCE_FILE")"
 
-# --- Build JSON array from all methods ---
-# e.g. ["joinWithSeparator","capitalize"]
-json_methods=""
-for m in "${METHODS[@]}"; do
-  json_methods+="\"${m}\","
-done
-json_methods="[${json_methods%,}]"
-
-# --- Input JSON ---
+# --- Input JSON (single method) ---
 INPUT_JSON="$(mktemp /tmp/c2b_input_XXXXXX.json)"
 trap 'rm -f "$INPUT_JSON"' EXIT
-printf '{ "%s": %s }\n' "$SOURCE_FILE_WIN" "$json_methods" > "$INPUT_JSON"
-
-METHODS_LABEL="${METHODS[*]}"   # "joinWithSeparator capitalize" for log lines
+printf '{ "%s": ["%s"] }\n' "$SOURCE_FILE_WIN" "$METHOD" > "$INPUT_JSON"
 
 log() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*"; }
 
-log "Starting benchmark generation for ${CLASS_NAME}.[${METHODS_LABEL}]"
-log "Source: $SOURCE_FILE"
-log "Target: $TARGET"
+log "Starting benchmark generation for ${CLASS_NAME}.${METHOD}"
+log "Source  : $SOURCE_FILE"
+log "Target  : $TARGET"
+log "BenchClass: $BENCH_CLASS"
 log "Expected Chat2Benchmark output: $GENERATED"
 
 # --- Retry loop ---
 for attempt in $(seq 1 $MAX_ATTEMPTS); do
-  log "Attempt $attempt/$MAX_ATTEMPTS — ${CLASS_NAME}.[${METHODS_LABEL}]"
+  log "Attempt $attempt/$MAX_ATTEMPTS — ${BENCH_CLASS}"
 
   # LLMClient reads OPENAI_API_KEY from env
   export OPENAI_API_KEY="$LLM_API_KEY"
@@ -92,7 +84,6 @@ for attempt in $(seq 1 $MAX_ATTEMPTS); do
       { echo "package ${PACKAGE_NAME};"; echo ""; cat "$GENERATED"; } > "${GENERATED}.fixed"
       mv "${GENERATED}.fixed" "$GENERATED"
     fi
-
 
     # Fix: inject JMH runner imports required by the main() method
     # Chat2Benchmark may omit these even when it generates a main() block.
@@ -125,8 +116,20 @@ for attempt in $(seq 1 $MAX_ATTEMPTS); do
       awk '/^import / && seen[$0]++ { next } { print }' "$GENERATED" > "${GENERATED}.dedup" && mv "${GENERATED}.dedup" "$GENERATED"
     fi
 
+    # Rename the public class and constructor inside the file from ${CLASS_NAME}Benchmark to ${BENCH_CLASS}
+    log "  Renaming class ${CLASS_NAME}Benchmark → ${BENCH_CLASS} inside file"
+    sed -i \
+      -e "s/\(public \)\{0,1\}class ${CLASS_NAME}Benchmark\b/public class ${BENCH_CLASS}/g" \
+      -e "s/public ${CLASS_NAME}Benchmark()/public ${BENCH_CLASS}()/g" \
+      "$GENERATED"
+
+    # Rename the generated file to match the per-method class name
+    GENERATED_RENAMED="$(dirname "$GENERATED")/${BENCH_CLASS}.java"
+    mv "$GENERATED" "$GENERATED_RENAMED"
+    log "  Renamed file: $(basename "$GENERATED") → $(basename "$GENERATED_RENAMED")"
+
     mkdir -p "$(dirname "$TARGET")"
-    mv "$GENERATED" "$TARGET"
+    mv "$GENERATED_RENAMED" "$TARGET"
 
     # Clean up jmh dir left by BenchmarkFileWriter
     JMH_DIR="$(echo "$SOURCE_FILE" | sed 's|/main/.*||')/jmh"
@@ -148,5 +151,5 @@ for attempt in $(seq 1 $MAX_ATTEMPTS); do
   fi
 done
 
-log "FAILED — no valid benchmark generated after $MAX_ATTEMPTS attempts"
+log "FAILED — no valid benchmark generated after $MAX_ATTEMPTS attempts for ${BENCH_CLASS}"
 exit 1

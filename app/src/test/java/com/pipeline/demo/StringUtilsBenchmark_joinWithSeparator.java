@@ -8,11 +8,9 @@ import org.openjdk.jmh.annotations.Mode;
 import org.openjdk.jmh.annotations.OutputTimeUnit;
 import org.openjdk.jmh.annotations.Param;
 import org.openjdk.jmh.annotations.Scope;
-import org.openjdk.jmh.annotations.Setup;
 import org.openjdk.jmh.annotations.State;
 import org.openjdk.jmh.annotations.Warmup;
 import org.openjdk.jmh.infra.Blackhole;
-
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
@@ -21,37 +19,32 @@ import org.openjdk.jmh.runner.RunnerException;
 import org.openjdk.jmh.runner.options.Options;
 import org.openjdk.jmh.runner.options.OptionsBuilder;
 
-@State(Scope.Benchmark)
-@Fork(value = 2)
+@Fork(1)
 @Warmup(iterations = 5)
 @Measurement(iterations = 10)
 @BenchmarkMode(Mode.AverageTime)
 @OutputTimeUnit(TimeUnit.NANOSECONDS)
-public class StringUtilsBenchmark {
+@State(Scope.Benchmark)
+public class StringUtilsBenchmark_joinWithSeparator {
 
-    private StringUtils stringUtils;
+    @Param({"1", "10", "100"})
+    private int size;
+
     private List<String> items;
     private String separator;
-    private String input;
+    private StringUtils stringUtils;
 
-    @Setup
     public void setup() {
-        stringUtils = new StringUtils();
         items = new ArrayList<>();
-        for (int i = 0; i < 100; i++) {
+        for (int i = 0; i < size; i++) {
             items.add("item" + i);
         }
         separator = ",";
-        input = "hello world";
+        stringUtils = new StringUtils();
     }
 
     @Benchmark
     public void joinWithSeparator(Blackhole bh) {
         bh.consume(stringUtils.joinWithSeparator(items, separator));
-    }
-
-    @Benchmark
-    public void capitalize(Blackhole bh) {
-        bh.consume(stringUtils.capitalize(input));
     }
 }

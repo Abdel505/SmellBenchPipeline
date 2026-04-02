@@ -8,50 +8,35 @@ import org.openjdk.jmh.annotations.Mode;
 import org.openjdk.jmh.annotations.OutputTimeUnit;
 import org.openjdk.jmh.annotations.Param;
 import org.openjdk.jmh.annotations.Scope;
-import org.openjdk.jmh.annotations.Setup;
 import org.openjdk.jmh.annotations.State;
 import org.openjdk.jmh.annotations.Warmup;
 import org.openjdk.jmh.infra.Blackhole;
-
-import java.util.ArrayList;
-import java.util.List;
 import java.util.concurrent.TimeUnit;
 import org.openjdk.jmh.runner.Runner;
 import org.openjdk.jmh.runner.RunnerException;
 import org.openjdk.jmh.runner.options.Options;
 import org.openjdk.jmh.runner.options.OptionsBuilder;
 
-@State(Scope.Benchmark)
-@Fork(value = 2)
-@Warmup(iterations = 5)
-@Measurement(iterations = 10)
+@State(Scope.Thread)
 @BenchmarkMode(Mode.AverageTime)
 @OutputTimeUnit(TimeUnit.NANOSECONDS)
-public class StringUtilsBenchmark {
+@Warmup(iterations = 5, time = 1, timeUnit = TimeUnit.SECONDS)
+@Measurement(iterations = 10, time = 1, timeUnit = TimeUnit.SECONDS)
+@Fork(5)
+public class CalculatorBenchmark_factorial {
 
-    private StringUtils stringUtils;
-    private List<String> items;
-    private String separator;
-    private String input;
+    private Calculator calculator;
 
-    @Setup
-    public void setup() {
-        stringUtils = new StringUtils();
-        items = new ArrayList<>();
-        for (int i = 0; i < 100; i++) {
-            items.add("item" + i);
-        }
-        separator = ",";
-        input = "hello world";
+    public CalculatorBenchmark_factorial() {
+        this.calculator = new Calculator();
     }
 
-    @Benchmark
-    public void joinWithSeparator(Blackhole bh) {
-        bh.consume(stringUtils.joinWithSeparator(items, separator));
-    }
+    @Param({"5", "10", "15"})
+    private int n;
 
     @Benchmark
-    public void capitalize(Blackhole bh) {
-        bh.consume(stringUtils.capitalize(input));
+    public void factorial(Blackhole bh) {
+        long result = calculator.factorial(n);
+        bh.consume(result);
     }
 }

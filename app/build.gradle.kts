@@ -86,6 +86,12 @@ tasks.register<JavaExec>("jmhRun") {
             "-hport",  System.getenv("AMBER_PORT")  ?: "5001"
         )
     }
+    // Extra ad-hoc JMH flags (e.g. "-p count=10") — split on whitespace, appended last
+    val jmhExtra = System.getenv("AMBER_JMH_EXTRA")
+    if (!jmhExtra.isNullOrBlank()) {
+        jmhArgs += jmhExtra.trim().split("\\s+".toRegex())
+    }
+
     // Prepend the include pattern as JMH's positional arg (must come before flags)
     val finalArgs = if (!jmhInclude.isNullOrBlank()) listOf(jmhInclude) + jmhArgs else jmhArgs
     args(finalArgs)
