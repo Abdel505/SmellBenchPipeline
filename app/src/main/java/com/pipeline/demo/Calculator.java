@@ -59,4 +59,14 @@ public class Calculator {
         }
         return result;
     }
+
+    // SMELL: string concatenation inside loop (Smell 1)
+    public String buildReport(List<Integer> values) {
+        String report = "";
+        for (int i = 0; i < values.size(); i++) {
+            report += "item[" + i + "]=" + values.get(i);
+            if (i < values.size() - 1) report += ", ";
+        }
+        return report;
+    }
 }

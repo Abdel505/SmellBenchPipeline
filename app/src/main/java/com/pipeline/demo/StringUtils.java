@@ -17,6 +17,7 @@ public class StringUtils {
         String found = "";
         for (char c : s.toLowerCase().toCharArray()) {
             if ("aeiou".indexOf(c) >= 0) found += c;   // smell: string concat in loop (v2)
+            if ("AEIOU".indexOf(c) >= 0) found += c;   // MODIFIED: also count uppercase vowels
         }
         return found.length();
     }
@@ -58,9 +59,11 @@ public class StringUtils {
     }
 
     // SMELL: string concatenation inside loop (Smell 1)
+    // MODIFIED: skip null/empty items
     public String joinWithSeparator(List<String> items, String separator) {
         String result = "";
         for (int i = 0; i < items.size(); i++) {
+            if (items.get(i) == null || items.get(i).isEmpty()) continue;
             result += items.get(i);
             if (i < items.size() - 1) result += separator;
         }
