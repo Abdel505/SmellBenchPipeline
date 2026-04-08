@@ -19,7 +19,7 @@ log() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] [prepare_mutation_targets] $*"; }
 declare -A seen_entries
 entries=()
 
-for input_file in "$ADDED_FILE" "$MODIFIED_FILE" "$DELETED_FILE"; do
+for input_file in "$ADDED_FILE" "$MODIFIED_FILE"; do
     if [[ ! -f "$input_file" ]]; then
         log "Skipping missing file: $input_file"
         continue
@@ -75,11 +75,15 @@ for entry in entries:
     if java_file not in result:
         result[java_file] = {
             "class": source,
-            "method": method
+            "methods": [method]
         }
         print(f"  [ADDED] {java_file} :: {method}", flush=True)
     else:
-        print(f"  [SKIP] {java_file} already added with method '{result[java_file]['method']}'", flush=True)
+        if method not in result[java_file]["methods"]:
+            result[java_file]["methods"].append(method)
+            print(f"  [ADDED method] {java_file} :: {method}", flush=True)
+        else:
+            print(f"  [DUP] {java_file} :: {method} already registered", flush=True)
 
 output_path = "pipeline-output/mutation-target-methods.json"
 os.makedirs(os.path.dirname(output_path), exist_ok=True)

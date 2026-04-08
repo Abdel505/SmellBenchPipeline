@@ -30,17 +30,23 @@ else:
 print(f"Loaded {len(target_data)} target class(es) and {template_count} template(s).")
 
 # --- MAP TARGET DATA TO PROMPT FORMAT ---
+# Each (file, method) pair becomes its own target entry so the LLM evaluates
+# every method independently. Supports both "methods" (list) and legacy "method" (string).
 print("Preparing target JSON object(s)...")
 target_json_object_list = []
-for i, (file_path, info) in enumerate(target_data.items(), start=1):
-    class_id = f"C{i}"
-    target_json_object_list.append({
-        "class_id": class_id,
-        "file_path": file_path,
-        "source_code": info["class"],
-        "method_signature": info["method"]
-    })
-    print(f"  → Added target: {file_path}")
+entry_idx = 1
+for file_path, info in target_data.items():
+    methods = info.get("methods") or ([info["method"]] if "method" in info else [])
+    for method in methods:
+        class_id = f"C{entry_idx}"
+        target_json_object_list.append({
+            "class_id": class_id,
+            "file_path": file_path,
+            "source_code": info["class"],
+            "method_signature": method
+        })
+        print(f"  → Added target: {file_path} :: {method}")
+        entry_idx += 1
 
 # --- NEW PROMPT TEMPLATE (fully replaced with the text you provided) ---
 PROMPT_TEMPLATE = """

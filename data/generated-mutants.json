@@ -1,0 +1,82 @@
+[
+  {
+    "class_id": "C1",
+    "file_path": "app/src/main/java/com/pipeline/demo/Calculator.java",
+    "method_signature": "buildMultiples",
+    "mutations": [
+      {
+        "family_id": "F1",
+        "template_summary": {
+          "root_cause": "Redundant computation",
+          "generalized_template": "/* Search-like scan that keeps iterating after the goal is met */\nT_R $res = $INIT_RES; boolean $found = false; int $remaining = $K; // optional bounded goals\nfor (T_E $e : $ITERABLE) {\n    if ($PRED($e, $KEY_invariant)) {\n        // single-hit or few-hits semantics\n        $res = $TRANSFORM($e);          // overwrite single result (optional)\n        $found = true;                  // existence flag (monotonic false -> true)\n        $remaining = $remaining - 1;    // small fixed goal counter (optional)\n        $OPTIONAL_ACTION($e);           // may be expensive\n        // MISSING: break/return when ($found || $remaining == 0)\n    }\n    if ($OPTIONAL_SINK != null && $SIDE_EFFECTS_ENABLED) {\n        $SIDE_EFFECT($e);               // optional per-iteration work\n    }\n}\n$USE_AFTER_LOOP($res, $found, $remaining);\n"
+        },
+        "applicable": true,
+        "reason": "Detected ForStmt inside target method matching invariant-arg allocation pattern (all matching_rules satisfied, no negative_constraints violated).",
+        "amplifiers": {
+          "repeat_factor": 8,
+          "alloc_bytes": 4096,
+          "extra_calls": [
+            "java.util.regex.Pattern.compile(\"^[0-9]+$\")"
+          ]
+        },
+        "mutation_spec": {
+          "engine": "JavaParser",
+          "scope": "METHOD_ONLY",
+          "preconditions": [
+            "MethodDeclaration matches method_signature",
+            "Loop statement (ForStmt) present",
+            "No existing /* MUTATION:F1 */ marker"
+          ],
+          "targets": [
+            {
+              "ast_path_hint": "MethodDeclaration > BlockStmt > ForStmt (index=0)",
+              "line_range_hint": "15-25"
+            }
+          ],
+          "transformations": [
+            {
+              "op": "INSERT_INTO_LOOP_BODY",
+              "node_kind": "ForStmt",
+              "payload": "for (int _k=0; _k<8; _k++){ java.text.SimpleDateFormat fmt_mut = new java.text.SimpleDateFormat(\"yyyy-MM-dd\"); byte[] _buf_mut = new byte[4096]; _buf_mut[0] ^= 1; if (java.lang.System.nanoTime() == 0L) { java.util.Objects.requireNonNull(fmt_mut); } } /* MUTATION:F1 */",
+              "imports_needed": [
+                "java.text.SimpleDateFormat"
+              ],
+              "fresh_names": {
+                "_k": "_k",
+                "fmt_mut": "fmt_mut",
+                "_buf_mut": "_buf_mut"
+              }
+            }
+          ],
+          "negative_constraints_checks": [
+            "No argument depends on loop variable",
+            "No duplicate mutation marker present"
+          ],
+          "postconditions": [
+            "File parses successfully",
+            "No duplicate imports",
+            "No unresolved symbols"
+          ],
+          "expected_effect": "CPU and allocation increase within the target method.",
+          "impact_estimate": {
+            "kind": "cpu|alloc",
+            "qualitative": "high"
+          }
+        },
+        "patch_diff": "UNIFIED_DIFF_PATCH_TEXT",
+        "mutated_file_path": "app/src/main/java/com/pipeline/demo/Calculator.java",
+        "mutated_source_code": "package com.pipeline.demo;\n\nimport java.util.List;\n\npublic class Calculator {\n\n    public int add(int a, int b) {\n        return a + b;\n    }\n\n    public int subtract(int a, int b) {\n        return a - b;\n    }\n\n    public int multiply(int a, int b) {\n        return a * b;\n    }\n\n    public double divide(double a, double b) {\n        if (b == 0) throw new ArithmeticException(\"Division by zero\");\n        return a / b;\n    }\n\n    public double power(double base, int exp) {\n        double result = 1;\n        for (int i = 0; i < Math.abs(exp); i++) result *= base;\n        return exp < 0 ? 1.0 / result : result;\n    }\n\n    public long factorial(int n) {\n        if (n < 0) throw new IllegalArgumentException(\"Negative input\");\n        long result = 1;\n        for (int i = 2; i <= n; i++) result *= i;\n        return result;\n    }\n\n    public int gcd(int a, int b) {\n        a = Math.abs(a);\n        b = Math.abs(b);\n        while (b != 0) {\n            int t = b;\n            b = a % b;\n            a = t;\n        }\n        return a;\n    }\n\n    public long sumRange(int from, int to) {\n        long sum = 0;\n        for (int i = from; i <= to; i++) sum += i;\n        return sum;\n    }\n\n    public List<Integer> buildMultiples(int base, int count) {\n        List<Integer> result = new java.util.ArrayList<>();\n        for (int i = 1; i <= count; i++) {\n            for (int _k=0; _k<8; _k++){ java.text.SimpleDateFormat fmt_mut = new java.text.SimpleDateFormat(\"yyyy-MM-dd\"); byte[] _buf_mut = new byte[4096]; _buf_mut[0] ^= 1; if (java.lang.System.nanoTime() == 0L) { java.util.Objects.requireNonNull(fmt_mut); } } /* MUTATION:F1 */\n\n            Integer multiple = new Integer(base * i);\n            result.add(multiple);\n        }\n        return result;\n    }\n}\n"
+      }
+    ],
+    "non_applicable": [
+      {
+        "family_id": "F2",
+        "reason": "Matching rule failed: no relevant pattern in target method (minimum context missing)."
+      },
+      {
+        "family_id": "F3",
+        "reason": "Negative constraint violated: call arguments depend on loop index."
+      }
+    ]
+  }
+]

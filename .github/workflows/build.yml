@@ -41,11 +41,13 @@ jobs:
       - name: Set execute permission for pipeline scripts
         run: |
           chmod +x scripts/modified_classes_detector.sh
-          chmod +x scripts/filter_methods.sh
+          chmod +x scripts/prepare_mutation_targets.sh
+          chmod +x scripts/filter_methods_2.sh
           chmod +x scripts/update_coverage_matrix.sh
           chmod +x scripts/run-benchmarks.sh
           chmod +x scripts/lookup_benchmark.sh
           chmod +x scripts/generate_benchmark.sh
+          chmod +x scripts/run_mutation_testing.sh
           chmod +x tools/dashboard/generate_dashboard.sh
 
       - name: Run Modified Classes Detector
@@ -53,8 +55,21 @@ jobs:
         env:
           ACTIONS_TOKEN: ${{ secrets.ACTIONS_TOKEN }}
 
-      - name: Run Smell Filter
-        run: bash scripts/filter_methods.sh
+      - name: Prepare Mutation Targets
+        run: bash scripts/prepare_mutation_targets.sh
+
+      - name: Install mutator dependencies
+        run: pip install -r mutator/requirements.txt -q
+
+      - name: Generate Mutants (LLM)
+        run: python3 mutator/mutations_operator.py
+        env:
+          LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
+          LLM_ENDPOINT: ${{ secrets.LLM_ENDPOINT }}
+          LLM_MODEL: ${{ secrets.LLM_MODEL }}
+
+      - name: Run LLM Smell Filter
+        run: bash scripts/filter_methods_2.sh
 
       - name: Update Coverage Matrix (smelly + deleted methods)
         run: bash scripts/update_coverage_matrix.sh
