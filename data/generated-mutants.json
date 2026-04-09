@@ -2,80 +2,366 @@
   {
     "class_id": "C1",
     "file_path": "app/src/main/java/com/pipeline/demo/Calculator.java",
-    "method_signature": "buildMultiples",
+    "method_signature": "buildReport",
     "mutations": [
       {
         "family_id": "F1",
         "template_summary": {
           "root_cause": "Redundant computation",
-          "generalized_template": "/* Search-like scan that keeps iterating after the goal is met */\nT_R $res = $INIT_RES; boolean $found = false; int $remaining = $K; // optional bounded goals\nfor (T_E $e : $ITERABLE) {\n    if ($PRED($e, $KEY_invariant)) {\n        // single-hit or few-hits semantics\n        $res = $TRANSFORM($e);          // overwrite single result (optional)\n        $found = true;                  // existence flag (monotonic false -> true)\n        $remaining = $remaining - 1;    // small fixed goal counter (optional)\n        $OPTIONAL_ACTION($e);           // may be expensive\n        // MISSING: break/return when ($found || $remaining == 0)\n    }\n    if ($OPTIONAL_SINK != null && $SIDE_EFFECTS_ENABLED) {\n        $SIDE_EFFECT($e);               // optional per-iteration work\n    }\n}\n$USE_AFTER_LOOP($res, $found, $remaining);\n"
+          "generalized_template": "/* Search-like scan that keeps iterating after the goal is met */"
         },
-        "applicable": true,
-        "reason": "Detected ForStmt inside target method matching invariant-arg allocation pattern (all matching_rules satisfied, no negative_constraints violated).",
+        "applicable": false,
+        "reason": "The method does not contain any search-like scans.",
         "amplifiers": {
-          "repeat_factor": 8,
-          "alloc_bytes": 4096,
-          "extra_calls": [
-            "java.util.regex.Pattern.compile(\"^[0-9]+$\")"
-          ]
+          "repeat_factor": 0,
+          "alloc_bytes": 0,
+          "extra_calls": []
         },
         "mutation_spec": {
           "engine": "JavaParser",
           "scope": "METHOD_ONLY",
-          "preconditions": [
-            "MethodDeclaration matches method_signature",
-            "Loop statement (ForStmt) present",
-            "No existing /* MUTATION:F1 */ marker"
-          ],
-          "targets": [
-            {
-              "ast_path_hint": "MethodDeclaration > BlockStmt > ForStmt (index=0)",
-              "line_range_hint": "15-25"
-            }
-          ],
-          "transformations": [
-            {
-              "op": "INSERT_INTO_LOOP_BODY",
-              "node_kind": "ForStmt",
-              "payload": "for (int _k=0; _k<8; _k++){ java.text.SimpleDateFormat fmt_mut = new java.text.SimpleDateFormat(\"yyyy-MM-dd\"); byte[] _buf_mut = new byte[4096]; _buf_mut[0] ^= 1; if (java.lang.System.nanoTime() == 0L) { java.util.Objects.requireNonNull(fmt_mut); } } /* MUTATION:F1 */",
-              "imports_needed": [
-                "java.text.SimpleDateFormat"
-              ],
-              "fresh_names": {
-                "_k": "_k",
-                "fmt_mut": "fmt_mut",
-                "_buf_mut": "_buf_mut"
-              }
-            }
-          ],
-          "negative_constraints_checks": [
-            "No argument depends on loop variable",
-            "No duplicate mutation marker present"
-          ],
-          "postconditions": [
-            "File parses successfully",
-            "No duplicate imports",
-            "No unresolved symbols"
-          ],
-          "expected_effect": "CPU and allocation increase within the target method.",
+          "preconditions": [],
+          "targets": [],
+          "transformations": [],
+          "negative_constraints_checks": [],
+          "postconditions": [],
+          "expected_effect": "",
           "impact_estimate": {
-            "kind": "cpu|alloc",
-            "qualitative": "high"
+            "kind": "",
+            "qualitative": ""
           }
         },
-        "patch_diff": "UNIFIED_DIFF_PATCH_TEXT",
+        "patch_diff": "",
         "mutated_file_path": "app/src/main/java/com/pipeline/demo/Calculator.java",
-        "mutated_source_code": "package com.pipeline.demo;\n\nimport java.util.List;\n\npublic class Calculator {\n\n    public int add(int a, int b) {\n        return a + b;\n    }\n\n    public int subtract(int a, int b) {\n        return a - b;\n    }\n\n    public int multiply(int a, int b) {\n        return a * b;\n    }\n\n    public double divide(double a, double b) {\n        if (b == 0) throw new ArithmeticException(\"Division by zero\");\n        return a / b;\n    }\n\n    public double power(double base, int exp) {\n        double result = 1;\n        for (int i = 0; i < Math.abs(exp); i++) result *= base;\n        return exp < 0 ? 1.0 / result : result;\n    }\n\n    public long factorial(int n) {\n        if (n < 0) throw new IllegalArgumentException(\"Negative input\");\n        long result = 1;\n        for (int i = 2; i <= n; i++) result *= i;\n        return result;\n    }\n\n    public int gcd(int a, int b) {\n        a = Math.abs(a);\n        b = Math.abs(b);\n        while (b != 0) {\n            int t = b;\n            b = a % b;\n            a = t;\n        }\n        return a;\n    }\n\n    public long sumRange(int from, int to) {\n        long sum = 0;\n        for (int i = from; i <= to; i++) sum += i;\n        return sum;\n    }\n\n    public List<Integer> buildMultiples(int base, int count) {\n        List<Integer> result = new java.util.ArrayList<>();\n        for (int i = 1; i <= count; i++) {\n            for (int _k=0; _k<8; _k++){ java.text.SimpleDateFormat fmt_mut = new java.text.SimpleDateFormat(\"yyyy-MM-dd\"); byte[] _buf_mut = new byte[4096]; _buf_mut[0] ^= 1; if (java.lang.System.nanoTime() == 0L) { java.util.Objects.requireNonNull(fmt_mut); } } /* MUTATION:F1 */\n\n            Integer multiple = new Integer(base * i);\n            result.add(multiple);\n        }\n        return result;\n    }\n}\n"
+        "mutated_source_code": "package com.pipeline.demo;\n\nimport java.util.List;\n\npublic class Calculator {\n\n    public int add(int a, int b) {\n        return a + b;\n    }\n\n    public int subtract(int a, int b) {\n        return a - b;\n    }\n\n    public int multiply(int a, int b) {\n        return a * b;\n    }\n\n    public double divide(double a, double b) {\n        if (b == 0) throw new ArithmeticException(\"Division by zero\");\n        return a / b;\n    }\n\n    public double power(double base, int exp) {\n        double result = 1;\n        for (int i = 0; i < Math.abs(exp); i++) result *= base;\n        return exp < 0 ? 1.0 / result : result;\n    }\n\n    public long factorial(int n) {\n        if (n < 0) throw new IllegalArgumentException(\"Negative input\");\n        long result = 1;\n        for (int i = 2; i <= n; i++) result *= i;\n        return result;\n    }\n\n    public int gcd(int a, int b) {\n        a = Math.abs(a);\n        b = Math.abs(b);\n        while (b != 0) {\n            int t = b;\n            b = a % b;\n            a = t;\n        }\n        return a;\n    }\n\n    public long sumRange(int from, int to) {\n        long sum = 0;\n        for (int i = from; i <= to; i++) sum += i;\n        return sum;\n    }\n\n    public List<Integer> buildMultiples(int base, int count) {\n        List<Integer> result = new java.util.ArrayList<>();\n        for (int i = 1; i <= count; i++) {\n            Integer multiple = new Integer(base * i);\n            result.add(multiple);\n        }\n        return result;\n    }\n\n    public String buildReport(List<Integer> values) {\n        String report = \"\";\n        for (int i = 0; i < values.size(); i++) {\n            report += \"item[\" + i + \"]=\" + values.get(i);\n            if (i < values.size() - 1) report += \", \";\n        }\n        return report;\n    }\n}\n"
+      },
+      {
+        "family_id": "F16",
+        "template_summary": {
+          "root_cause": "Improper I/O usage",
+          "generalized_template": "/* Incorrect buffering strategy around IO */"
+        },
+        "applicable": false,
+        "reason": "The method does not contain any I/O operations.",
+        "amplifiers": {
+          "repeat_factor": 0,
+          "alloc_bytes": 0,
+          "extra_calls": []
+        },
+        "mutation_spec": {
+          "engine": "JavaParser",
+          "scope": "METHOD_ONLY",
+          "preconditions": [],
+          "targets": [],
+          "transformations": [],
+          "negative_constraints_checks": [],
+          "postconditions": [],
+          "expected_effect": "",
+          "impact_estimate": {
+            "kind": "",
+            "qualitative": ""
+          }
+        },
+        "patch_diff": "",
+        "mutated_file_path": "app/src/main/java/com/pipeline/demo/Calculator.java",
+        "mutated_source_code": "package com.pipeline.demo;\n\nimport java.util.List;\n\npublic class Calculator {\n\n    public int add(int a, int b) {\n        return a + b;\n    }\n\n    public int subtract(int a, int b) {\n        return a - b;\n    }\n\n    public int multiply(int a, int b) {\n        return a * b;\n    }\n\n    public double divide(double a, double b) {\n        if (b == 0) throw new ArithmeticException(\"Division by zero\");\n        return a / b;\n    }\n\n    public double power(double base, int exp) {\n        double result = 1;\n        for (int i = 0; i < Math.abs(exp); i++) result *= base;\n        return exp < 0 ? 1.0 / result : result;\n    }\n\n    public long factorial(int n) {\n        if (n < 0) throw new IllegalArgumentException(\"Negative input\");\n        long result = 1;\n        for (int i = 2; i <= n; i++) result *= i;\n        return result;\n    }\n\n    public int gcd(int a, int b) {\n        a = Math.abs(a);\n        b = Math.abs(b);\n        while (b != 0) {\n            int t = b;\n            b = a % b;\n            a = t;\n        }\n        return a;\n    }\n\n    public long sumRange(int from, int to) {\n        long sum = 0;\n        for (int i = from; i <= to; i++) sum += i;\n        return sum;\n    }\n\n    public List<Integer> buildMultiples(int base, int count) {\n        List<Integer> result = new java.util.ArrayList<>();\n        for (int i = 1; i <= count; i++) {\n            Integer multiple = new Integer(base * i);\n            result.add(multiple);\n        }\n        return result;\n    }\n\n    public String buildReport(List<Integer> values) {\n        String report = \"\";\n        for (int i = 0; i < values.size(); i++) {\n            report += \"item[\" + i + \"]=\" + values.get(i);\n            if (i < values.size() - 1) report += \", \";\n        }\n        return report;\n    }\n}\n"
+      },
+      {
+        "family_id": "F17",
+        "template_summary": {
+          "root_cause": "Improper I/O usage",
+          "generalized_template": "/* Incorrect buffering strategy around IO */"
+        },
+        "applicable": false,
+        "reason": "The method does not contain any I/O operations.",
+        "amplifiers": {
+          "repeat_factor": 0,
+          "alloc_bytes": 0,
+          "extra_calls": []
+        },
+        "mutation_spec": {
+          "engine": "JavaParser",
+          "scope": "METHOD_ONLY",
+          "preconditions": [],
+          "targets": [],
+          "transformations": [],
+          "negative_constraints_checks": [],
+          "postconditions": [],
+          "expected_effect": "",
+          "impact_estimate": {
+            "kind": "",
+            "qualitative": ""
+          }
+        },
+        "patch_diff": "",
+        "mutated_file_path": "app/src/main/java/com/pipeline/demo/Calculator.java",
+        "mutated_source_code": "package com.pipeline.demo;\n\nimport java.util.List;\n\npublic class Calculator {\n\n    public int add(int a, int b) {\n        return a + b;\n    }\n\n    public int subtract(int a, int b) {\n        return a - b;\n    }\n\n    public int multiply(int a, int b) {\n        return a * b;\n    }\n\n    public double divide(double a, double b) {\n        if (b == 0) throw new ArithmeticException(\"Division by zero\");\n        return a / b;\n    }\n\n    public double power(double base, int exp) {\n        double result = 1;\n        for (int i = 0; i < Math.abs(exp); i++) result *= base;\n        return exp < 0 ? 1.0 / result : result;\n    }\n\n    public long factorial(int n) {\n        if (n < 0) throw new IllegalArgumentException(\"Negative input\");\n        long result = 1;\n        for (int i = 2; i <= n; i++) result *= i;\n        return result;\n    }\n\n    public int gcd(int a, int b) {\n        a = Math.abs(a);\n        b = Math.abs(b);\n        while (b != 0) {\n            int t = b;\n            b = a % b;\n            a = t;\n        }\n        return a;\n    }\n\n    public long sumRange(int from, int to) {\n        long sum = 0;\n        for (int i = from; i <= to; i++) sum += i;\n        return sum;\n    }\n\n    public List<Integer> buildMultiples(int base, int count) {\n        List<Integer> result = new java.util.ArrayList<>();\n        for (int i = 1; i <= count; i++) {\n            Integer multiple = new Integer(base * i);\n            result.add(multiple);\n        }\n        return result;\n    }\n\n    public String buildReport(List<Integer> values) {\n        String report = \"\";\n        for (int i = 0; i < values.size(); i++) {\n            report += \"item[\" + i + \"]=\" + values.get(i);\n            if (i < values.size() - 1) report += \", \";\n        }\n        return report;\n    }\n}\n"
       }
     ],
     "non_applicable": [
       {
         "family_id": "F2",
-        "reason": "Matching rule failed: no relevant pattern in target method (minimum context missing)."
+        "reason": "The method does not contain any redundant computations."
       },
       {
         "family_id": "F3",
-        "reason": "Negative constraint violated: call arguments depend on loop index."
+        "reason": "The method does not contain any memoized values."
+      },
+      {
+        "family_id": "F4",
+        "reason": "The method does not contain any inefficient data structures or bad API usage."
+      },
+      {
+        "family_id": "F5",
+        "reason": "The method does not contain any inefficient algorithms or bad API usage."
+      },
+      {
+        "family_id": "F6",
+        "reason": "The method does not contain any inefficient or bad API usage."
+      },
+      {
+        "family_id": "F7",
+        "reason": "The method does not contain any inefficient algorithms or bad API usage."
+      },
+      {
+        "family_id": "F8",
+        "reason": "The method does not contain any improper I/O usage."
+      },
+      {
+        "family_id": "F9",
+        "reason": "The method does not contain any thread-safety violations."
+      },
+      {
+        "family_id": "F10",
+        "reason": "The method does not contain any inefficient I/O usage."
+      },
+      {
+        "family_id": "F11",
+        "reason": "The method does not contain any redundant repeated evaluation of expensive color functions."
+      },
+      {
+        "family_id": "F12",
+        "reason": "The method does not contain any inefficient algorithms or data structures."
+      },
+      {
+        "family_id": "F13",
+        "reason": "The method does not contain any inefficient data structures or algorithms."
+      },
+      {
+        "family_id": "F14",
+        "reason": "The method does not contain any redundant repeated evaluation of expensive color functions."
+      },
+      {
+        "family_id": "F15",
+        "reason": "The method does not contain any inefficient algorithms or data structures."
+      }
+    ]
+  },
+  {
+    "class_id": "C2",
+    "file_path": "app/src/main/java/com/pipeline/demo/StringUtils.java",
+    "method_signature": "countVowels",
+    "mutations": [
+      {
+        "family_id": "F1",
+        "template_summary": {
+          "root_cause": "Redundant computation",
+          "generalized_template": "/* Search-like scan that keeps iterating after the goal is met */"
+        },
+        "applicable": true,
+        "reason": "The method contains a loop that iterates over the input string, checking each character to see if it's a vowel. This loop can be optimized by using a more efficient data structure, such as a HashSet, to store the vowels.",
+        "amplifiers": {
+          "repeat_factor": 8,
+          "alloc_bytes": 4096,
+          "extra_calls": []
+        },
+        "mutation_spec": {
+          "engine": "JavaParser",
+          "scope": "METHOD_ONLY",
+          "preconditions": [],
+          "targets": [],
+          "transformations": [],
+          "negative_constraints_checks": [],
+          "postconditions": [],
+          "expected_effect": "The method will still correctly count the number of vowels in the input string, but it will do so more efficiently.",
+          "impact_estimate": {
+            "kind": "cpu",
+            "qualitative": "high"
+          }
+        },
+        "patch_diff": "Modified the countVowels method to use a HashSet to store the vowels, reducing the number of iterations required to count the vowels.",
+        "mutated_file_path": "app/src/main/java/com/pipeline/demo/StringUtils.java",
+        "mutated_source_code": "package com.pipeline.demo;\n\nimport java.util.HashSet;\nimport java.util.Set;\n\npublic class StringUtils {\n\n    public String reverse(String s) {\n        return new StringBuilder(s).reverse().toString();\n    }\n\n    public boolean isPalindrome(String s) {\n        String clean = s.toLowerCase().replaceAll(\"[^a-z0-9]\", \"\");\n        return clean.equals(new StringBuilder(clean).reverse().toString());\n    }\n\n    public int countVowels(String s) {\n        Set<Character> vowels = new HashSet<>();\n        vowels.add('a');\n        vowels.add('e');\n        vowels.add('i');\n        vowels.add('o');\n        vowels.add('u');\n        int count = 0;\n        for (char c : s.toLowerCase().toCharArray()) {\n            if (vowels.contains(c)) {\n                count++;\n            }\n        }\n        return count;\n    }\n\n    public String capitalize(String s) {\n        if (s == null || s.isEmpty()) return s;\n        char[] chars = s.toLowerCase().toCharArray();\n        for (int i = 0; i < chars.length; i++) {\n            if (i == 0 || chars[i - 1] == ' ') {\n                chars[i] = Character.toUpperCase(chars[i]);\n            }\n        }\n        String result = \"\";\n        for (int i = 0; i < chars.length; i++) {\n            result += chars[i];\n        }\n        return result;\n    }\n\n    public String compress(String s) {\n        if (s == null || s.isEmpty()) return s;\n        StringBuilder sb = new StringBuilder();\n        int i = 0;\n        while (i < s.length()) {\n            char c = s.charAt(i);\n            int count = 1;\n            while (i + count < s.length() && s.charAt(i + count) == c) count++;\n            sb.append(c);\n            if (count > 1) sb.append(count);\n            i += count;\n        }\n        return sb.toString();\n    }\n\n    public String[] splitWords(String s) {\n        if (s == null || s.trim().isEmpty()) return new String[0];\n        return s.trim().split(\"\\\\s+\");\n    }\n\n    public String joinWithSeparator(List<String> items, String separator) {\n        String result = \"\";\n        for (int i = 0; i < items.size(); i++) {\n            if (items.get(i) == null || items.get(i).isEmpty()) continue;\n            result += items.get(i);\n            if (i < items.size() - 1) result += separator;\n        }\n        return result;\n    }\n}"
+      }
+    ],
+    "non_applicable": [
+      {
+        "family_id": "F2",
+        "reason": "The method does not contain any redundant computations that can be optimized using a more efficient data structure."
+      },
+      {
+        "family_id": "F3",
+        "reason": "The method does not contain any lazy initialization or put-once cache logic that can be optimized."
+      },
+      {
+        "family_id": "F4",
+        "reason": "The method does not contain any inefficient data structures or algorithms that can be optimized."
+      },
+      {
+        "family_id": "F5",
+        "reason": "The method does not contain any inefficient algorithms or data structures that can be optimized."
+      },
+      {
+        "family_id": "F6",
+        "reason": "The method does not contain any inefficient algorithms or data structures that can be optimized."
+      },
+      {
+        "family_id": "F7",
+        "reason": "The method does not contain any inefficient algorithms or data structures that can be optimized."
+      },
+      {
+        "family_id": "F8",
+        "reason": "The method does not contain any improper I/O usage that can be optimized."
+      },
+      {
+        "family_id": "F9",
+        "reason": "The method does not contain any thread-safety violations that can be optimized."
+      },
+      {
+        "family_id": "F10",
+        "reason": "The method does not contain any inefficient I/O usage that can be optimized."
+      },
+      {
+        "family_id": "F11",
+        "reason": "The method does not contain any redundant diagnostic message construction that can be optimized."
+      },
+      {
+        "family_id": "F12",
+        "reason": "The method does not contain any inefficient algorithms or data structures that can be optimized."
+      },
+      {
+        "family_id": "F13",
+        "reason": "The method does not contain any inefficient algorithms or data structures that can be optimized."
+      },
+      {
+        "family_id": "F14",
+        "reason": "The method does not contain any redundant color function evaluations that can be optimized."
+      },
+      {
+        "family_id": "F15",
+        "reason": "The method does not contain any linear scans that can be optimized using an indexed lookup."
+      },
+      {
+        "family_id": "F16",
+        "reason": "The method does not contain any improper I/O usage that can be optimized."
+      },
+      {
+        "family_id": "F17",
+        "reason": "The method does not contain any incorrect buffering strategies that can be optimized."
+      }
+    ]
+  },
+  {
+    "class_id": "C3",
+    "file_path": "app/src/main/java/com/pipeline/demo/StringUtils.java",
+    "method_signature": "joinWithSeparator",
+    "mutations": [
+      {
+        "family_id": "F1",
+        "template_summary": {
+          "root_cause": "Redundant computation",
+          "generalized_template": "/* Search-like scan that keeps iterating after the goal is met */"
+        },
+        "applicable": true,
+        "reason": "The method has a loop that iterates over a list of strings and concatenates them with a separator.",
+        "amplifiers": {
+          "repeat_factor": 8,
+          "alloc_bytes": 4096,
+          "extra_calls": []
+        },
+        "mutation_spec": {
+          "engine": "JavaParser",
+          "scope": "METHOD_ONLY",
+          "preconditions": [],
+          "targets": [],
+          "transformations": [],
+          "negative_constraints_checks": [],
+          "postconditions": [],
+          "expected_effect": "Increased CPU usage due to redundant computation",
+          "impact_estimate": {
+            "kind": "cpu",
+            "qualitative": "high"
+          }
+        },
+        "patch_diff": "Added a redundant computation inside the loop",
+        "mutated_file_path": "app/src/main/java/com/pipeline/demo/StringUtils.java",
+        "mutated_source_code": "package com.pipeline.demo;\n\nimport java.util.List;\n\npublic class StringUtils {\n\n    public String reverse(String s) {\n        return new StringBuilder(s).reverse().toString();\n    }\n\n    public boolean isPalindrome(String s) {\n        String clean = s.toLowerCase().replaceAll(\"[^a-z0-9]\", \"\");\n        return clean.equals(new StringBuilder(clean).reverse().toString());\n    }\n\n    public int countVowels(String s) {\n        String found = \"\";\n        for (char c : s.toLowerCase().toCharArray()) {\n            if (\"aeiou\".indexOf(c) >= 0) found += c;   \n            if (\"AEIOU\".indexOf(c) >= 0) found += c;   \n        }\n        return found.length();\n    }\n\n    public String capitalize(String s) {\n        if (s == null || s.isEmpty()) return s;\n        char[] chars = s.toLowerCase().toCharArray();\n        for (int i = 0; i < chars.length; i++) {\n            if (i == 0 || chars[i - 1] == ' ') {\n                chars[i] = Character.toUpperCase(chars[i]);\n            }\n        }\n        String result = \"\";\n        for (int i = 0; i < chars.length; i++) {\n            result += chars[i];\n        }\n        return result;\n    }\n\n    public String compress(String s) {\n        if (s == null || s.isEmpty()) return s;\n        StringBuilder sb = new StringBuilder();\n        int i = 0;\n        while (i < s.length()) {\n            char c = s.charAt(i);\n            int count = 1;\n            while (i + count < s.length() && s.charAt(i + count) == c) count++;\n            sb.append(c);\n            if (count > 1) sb.append(count);\n            i += count;\n        }\n        return sb.toString();\n    }\n\n    public String[] splitWords(String s) {\n        if (s == null || s.trim().isEmpty()) return new String[0];\n        return s.trim().split(\"\\\\s+\");\n    }\n\n    public String joinWithSeparator(List<String> items, String separator) {\n        String result = \"\";\n        for (int i = 0; i < items.size(); i++) {\n            if (items.get(i) == null || items.get(i).isEmpty()) continue;\n            result += items.get(i);\n            if (i < items.size() - 1) result += separator;\n            for (int j = 0; j < 8; j++) {\n                result += items.get(i);\n            }\n        }\n        return result;\n    }\n}"
+      }
+    ],
+    "non_applicable": [
+      {
+        "family_id": "F2",
+        "reason": "The method does not have any redundant computation that can be optimized."
+      },
+      {
+        "family_id": "F3",
+        "reason": "The method does not have any memoization opportunities."
+      },
+      {
+        "family_id": "F4",
+        "reason": "The method does not have any inefficient encoding or decoding."
+      },
+      {
+        "family_id": "F5",
+        "reason": "The method does not have any inefficient data structures or algorithms."
+      },
+      {
+        "family_id": "F6",
+        "reason": "The method does not have any inefficient API usage."
+      },
+      {
+        "family_id": "F7",
+        "reason": "The method does not have any inefficient algorithms or data structures."
+      },
+      {
+        "family_id": "F8",
+        "reason": "The method does not have any improper I/O usage."
+      },
+      {
+        "family_id": "F9",
+        "reason": "The method does not have any thread-safety violations."
+      },
+      {
+        "family_id": "F10",
+        "reason": "The method does not have any inefficient I/O usage."
+      },
+      {
+        "family_id": "F11",
+        "reason": "The method does not have any redundant diagnostic message construction."
+      },
+      {
+        "family_id": "F12",
+        "reason": "The method does not have any inefficient algorithms or data structures due to missing expansion bounds."
+      },
+      {
+        "family_id": "F13",
+        "reason": "The method does not have any inefficient data structures or algorithms."
+      },
+      {
+        "family_id": "F14",
+        "reason": "The method does not have any redundant repeated evaluation of expensive color functions."
+      },
+      {
+        "family_id": "F15",
+        "reason": "The method does not have any inefficient algorithms or data structures."
+      },
+      {
+        "family_id": "F16",
+        "reason": "The method does not have any improper I/O usage."
+      },
+      {
+        "family_id": "F17",
+        "reason": "The method does not have any incorrect buffering strategy."
       }
     ]
   }
