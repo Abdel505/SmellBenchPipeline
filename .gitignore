@@ -49,3 +49,6 @@ Thumbs.db
 
 # Nested repo — reference only, never commit
 EvoBench/
+
+# Backup folder
+backup/
