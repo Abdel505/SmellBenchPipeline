@@ -1,2 +1,0 @@
-app/src/main/java/com/pipeline/demo/Calculator.java
-app/src/main/java/com/pipeline/demo/StringUtils.java

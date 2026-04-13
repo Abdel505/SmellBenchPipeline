@@ -159,8 +159,7 @@ for obj_idx, obj in enumerate(data):
     for mut_idx, mut in enumerate(obj.get("mutations", [])):
         if not isinstance(mut, dict):
             continue
-        if not mut.get("applicable", False):
-            continue
+        # mutations[] contains ONLY applicable entries — no "applicable" field needed
         family_id      = mut.get("family_id", "unknown")
         mutated_source = mut.get("mutated_source_code", "")
         # Skip placeholders: real Java source must contain 'class' and 'package' keywords

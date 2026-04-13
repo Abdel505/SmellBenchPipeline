@@ -119,40 +119,7 @@ handle_modified() {
         return
     fi
 
-    local bench_file
-    bench_file="$(bench_file_for "$java_file" "$method")"
-
-    # --- Atomic backup-then-swap (Risk #1 mitigation) ---
-    # Back up the old benchmark BEFORE attempting generation.
-    # Generation overwrites the same file; on failure we restore it.
-    local backup=""
-    if [[ -f "$bench_file" ]]; then
-        backup="$(mktemp /tmp/bench_backup_XXXXXX.java)"
-        cp "$bench_file" "$backup"
-        log "  Backed up ${bench_file} → ${backup}"
-    fi
-
-    if bash "${SCRIPT_DIR}/generate_benchmark.sh" "$java_file" "$method"; then
-        # Generation succeeded — update matrix row atomically
-        local new_bench_class
-        new_bench_class="$(bench_class_for "$java_file" "$method")"
-
-        grep -vF "${java_file}|${method}|" "$MATRIX" > "${MATRIX}.tmp" || true
-        echo "${java_file}|${method}|${new_bench_class}|" >> "${MATRIX}.tmp"
-        mv "${MATRIX}.tmp" "$MATRIX"
-
-        [[ -n "$backup" ]] && rm -f "$backup"
-        log "  [OK] Modified row: ${java_file}|${method}|${new_bench_class}|"
-    else
-        # Generation failed — ROLLBACK: restore old benchmark, leave matrix untouched
-        if [[ -n "$backup" ]]; then
-            mv "$backup" "$bench_file"
-            log "  [ROLLBACK] Restored old benchmark from backup"
-        fi
-        rm -f "${MATRIX}.tmp"
-        log "  [ERROR] Generation failed for ${method} — matrix unchanged, old benchmark preserved"
-        return 1
-    fi
+    log "  [SKIP] ${method} already has benchmark ${old_bench_class} — keeping existing"
 }
 
 handle_deleted() {

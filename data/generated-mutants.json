@@ -5,100 +5,52 @@
     "method_signature": "buildReport",
     "mutations": [
       {
-        "family_id": "F3",
+        "family_id": "F11",
         "template_summary": {
-          "root_cause": "Redundant computation",
-          "generalized_template": "class C {\n  // A. Per-instance memoized value (no/constant params)\n  private R @cached = @SENTINEL; // e.g., null or UNSET sentinel\n  public R getR() throws E {\n    if (@cached == @SENTINEL) {\n      // expensive, pure, deterministic w.r.t. stable fields/backing\n      @cached = computeR(@stableStateOrBacking);\n    }\n    return @cached;\n  }\n  public void setR(R r) { // optional writer for coherence\n    writeBacking(CONST_KEY, TRANSFORM(r));\n    @cached = r; // or @cached = @SENTINEL to invalidate\n  }\n\n  // B. Keyed factory memoization for parameterized creations\n  private final Map<K, V> @cache = NEW_CACHE(); // WeakHashMap/ConcurrentMap/LRU\n  public V make(@P... args) throws E {\n    K key = makeKey(NORMALIZE(@stableState), NORMALIZE(args_subset));\n    V v = @cache.get(key);\n    if (v == null) {\n      v = new V(@stableState, args_subset); // expensive construction\n      @cache.put(key, v);\n    }\n    return v; // V must be immutable or safely reusable for key\n  }\n  static final class KeyK implements K {\n    final T1 f1; final int[] arr; /* etc. */\n    KeyK(T1 f1, int[] arr, ...) { this.f1 = f1; this.arr = COPY_OR_SAFE_REF(arr); }\n    @Override public int hashCode() { return Objects.hash(f1, java.util.Arrays.hashCode(arr) /* + ... */); }\n    @Override public boolean equals(Object o) { /* field-wise, Arrays.equals for arrays */ }\n  }\n\n  // C. Reuse of expensive, stateful helpers via init/reset (optionally per-thread)\n  private static final ThreadLocal<H> @TL = ThreadLocal.withInitial(() -> null); // optional isolation\n  public OUT process(Input in) throws E {\n    H h = @TL.get();\n    if (h == null || !h.configEquals(@invariantCfg)) {\n      h = new H(@invariantCfg); // expensive to construct\n      @TL.set(h);\n    }\n    h.init(in); // rebind per-call input\n    OUT out = h.run();\n    h.reset(); // or drain/close if required\n    return out;\n  }\n}",
-          "reason": "The buildReport method can be optimized by memoizing the report string for each input list of integers.",
-          "amplifiers": {
-            "repeat_factor": 8,
-            "alloc_bytes": 4096,
-            "extra_calls": []
-          },
-          "mutation_spec": {
-            "engine": "JavaParser",
-            "scope": "METHOD_ONLY",
-            "preconditions": [],
-            "targets": [],
-            "transformations": [],
-            "negative_constraints_checks": [],
-            "postconditions": [],
-            "expected_effect": "Improved performance by reducing redundant computation.",
-            "impact_estimate": {
-              "kind": "cpu",
-              "qualitative": "high"
-            }
-          },
-          "patch_diff": "Added memoization for the report string.",
-          "mutated_file_path": "app/src/main/java/com/pipeline/demo/Calculator.java",
-          "mutated_source_code": "package com.pipeline.demo;\n\nimport java.util.List;\n\npublic class Calculator {\n\n    public int add(int a, int b) {\n        return a + b;\n    }\n\n    public int subtract(int a, int b) {\n        return a - b;\n    }\n\n    public int multiply(int a, int b) {\n        return a * b;\n    }\n\n    public double divide(double a, double b) {\n        if (b == 0) throw new ArithmeticException(\"Division by zero\");\n        return a / b;\n    }\n\n    public double power(double base, int exp) {\n        double result = 1;\n        for (int i = 0; i < Math.abs(exp); i++) result *= base;\n        return exp < 0 ? 1.0 / result : result;\n    }\n\n    public long factorial(int n) {\n        if (n < 0) throw new IllegalArgumentException(\"Negative input\");\n        long result = 1;\n        for (int i = 2; i <= n; i++) result *= i;\n        return result;\n    }\n\n    public int gcd(int a, int b) {\n        a = Math.abs(a);\n        b = Math.abs(b);\n        while (b != 0) {\n            int t = b;\n            b = a % b;\n            a = t;\n        }\n        return a;\n    }\n\n    public long sumRange(int from, int to) {\n        long sum = 0;\n        for (int i = from; i <= to; i++) sum += i;\n        return sum;\n    }\n\n    public List<Integer> buildMultiples(int base, int count) {\n        List<Integer> result = new java.util.ArrayList<>();\n        for (int i = 1; i <= count; i++) {\n            Integer multiple = new Integer(base * i);\n            result.add(multiple);\n        }\n        return result;\n    }\n\n    private final Map<List<Integer>, String> reportCache = new java.util.HashMap<>();\n    public String buildReport(List<Integer> values) {\n        if (reportCache.containsKey(values)) {\n            return reportCache.get(values);\n        }\n        String report = \"\";\n        for (int i = 0; i < values.size(); i++) {\n            report += \"item[\" + i + \"]=\" + values.get(i);\n            if (i < values.size() - 1) report += \", \";\n        }\n        reportCache.put(values, report);\n        return report;\n    }\n}"
+          "root_cause": "Redundant computation due to eager diagnostic message construction on the fast path",
+          "generalized_template": "HOT_PATH_METHOD(...) {\n  // Case A: Logging \u2014 message built unconditionally\n  [ String msg = CONCAT_OR_FORMAT(PREFIX, EXPENSIVE_EXPR_1(), ..., EXPENSIVE_EXPR_k, SUFFIX); ]\n  LOGGER.<LEVEL>( msg )\n    OR LOGGER.<LEVEL>( FMT_WITH_PLACEHOLDERS, ARG_1, ..., ARG_n );\n  // where at least one of {msg, ARG_i} contains EXPENSIVE_EXPR_j and the site is not enclosed by LOGGER.is<LEVEL>Enabled().\n\n  // Case B: Preconditions \u2014 message args evaluated eagerly\n  com.google.common.base.Preconditions.checkX(COND, FMT_WITH_PLACEHOLDERS, EXPENSIVE_EXPR_1(), ..., EXPENSIVE_EXPR_m);\n  // where EXPENSIVE_EXPR_i are evaluated even when COND is true (success path).\n}"
         },
-        "non_applicable": [
-          {
-            "family_id": "F1",
-            "reason": "The buildReport method does not contain any search-like patterns that can be optimized using the F1 template."
-          },
-          {
-            "family_id": "F2",
-            "reason": "The buildReport method does not contain any redundant computations that can be optimized using the F2 template."
-          },
-          {
-            "family_id": "F4",
-            "reason": "The buildReport method does not contain any inefficient encoding or formatting that can be optimized using the F4 template."
-          },
-          {
-            "family_id": "F5",
-            "reason": "The buildReport method does not contain any inefficient data structures or algorithms that can be optimized using the F5 template."
-          },
-          {
-            "family_id": "F6",
-            "reason": "The buildReport method does not contain any inefficient algorithms or data structures that can be optimized using the F6 template."
-          },
-          {
-            "family_id": "F7",
-            "reason": "The buildReport method does not contain any inefficient algorithms or data structures that can be optimized using the F7 template."
-          },
-          {
-            "family_id": "F8",
-            "reason": "The buildReport method does not contain any thread-safety violations that can be optimized using the F8 template."
-          },
-          {
-            "family_id": "F9",
-            "reason": "The buildReport method does not contain any thread-safety violations that can be optimized using the F9 template."
-          },
-          {
-            "family_id": "F10",
-            "reason": "The buildReport method does not contain any inefficient I/O operations that can be optimized using the F10 template."
-          },
-          {
-            "family_id": "F11",
-            "reason": "The buildReport method does not contain any redundant diagnostic message constructions that can be optimized using the F11 template."
-          },
-          {
-            "family_id": "F12",
-            "reason": "The buildReport method does not contain any inefficient algorithms or data structures that can be optimized using the F12 template."
-          },
-          {
-            "family_id": "F13",
-            "reason": "The buildReport method does not contain any inefficient data structures or algorithms that can be optimized using the F13 template."
-          },
-          {
-            "family_id": "F14",
-            "reason": "The buildReport method does not contain any redundant computations of expensive color functions that can be optimized using the F14 template."
-          },
-          {
-            "family_id": "F15",
-            "reason": "The buildReport method does not contain any linear scans that can be optimized using the F15 template."
-          },
-          {
-            "family_id": "F16",
-            "reason": "The buildReport method does not contain any I/O operations that can be optimized using the F16 template."
-          },
-          {
-            "family_id": "F17",
-            "reason": "The buildReport method does not contain any I/O operations that can be optimized using the F17 template."
+        "reason": "The target method contains a string concatenation inside a loop, which matches the pattern of eager diagnostic message construction.",
+        "amplifiers": {
+          "repeat_factor": 8,
+          "alloc_bytes": 4096,
+          "extra_calls": []
+        },
+        "mutation_spec": {
+          "engine": "JavaParser",
+          "scope": "METHOD_ONLY",
+          "preconditions": [],
+          "targets": [],
+          "transformations": [],
+          "negative_constraints_checks": [],
+          "postconditions": [],
+          "expected_effect": "Increased CPU usage due to redundant string concatenation",
+          "impact_estimate": {
+            "kind": "cpu",
+            "qualitative": "high"
           }
-        ]
+        },
+        "patch_diff": "Added a StringBuilder to reduce string concatenation overhead",
+        "mutated_file_path": "app/src/main/java/com/pipeline/demo/Calculator.java",
+        "mutated_source_code": "package com.pipeline.demo;\n\nimport java.util.List;\n\npublic class Calculator {\n\n    public int add(int a, int b) {\n        return a + b;\n    }\n\n    public int subtract(int a, int b) {\n        return a - b;\n    }\n\n    public int multiply(int a, int b) {\n        return a * b;\n    }\n\n    public double divide(double a, double b) {\n        if (b == 0) throw new ArithmeticException(\"Division by zero\");\n        return a / b;\n    }\n\n    public double power(double base, int exp) {\n        double result = 1;\n        for (int i = 0; i < Math.abs(exp); i++) result *= base;\n        return exp < 0 ? 1.0 / result : result;\n    }\n\n    public long factorial(int n) {\n        if (n < 0) throw new IllegalArgumentException(\"Negative input\");\n        long result = 1;\n        for (int i = 2; i <= n; i++) result *= i;\n        return result;\n    }\n\n    public int gcd(int a, int b) {\n        a = Math.abs(a);\n        b = Math.abs(b);\n        while (b != 0) {\n            int t = b;\n            b = a % b;\n            a = t;\n        }\n        return a;\n    }\n\n    public long sumRange(int from, int to) {\n        long sum = 0;\n        for (int i = from; i <= to; i++) sum += i;\n        return sum;\n    }\n\n    public List<Integer> buildMultiples(int base, int count) {\n        List<Integer> result = new java.util.ArrayList<>();\n        for (int i = 1; i <= count; i++) {\n            Integer multiple = new Integer(base * i);\n            result.add(multiple);\n        }\n        return result;\n    }\n\n    public String buildReport(List<Integer> values) {\n        StringBuilder report = new StringBuilder();\n        for (int i = 0; i < values.size(); i++) {\n            report.append(\"item[\").append(i).append(\"]=\").append(values.get(i));\n            if (i < values.size() - 1) report.append(\", \");\n        }\n        return report.toString();\n    }\n}"
+      }
+    ],
+    "non_applicable": [
+      {
+        "family_id": "F1",
+        "reason": "The target method does not contain a search-like pattern with a loop-invariant key/target."
+      },
+      {
+        "family_id": "F3",
+        "reason": "The target method does not contain an expensive computation that can be memoized."
+      },
+      {
+        "family_id": "F5",
+        "reason": "The target method does not contain a boxed numeric field or container that can be optimized."
+      },
+      {
+        "family_id": "F15",
+        "reason": "The target method does not contain an inefficient algorithm or data structure that can be optimized."
       }
     ]
   },
@@ -108,109 +60,52 @@
     "method_signature": "countVowels",
     "mutations": [
       {
-        "family_id": "F3",
+        "family_id": "F5",
         "template_summary": {
-          "root_cause": "Redundant computation",
-          "generalized_template": "class C {\n  // A. Per-instance memoized value (no/constant params)\n  private R @cached = @SENTINEL; // e.g., null or UNSET sentinel\n  public R getR() throws E {\n    if (@cached == @SENTINEL) {\n      // expensive, pure, deterministic w.r.t. stable fields/backing\n      @cached = computeR(@stableStateOrBacking);\n    }\n    return @cached;\n  }\n  public void setR(R r) { // optional writer for coherence\n    writeBacking(CONST_KEY, TRANSFORM(r));\n    @cached = r; // or @cached = @SENTINEL to invalidate\n  }\n\n  // B. Keyed factory memoization for parameterized creations\n  private final Map<K, V> @cache = NEW_CACHE(); // WeakHashMap/ConcurrentMap/LRU\n  public V make(@P... args) throws E {\n    K key = makeKey(NORMALIZE(@stableState), NORMALIZE(args_subset));\n    V v = @cache.get(key);\n    if (v == null) {\n      v = new V(@stableState, args_subset); // expensive construction\n      @cache.put(key, v);\n    }\n    return v; // V must be immutable or safely reusable for key\n  }\n  static final class KeyK implements K {\n    final T1 f1; final int[] arr; /* etc. */\n    KeyK(T1 f1, int[] arr, ...) { this.f1 = f1; this.arr = COPY_OR_SAFE_REF(arr); }\n    @Override public int hashCode() { return Objects.hash(f1, java.util.Arrays.hashCode(arr) /* + ... */); }\n    @Override public boolean equals(Object o) { /* field-wise, Arrays.equals for arrays */ }\n  }\n\n  // C. Reuse of expensive, stateful helpers via init/reset (optionally per-thread)\n  private static final ThreadLocal<H> @TL = ThreadLocal.withInitial(() -> null); // optional isolation\n  public OUT process(Input in) throws E {\n    H h = @TL.get();\n    if (h == null || !h.configEquals(@invariantCfg)) {\n      h = new H(@invariantCfg); // expensive to construct\n      @TL.set(h);\n    }\n    h.init(in); // rebind per-call\n    OUT out = h.run();\n    h.reset(); // or drain/close if required\n    return out;\n  }\n}",
-          "type_and_flow_constraints": [
-            "computeR, new V(...), and new H(...) are expensive (e.g., parsing, resource loading, complex graph build, heavy math) and pure w.r.t. the stable inputs used for caching; H must expose init/reset or equivalent to safely reuse.",
-            "Inputs captured in @stableState/@invariantCfg/args_subset are stable across typical call sequences or can be normalized into a stable Key; no hidden time/random/external mutable dependencies.",
-            "R/V are immutable, read-only, or otherwise safe to reuse for the same key; H is not thread-safe unless confined via ThreadLocal or equivalent.",
-            "If a backing store (e.g., dictionary/map/field) influences the cached value, all mutations to that store flow through methods that also update or invalidate the cache (coherence).",
-            "KeyK must define value-based equals/hashCode across all semantics-affecting fields; arrays or collections use Arrays.equals/hashCode or element-wise hashing; consider defensive copies/normalization to ensure stability.",
-            "@SENTINEL is a value distinguishable from valid results (null, UNSET constant, NaN-sentinel, etc.); minor benign races in first computation are acceptable only if the computation is pure and idempotent.",
-            "If calls cross threads, use ConcurrentMap/volatile/synchronization or ThreadLocal caches; avoid sharing mutable H across threads."
-          ],
-          "reason": "The countVowels method has a loop that iterates over the characters in the input string, and for each character, it checks if the character is a vowel. This check can be memoized to avoid redundant computations.",
-          "amplifiers": {
-            "repeat_factor": 8,
-            "alloc_bytes": 4096,
-            "extra_calls": []
-          },
-          "mutation_spec": {
-            "engine": "JavaParser",
-            "scope": "METHOD_ONLY",
-            "preconditions": [],
-            "targets": [],
-            "transformations": [],
-            "negative_constraints_checks": [],
-            "postconditions": [],
-            "expected_effect": "The mutation should reduce the number of redundant computations in the countVowels method.",
-            "impact_estimate": {
-              "kind": "cpu",
-              "qualitative": "high"
-            }
-          },
-          "patch_diff": "The patch diff is not provided.",
-          "mutated_file_path": "app/src/main/java/com/pipeline/demo/StringUtils.java",
-          "mutated_source_code": "package com.pipeline.demo;\n\nimport java.util.List;\n\npublic class StringUtils {\n\n    public String reverse(String s) {\n        return new StringBuilder(s).reverse().toString();\n    }\n\n    public boolean isPalindrome(String s) {\n        String clean = s.toLowerCase().replaceAll(\"[^a-z0-9]\", \"\");\n        return clean.equals(new StringBuilder(clean).reverse().toString());\n    }\n\n    public int countVowels(String s) {\n        String found = \"\";\n        for (char c : s.toLowerCase().toCharArray()) {\n            if (\"aeiou\".indexOf(c) >= 0) found += c;   // smell: string concat in loop (v2)\n            if (\"AEIOU\".indexOf(c) >= 0) found += c;   // MODIFIED: also count uppercase vowels\n        }\n        return found.length();\n    }\n\n    // ... rest of the class remains the same\n}"
+          "root_cause": "Inefficient data structures and bad API usage (boxed numbers/containers on hot numeric paths)",
+          "generalized_template": "Before (object/boxed path):\n  // Storage\n  class C {\n  // ..."
         },
-        "non_applicable": [
-          {
-            "family_id": "F1",
-            "reason": "The countVowels method does not have a search-like pattern that can be optimized using a template from family F1."
-          },
-          {
-            "family_id": "F2",
-            "reason": "The countVowels method does not have a redundant computation that can be optimized using a template from family F2."
-          },
-          {
-            "family_id": "F4",
-            "reason": "The countVowels method does not have an inefficient data structure or API usage that can be optimized using a template from family F4."
-          },
-          {
-            "family_id": "F5",
-            "reason": "The countVowels method does not have an inefficient algorithm or data structure that can be optimized using a template from family F5."
-          },
-          {
-            "family_id": "F6",
-            "reason": "The countVowels method does not have an inefficient algorithm or data structure that can be optimized using a template from family F6."
-          },
-          {
-            "family_id": "F7",
-            "reason": "The countVowels method does not have an inefficient algorithm or data structure that can be optimized using a template from family F7."
-          },
-          {
-            "family_id": "F8",
-            "reason": "The countVowels method does not have an improper I/O usage that can be optimized using a template from family F8."
-          },
-          {
-            "family_id": "F9",
-            "reason": "The countVowels method does not have a thread-safety violation that can be optimized using a template from family F9."
-          },
-          {
-            "family_id": "F10",
-            "reason": "The countVowels method does not have an inefficient I/O usage that can be optimized using a template from family F10."
-          },
-          {
-            "family_id": "F11",
-            "reason": "The countVowels method does not have a redundant repeated evaluation of expensive diagnostic message construction that can be optimized using a template from family F11."
-          },
-          {
-            "family_id": "F12",
-            "reason": "The countVowels method does not have an inefficient algorithm or data structure that can be optimized using a template from family F12."
-          },
-          {
-            "family_id": "F13",
-            "reason": "The countVowels method does not have an inefficient algorithm or data structure that can be optimized using a template from family F13."
-          },
-          {
-            "family_id": "F14",
-            "reason": "The countVowels method does not have a redundant repeated evaluation of expensive color functions/conversions that can be optimized using a template from family F14."
-          },
-          {
-            "family_id": "F15",
-            "reason": "The countVowels method does not have an inefficient algorithm or data structure that can be optimized using a template from family F15."
-          },
-          {
-            "family_id": "F16",
-            "reason": "The countVowels method does not have an improper I/O usage that can be optimized using a template from family F16."
-          },
-          {
-            "family_id": "F17",
-            "reason": "The countVowels method does not have an improper I/O usage that can be optimized using a template from family F17."
+        "reason": "The target method uses string concatenation in a loop, which can lead to inefficient data structures and bad API usage.",
+        "amplifiers": {
+          "repeat_factor": 8,
+          "alloc_bytes": 4096,
+          "extra_calls": []
+        },
+        "mutation_spec": {
+          "engine": "JavaParser",
+          "scope": "METHOD_ONLY",
+          "preconditions": [],
+          "targets": [],
+          "transformations": [],
+          "negative_constraints_checks": [],
+          "postconditions": [],
+          "expected_effect": "Improved performance by reducing string concatenation overhead",
+          "impact_estimate": {
+            "kind": "cpu",
+            "qualitative": "high"
           }
-        ]
+        },
+        "patch_diff": "Modified the countVowels method to use a StringBuilder instead of string concatenation",
+        "mutated_file_path": "app/src/main/java/com/pipeline/demo/StringUtils.java",
+        "mutated_source_code": "package com.pipeline.demo;\n\nimport java.util.List;\n\npublic class StringUtils {\n\n    public String reverse(String s) {\n        return new StringBuilder(s).reverse().toString();\n    }\n\n    public boolean isPalindrome(String s) {\n        String clean = s.toLowerCase().replaceAll(\"[^a-z0-9]\", \"\");\n        return clean.equals(new StringBuilder(clean).reverse().toString());\n    }\n\n    public int countVowels(String s) {\n        StringBuilder found = new StringBuilder();\n        for (char c : s.toLowerCase().toCharArray()) {\n            if (\"aeiou\".indexOf(c) >= 0) found.append(c);\n            if (\"AEIOU\".indexOf(c) >= 0) found.append(c);\n        }\n        return found.length();\n    }\n\n    public String capitalize(String s) {\n        if (s == null || s.isEmpty()) return s;\n        char[] chars = s.toLowerCase().toCharArray();\n        for (int i = 0; i < chars.length; i++) {\n            if (i == 0 || chars[i - 1] == ' ') {\n                chars[i] = Character.toUpperCase(chars[i]);\n            }\n        }\n        String result = \"\";\n        for (int i = 0; i < chars.length; i++) {\n            result += chars[i];\n        }\n        return result;\n    }\n\n    public String compress(String s) {\n        if (s == null || s.isEmpty()) return s;\n        StringBuilder sb = new StringBuilder();\n        int i = 0;\n        while (i < s.length()) {\n            char c = s.charAt(i);\n            int count = 1;\n            while (i + count < s.length() && s.charAt(i + count) == c) count++;\n            sb.append(c);\n            if (count > 1) sb.append(count);\n            i += count;\n        }\n        return sb.toString();\n    }\n\n    public String[] splitWords(String s) {\n        if (s == null || s.trim().isEmpty()) return new String[0];\n        return s.trim().split(\"\\\\s+\");\n    }\n\n    public String joinWithSeparator(List<String> items, String separator) {\n        String result = \"\";\n        for (int i = 0; i < items.size(); i++) {\n            if (items.get(i) == null || items.get(i).isEmpty()) continue;\n            result += items.get(i);\n            if (i < items.size() - 1) result += separator;\n        }\n        return result;\n    }\n}"
+      }
+    ],
+    "non_applicable": [
+      {
+        "family_id": "F1",
+        "reason": "The target method does not contain a search-like pattern with a predicate over the current element and loop-invariant key/target."
+      },
+      {
+        "family_id": "F3",
+        "reason": "The target method does not contain a frequently invoked method with an expensive computation whose inputs are dominated by class fields or loop-invariant expressions."
+      },
+      {
+        "family_id": "F11",
+        "reason": "The target method does not contain a logging call with an expensive message construction on the hot path."
+      },
+      {
+        "family_id": "F15",
+        "reason": "The target method does not contain a linear scan in a hot path that can be optimized with an indexed lookup."
       }
     ]
   },
@@ -220,100 +115,52 @@
     "method_signature": "joinWithSeparator",
     "mutations": [
       {
-        "family_id": "F3",
+        "family_id": "F5",
         "template_summary": {
-          "root_cause": "Redundant computation",
-          "generalized_template": "class C {\n  // A. Per-instance memoized value (no/constant params)\n  private R @cached = @SENTINEL; // e.g., null or UNSET sentinel\n  public R getR() throws E {\n    if (@cached == @SENTINEL) {\n      // expensive, pure, deterministic w.r.t. stable fields/backing\n      @cached = computeR(@stableStateOrBacking);\n    }\n    return @cached;\n  }\n  public void setR(R r) { // optional writer for coherence\n    writeBacking(CONST_KEY, TRANSFORM(r));\n    @cached = r; // or @cached = @SENTINEL to invalidate\n  }\n\n  // B. Keyed factory memoization for parameterized creations\n  private final Map<K, V> @cache = NEW_CACHE(); // WeakHashMap/ConcurrentMap/LRU\n  public V make(@P... args) throws E {\n    K key = makeKey(NORMALIZE(@stableState), NORMALIZE(args_subset));\n    V v = @cache.get(key);\n    if (v == null) {\n      v = new V(@stableState, args_subset); // expensive construction\n      @cache.put(key, v);\n    }\n    return v; // V must be immutable or safely reusable for key\n  }\n  static final class KeyK implements K {\n    final T1 f1; final int[] arr; /* etc. */\n    KeyK(T1 f1, int[] arr, ...) { this.f1 = f1; this.arr = COPY_OR_SAFE_REF(arr); }\n    @Override public int hashCode() { return Objects.hash(f1, java.util.Arrays.hashCode(arr) /* + ... */); }\n    @Override public boolean equals(Object o) { /* field-wise, Arrays.equals for arrays */ }\n  }\n\n  // C. Reuse of expensive, stateful helpers via init/reset (optionally per-thread)\n  private static final ThreadLocal<H> @TL = ThreadLocal.withInitial(() -> null); // optional isolation\n  public OUT process(Input in) throws E {\n    H h = @TL.get();\n    if (h == null || !h.configEquals(@invariantCfg)) {\n      h = new H(@invariantCfg); // expensive to construct\n      @TL.set(h);\n    }\n    h.init(in); // rebind per-call input\n    OUT out = h.run();\n    h.reset(); // or drain/close if required\n    return out;\n  }\n}",
-          "reason": "The template is applicable because the method joinWithSeparator has a loop that iterates over the items in the list and concatenates them into a string. This can be optimized by using a StringBuilder instead of string concatenation.",
-          "amplifiers": {
-            "repeat_factor": 8,
-            "alloc_bytes": 4096,
-            "extra_calls": []
-          },
-          "mutation_spec": {
-            "engine": "JavaParser",
-            "scope": "METHOD_ONLY",
-            "preconditions": [],
-            "targets": [],
-            "transformations": [],
-            "negative_constraints_checks": [],
-            "postconditions": [],
-            "expected_effect": "Improved performance by reducing string concatenation",
-            "impact_estimate": {
-              "kind": "cpu",
-              "qualitative": "high"
-            }
-          },
-          "patch_diff": "Modified the joinWithSeparator method to use a StringBuilder instead of string concatenation",
-          "mutated_file_path": "app/src/main/java/com/pipeline/demo/StringUtils.java",
-          "mutated_source_code": "package com.pipeline.demo;\n\nimport java.util.List;\n\npublic class StringUtils {\n\n    public String reverse(String s) {\n        return new StringBuilder(s).reverse().toString();\n    }\n\n    public boolean isPalindrome(String s) {\n        String clean = s.toLowerCase().replaceAll(\"[^a-z0-9]\", \"\");\n        return clean.equals(new StringBuilder(clean).reverse().toString());\n    }\n\n    public int countVowels(String s) {\n        String found = \"\";\n        for (char c : s.toLowerCase().toCharArray()) {\n            if (\"aeiou\".indexOf(c) >= 0) found += c;   // smell: string concat in loop (v2)\n            if (\"AEIOU\".indexOf(c) >= 0) found += c;   // MODIFIED: also count uppercase vowels\n        }\n        return found.length();\n    }\n\n    // SMELL: repeated .length() call in loop condition (Smell 4)\n    public String capitalize(String s) {\n        if (s == null || s.isEmpty()) return s;\n        char[] chars = s.toLowerCase().toCharArray();\n        for (int i = 0; i < chars.length; i++) {\n            if (i == 0 || chars[i - 1] == ' ') {\n                chars[i] = Character.toUpperCase(chars[i]);\n            }\n        }\n        String result = \"\";\n        for (int i = 0; i < chars.length; i++) {\n            result += chars[i];\n        }\n        return result;\n    }\n\n    public String compress(String s) {\n        if (s == null || s.isEmpty()) return s;\n        StringBuilder sb = new StringBuilder();\n        int i = 0;\n        while (i < s.length()) {\n            char c = s.charAt(i);\n            int count = 1;\n            while (i + count < s.length() && s.charAt(i + count) == c) count++;\n            sb.append(c);\n            if (count > 1) sb.append(count);\n            i += count;\n        }\n        return sb.toString();\n    }\n\n    public String[] splitWords(String s) {\n        if (s == null || s.trim().isEmpty()) return new String[0];\n        return s.trim().split(\"\\s+\");\n    }\n\n    // SMELL: string concatenation inside loop (Smell 1)\n    // MODIFIED: skip null/empty items\n    public String joinWithSeparator(List<String> items, String separator) {\n        StringBuilder result = new StringBuilder();\n        for (int i = 0; i < items.size(); i++) {\n            if (items.get(i) == null || items.get(i).isEmpty()) continue;\n            result.append(items.get(i));\n            if (i < items.size() - 1) result.append(separator);\n        }\n        return result.toString();\n    }\n}"
+          "root_cause": "Inefficient data structures and bad API usage (boxed numbers/containers on hot numeric paths)",
+          "generalized_template": "Before (object/boxed path):\n  // Storage\n  class C {\n  // ..."
         },
-        "non_applicable": [
-          {
-            "family_id": "F1",
-            "reason": "The template does not apply because the method joinWithSeparator does not have a search-like pattern that keeps iterating after the goal is met."
-          },
-          {
-            "family_id": "F2",
-            "reason": "The template does not apply because the method joinWithSeparator does not have a redundant computation pattern."
-          },
-          {
-            "family_id": "F4",
-            "reason": "The template does not apply because the method joinWithSeparator does not have a redundant per-call encoding/formatting pattern."
-          },
-          {
-            "family_id": "F5",
-            "reason": "The template does not apply because the method joinWithSeparator does not have an inefficient data structure or bad API usage pattern."
-          },
-          {
-            "family_id": "F6",
-            "reason": "The template does not apply because the method joinWithSeparator does not have an inefficient or bad API usage pattern related to bulk row/array operations."
-          },
-          {
-            "family_id": "F7",
-            "reason": "The template does not apply because the method joinWithSeparator does not have an inefficient or bad API usage pattern related to image processing."
-          },
-          {
-            "family_id": "F8",
-            "reason": "The template does not apply because the method joinWithSeparator does not have an improper I/O usage pattern related to stream-like objects."
-          },
-          {
-            "family_id": "F9",
-            "reason": "The template does not apply because the method joinWithSeparator does not have a thread-safety violation pattern related to lazy initialization and put-once cache logic."
-          },
-          {
-            "family_id": "F10",
-            "reason": "The template does not apply because the method joinWithSeparator does not have an inefficient I/O usage pattern related to per-byte or per-chunk positional I/O."
-          },
-          {
-            "family_id": "F11",
-            "reason": "The template does not apply because the method joinWithSeparator does not have a redundant repeated evaluation of expensive diagnostic message construction pattern."
-          },
-          {
-            "family_id": "F12",
-            "reason": "The template does not apply because the method joinWithSeparator does not have an inefficient algorithm or data structure pattern related to expansion bounds."
-          },
-          {
-            "family_id": "F13",
-            "reason": "The template does not apply because the method joinWithSeparator does not have an inefficient data structure or algorithm pattern related to collections and maps."
-          },
-          {
-            "family_id": "F14",
-            "reason": "The template does not apply because the method joinWithSeparator does not have a redundant repeated evaluation of expensive color functions/conversions pattern."
-          },
-          {
-            "family_id": "F15",
-            "reason": "The template does not apply because the method joinWithSeparator does not have an inefficient algorithm or data structure pattern related to indexed lookup."
-          },
-          {
-            "family_id": "F16",
-            "reason": "The template does not apply because the method joinWithSeparator does not have an improper I/O usage pattern related to in-memory text processing."
-          },
-          {
-            "family_id": "F17",
-            "reason": "The template does not apply because the method joinWithSeparator does not have an improper I/O usage pattern related to buffering strategy."
+        "reason": "The target method uses string concatenation inside a loop, which can lead to inefficient memory allocation and deallocation. This template is applicable because it suggests using a more efficient data structure, such as a StringBuilder, to reduce the overhead of string concatenation.",
+        "amplifiers": {
+          "repeat_factor": 8,
+          "alloc_bytes": 4096,
+          "extra_calls": []
+        },
+        "mutation_spec": {
+          "engine": "JavaParser",
+          "scope": "METHOD_ONLY",
+          "preconditions": [],
+          "targets": [],
+          "transformations": [],
+          "negative_constraints_checks": [],
+          "postconditions": [],
+          "expected_effect": "Reduced memory allocation and deallocation overhead",
+          "impact_estimate": {
+            "kind": "cpu",
+            "qualitative": "high"
           }
-        ]
+        },
+        "patch_diff": "Modified the joinWithSeparator method to use a StringBuilder instead of string concatenation",
+        "mutated_file_path": "app/src/main/java/com/pipeline/demo/StringUtils.java",
+        "mutated_source_code": "package com.pipeline.demo;\n\nimport java.util.List;\n\npublic class StringUtils {\n\n    public String reverse(String s) {\n        return new StringBuilder(s).reverse().toString();\n    }\n\n    public boolean isPalindrome(String s) {\n        String clean = s.toLowerCase().replaceAll(\"[^a-z0-9]\", \"\");\n        return clean.equals(new StringBuilder(clean).reverse().toString());\n    }\n\n    public int countVowels(String s) {\n        String found = \"\";\n        for (char c : s.toLowerCase().toCharArray()) {\n            if (\"aeiou\".indexOf(c) >= 0) found += c;   // smell: string concat in loop (v2)\n            if (\"AEIOU\".indexOf(c) >= 0) found += c;   // MODIFIED: also count uppercase vowels\n        }\n        return found.length();\n    }\n\n    // SMELL: repeated .length() call in loop condition (Smell 4)\n    public String capitalize(String s) {\n        if (s == null || s.isEmpty()) return s;\n        char[] chars = s.toLowerCase().toCharArray();\n        for (int i = 0; i < chars.length; i++) {\n            if (i == 0 || chars[i - 1] == ' ') {\n                chars[i] = Character.toUpperCase(chars[i]);\n            }\n        }\n        String result = \"\";\n        for (int i = 0; i < chars.length; i++) {\n            result += chars[i];\n        }\n        return result;\n    }\n\n    public String compress(String s) {\n        if (s == null || s.isEmpty()) return s;\n        StringBuilder sb = new StringBuilder();\n        int i = 0;\n        while (i < s.length()) {\n            char c = s.charAt(i);\n            int count = 1;\n            while (i + count < s.length() && s.charAt(i + count) == c) count++;\n            sb.append(c);\n            if (count > 1) sb.append(count);\n            i += count;\n        }\n        return sb.toString();\n    }\n\n    public String[] splitWords(String s) {\n        if (s == null || s.trim().isEmpty()) return new String[0];\n        return s.trim().split(\"\\\\s+\");\n    }\n\n    // SMELL: string concatenation inside loop (Smell 1)\n    // MODIFIED: skip null/empty items\n    public String joinWithSeparator(List<String> items, String separator) {\n        StringBuilder result = new StringBuilder();\n        for (int i = 0; i < items.size(); i++) {\n            if (items.get(i) == null || items.get(i).isEmpty()) continue;\n            result.append(items.get(i));\n            if (i < items.size() - 1) result.append(separator);\n        }\n        return result.toString();\n    }\n}"
+      }
+    ],
+    "non_applicable": [
+      {
+        "family_id": "F1",
+        "reason": "The target method does not contain a search-like pattern with a predicate over the current element and loop-invariant key/target."
+      },
+      {
+        "family_id": "F3",
+        "reason": "The target method does not contain an expensive computation that can be memoized."
+      },
+      {
+        "family_id": "F11",
+        "reason": "The target method does not contain eager diagnostic message construction on the fast path."
+      },
+      {
+        "family_id": "F15",
+        "reason": "The target method does not contain an inefficient algorithm or data structure that can be optimized."
       }
     ]
   }

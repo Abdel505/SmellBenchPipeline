@@ -63,10 +63,11 @@ for entry in data:
     if not file_path or not method_sig:
         continue
 
+    # mutations[] contains ONLY applicable entries (no "applicable" field needed).
+    # A method is smelly if mutations[] is non-empty.
     has_applicable = any(
-        m.get("applicable", False)
+        isinstance(m, dict) and m.get("mutated_source_code", "")
         for m in entry.get("mutations", [])
-        if isinstance(m, dict)
     )
 
     line = f"{file_path} | {method_sig}"
