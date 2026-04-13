@@ -3,7 +3,7 @@ set -euo pipefail
 
 # prepare_mutation_targets.sh
 # Reads added/modified/deleted_methods.txt, loads full Java source per method,
-# and produces pipeline-output/mutation-target-methods.json for mutations_operator.py.
+# and produces pipeline-output/mutation-target-methods.json for smell_applicability_checker.py.
 #
 # Input format (per line):  com/pipeline/demo/StringUtils.joinWithSeparator
 # Output: pipeline-output/mutation-target-methods.json

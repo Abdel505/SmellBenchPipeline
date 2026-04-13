@@ -2,54 +2,47 @@
 set -euo pipefail
 
 # filter_methods_2.sh
-# Reads data/generated-mutants.json (output of mutations_operator.py) and
-# splits methods into smelly_methods.txt / clean_methods.txt based on the
-# "applicable" field — replacing the static smell rules of filter_methods.sh
-# with the LLM's verdict.
+# Reads applicability check results (output of smell_applicability_checker.py) from stdin
+# and splits methods into smelly_methods.txt / clean_methods.txt based on the
+# "applicable_families" field — using the LLM's verdict.
 #
 # Usage:
-#   bash scripts/filter_methods_2.sh [mutants_json]
+#   python3 mutator/smell_applicability_checker.py | bash scripts/filter_methods_2.sh
 #
 # Inputs:
-#   data/generated-mutants.json  (default) or $1
+#   stdin — JSON array from smell_applicability_checker.py
 # Outputs:
-#   pipeline-output/smelly_methods.txt  — methods with at least one applicable: true
-#   pipeline-output/clean_methods.txt   — methods with no applicable mutation
+#   pipeline-output/smelly_methods.txt  — methods with at least one applicable family
+#   pipeline-output/clean_methods.txt   — methods with no applicable family
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
-MUTANTS_JSON="${1:-${ROOT_DIR}/data/generated-mutants.json}"
 SMELLY_OUT="${ROOT_DIR}/pipeline-output/smelly_methods.txt"
 CLEAN_OUT="${ROOT_DIR}/pipeline-output/clean_methods.txt"
 
 log() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] [filter_methods_2] $*"; }
 
-# ---------------------------------------------------------------------------
-# Guards
-# ---------------------------------------------------------------------------
-
-if [[ ! -f "$MUTANTS_JSON" ]]; then
-    log "ERROR: $MUTANTS_JSON not found — run mutator/mutations_operator.py first"
-    exit 1
-fi
-
 mkdir -p "${ROOT_DIR}/pipeline-output"
 
 # ---------------------------------------------------------------------------
-# Split smelly / clean from generated-mutants.json
+# Split smelly / clean from stdin
 # ---------------------------------------------------------------------------
 
-log "Reading $MUTANTS_JSON ..."
+log "Reading applicability check results from stdin ..."
 
-python3 - "$MUTANTS_JSON" "$SMELLY_OUT" "$CLEAN_OUT" << 'PYEOF'
+# Capture piped stdin BEFORE the heredoc — the heredoc would otherwise
+# overwrite stdin for the python3 process, causing sys.stdin.read() to return "".
+JSON_INPUT="$(cat)"
+
+_TMPPY="$(mktemp /tmp/filter_methods_2_XXXXX.py)"
+cat > "$_TMPPY" << 'PYEOF'
 import json, sys
 from pathlib import Path
 
-mutants_json_path = sys.argv[1]
-smelly_out        = sys.argv[2]
-clean_out         = sys.argv[3]
+smelly_out = sys.argv[1]
+clean_out  = sys.argv[2]
 
-data = json.loads(Path(mutants_json_path).read_text(encoding="utf-8"))
+data = json.loads(sys.stdin.read())
 if not isinstance(data, list):
     data = [data]
 
@@ -63,12 +56,13 @@ for entry in data:
     if not file_path or not method_sig:
         continue
 
-    # mutations[] contains ONLY applicable entries (no "applicable" field needed).
-    # A method is smelly if mutations[] is non-empty.
-    has_applicable = any(
-        isinstance(m, dict) and m.get("mutated_source_code", "")
-        for m in entry.get("mutations", [])
-    )
+    # Skip entries where the LLM check itself failed — verdict is unknown.
+    if entry.get("check_failed", False):
+        print(f"  [SKIP] {file_path} :: {method_sig} — check_failed, excluded from both outputs", file=sys.stderr)
+        continue
+
+    # A method is smelly if applicable_families[] is non-empty.
+    has_applicable = bool(entry.get("applicable_families", []))
 
     line = f"{file_path} | {method_sig}"
     if has_applicable:
@@ -81,6 +75,9 @@ Path(clean_out).write_text("\n".join(clean)  + ("\n" if clean  else ""), encodin
 
 print(f"smelly={len(smelly)} clean={len(clean)}")
 PYEOF
+
+printf '%s' "$JSON_INPUT" | python3 "$_TMPPY" "$SMELLY_OUT" "$CLEAN_OUT"
+rm -f "$_TMPPY"
 
 # ---------------------------------------------------------------------------
 # Summary
