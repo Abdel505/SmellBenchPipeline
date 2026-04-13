@@ -2,21 +2,23 @@
 set -euo pipefail
 
 # filter_methods_2.sh
-# Reads applicability check results (output of smell_applicability_checker.py) from stdin
-# and splits methods into smelly_methods.txt / clean_methods.txt based on the
-# "applicable_families" field — using the LLM's verdict.
+# Reads applicability check results from pipeline-output/applicability-results.json
+# (written by smell_applicability_checker.py) and splits methods into
+# smelly_methods.txt / clean_methods.txt based on the "applicable_families" field.
 #
 # Usage:
-#   python3 mutator/smell_applicability_checker.py | bash scripts/filter_methods_2.sh
+#   python3 mutator/smell_applicability_checker.py
+#   bash scripts/filter_methods_2.sh
 #
 # Inputs:
-#   stdin — JSON array from smell_applicability_checker.py
+#   pipeline-output/applicability-results.json — written by smell_applicability_checker.py
 # Outputs:
 #   pipeline-output/smelly_methods.txt  — methods with at least one applicable family
 #   pipeline-output/clean_methods.txt   — methods with no applicable family
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
+APPLICABILITY_JSON="${ROOT_DIR}/pipeline-output/applicability-results.json"
 SMELLY_OUT="${ROOT_DIR}/pipeline-output/smelly_methods.txt"
 CLEAN_OUT="${ROOT_DIR}/pipeline-output/clean_methods.txt"
 
@@ -25,24 +27,27 @@ log() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] [filter_methods_2] $*"; }
 mkdir -p "${ROOT_DIR}/pipeline-output"
 
 # ---------------------------------------------------------------------------
-# Split smelly / clean from stdin
+# Split smelly / clean from applicability-results.json
 # ---------------------------------------------------------------------------
 
-log "Reading applicability check results from stdin ..."
+log "Reading applicability check results from ${APPLICABILITY_JSON} ..."
 
-# Capture piped stdin BEFORE the heredoc — the heredoc would otherwise
-# overwrite stdin for the python3 process, causing sys.stdin.read() to return "".
-JSON_INPUT="$(cat)"
+if [[ ! -f "$APPLICABILITY_JSON" ]]; then
+    log "Input file not found: ${APPLICABILITY_JSON} — run smell_applicability_checker.py first."
+    exit 1
+fi
 
-_TMPPY="$(mktemp /tmp/filter_methods_2_XXXXX.py)"
+_TMPPY="$(mktemp filter_methods_2_XXXXX.py)"
+trap 'rm -f "$_TMPPY"' EXIT
 cat > "$_TMPPY" << 'PYEOF'
 import json, sys
 from pathlib import Path
 
-smelly_out = sys.argv[1]
-clean_out  = sys.argv[2]
+smelly_out       = sys.argv[1]
+clean_out        = sys.argv[2]
+applicability_in = sys.argv[3]
 
-data = json.loads(sys.stdin.read())
+data = json.loads(Path(applicability_in).read_text(encoding="utf-8"))
 if not isinstance(data, list):
     data = [data]
 
@@ -76,8 +81,7 @@ Path(clean_out).write_text("\n".join(clean)  + ("\n" if clean  else ""), encodin
 print(f"smelly={len(smelly)} clean={len(clean)}")
 PYEOF
 
-printf '%s' "$JSON_INPUT" | python3 "$_TMPPY" "$SMELLY_OUT" "$CLEAN_OUT"
-rm -f "$_TMPPY"
+python3 "$_TMPPY" "$SMELLY_OUT" "$CLEAN_OUT" "$APPLICABILITY_JSON"
 
 # ---------------------------------------------------------------------------
 # Summary

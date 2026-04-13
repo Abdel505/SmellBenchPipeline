@@ -1,6 +1,7 @@
 import json
 import os
 import re
+import sys
 from pathlib import Path
 import openai
 from dotenv import load_dotenv
@@ -16,13 +17,12 @@ for _required in ("LLM_API_KEY", "LLM_ENDPOINT"):
 # --- CONFIGURATION ---
 TARGET_JSON_PATH    = "pipeline-output/mutation-target-methods.json"
 TEMPLATES_JSON_PATH = "mutator/generalized_templates.json"
+OUTPUT_JSON_PATH    = "pipeline-output/applicability-results.json"
 SLEEP_BETWEEN_CALLS = 5
 MAX_RETRIES = 3
 
 # --- LOAD FILES ---
-import sys as _sys
-
-def log(msg): print(msg, file=_sys.stderr, flush=True)
+def log(msg): print(msg, file=sys.stderr, flush=True)
 
 log("Loading JSON files...")
 for _path in (TARGET_JSON_PATH, TEMPLATES_JSON_PATH):
@@ -122,7 +122,6 @@ def extract_json(text):
 
 def llm_call(prompt):
     """Single LLM call with MAX_RETRIES attempts. Returns parsed JSON or None."""
-    output_text = ""
     for attempt in range(1, MAX_RETRIES + 1):
         try:
             response = client.chat.completions.create(
@@ -180,16 +179,17 @@ def check_applicability(target):
 # ---------------------------------------------------------------------------
 if not target_json_object_list:
     log("No target methods found — nothing to process.")
-    print("[]")
+    Path(OUTPUT_JSON_PATH).parent.mkdir(parents=True, exist_ok=True)
+    Path(OUTPUT_JSON_PATH).write_text("[]", encoding="utf-8")
+    log(f"Written empty results to {OUTPUT_JSON_PATH}")
     exit(0)
 
 all_results = []
 
-for target in target_json_object_list:
+for i, target in enumerate(target_json_object_list):
     log(f"\nProcessing: {target['file_path']} :: {target['method_signature']}")
 
     applicable_families = check_applicability(target)
-    sleep(SLEEP_BETWEEN_CALLS)
 
     all_results.append({
         "class_id":            target["class_id"],
@@ -199,5 +199,10 @@ for target in target_json_object_list:
         "check_failed":        applicable_families is None   # True = LLM error, not a real verdict
     })
 
-# --- PRINT OUTPUT TO STDOUT ---
-print(json.dumps(all_results, indent=2))
+    if i < len(target_json_object_list) - 1:
+        sleep(SLEEP_BETWEEN_CALLS)
+
+# --- WRITE OUTPUT TO FILE ---
+Path(OUTPUT_JSON_PATH).parent.mkdir(parents=True, exist_ok=True)
+Path(OUTPUT_JSON_PATH).write_text(json.dumps(all_results, indent=2), encoding="utf-8")
+log(f"Results written to {OUTPUT_JSON_PATH} ({len(all_results)} entries)")
