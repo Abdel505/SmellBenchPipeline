@@ -4,8 +4,13 @@ import java.util.List;
 
 public class StringUtils {
 
+    // SMELL F2: s.length() recomputed on every iteration — loop-invariant bound
     public String reverse(String s) {
-        return new StringBuilder(s).reverse().toString();
+        char[] chars = new char[s.length()];
+        for (int i = 0; i < s.length(); i++) {
+            chars[s.length() - 1 - i] = s.charAt(i);
+        }
+        return new String(chars);
     }
 
     public boolean isPalindrome(String s) {

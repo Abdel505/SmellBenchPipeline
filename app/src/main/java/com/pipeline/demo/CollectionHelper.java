@@ -4,9 +4,12 @@ import java.util.*;
 
 public class CollectionHelper {
 
+    // SMELL F2: nested.size() recomputed on every iteration — loop-invariant bound
     public <T> List<T> flatten(List<List<T>> nested) {
         List<T> result = new ArrayList<>();
-        for (List<T> inner : nested) result.addAll(inner);
+        for (int i = 0; i < nested.size(); i++) {
+            result.addAll(nested.get(i));
+        }
         return result;
     }
 

@@ -62,4 +62,15 @@ public class SortUtils {
         quickSortHelper(a, lo, p - 1);
         quickSortHelper(a, p + 1, hi);
     }
+
+    // SMELL F1: search loop without early exit — keeps scanning after match found
+    public boolean containsValue(int[] arr, int target) {
+        boolean found = false;
+        for (int i = 0; i < arr.length; i++) {
+            if (arr[i] == target) {
+                found = true;  // missing: return true or break
+            }
+        }
+        return found;
+    }
 }

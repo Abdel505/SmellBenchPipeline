@@ -47,6 +47,17 @@ public class MathHelper {
         return result;
     }
 
+    // SMELL F1: boolean flag set without break — keeps scanning after prime factor found
+    public boolean hasPrimeFactor(int n, List<Integer> candidates) {
+        boolean found = false;
+        for (int c : candidates) {
+            if (n % c == 0 && isPrime(c)) {
+                found = true;  // missing: return true or break
+            }
+        }
+        return found;
+    }
+
     public double standardDeviation(double[] values) {
         if (values.length == 0) throw new IllegalArgumentException("Empty array");
         double mean = 0;
