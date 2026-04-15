@@ -1,2 +1,4 @@
-com/pipeline/demo/Calculator
+com/pipeline/demo/CollectionHelper
+com/pipeline/demo/MathHelper
+com/pipeline/demo/SortUtils
 com/pipeline/demo/StringUtils
