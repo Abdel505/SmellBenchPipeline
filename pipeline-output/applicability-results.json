@@ -1,22 +1,33 @@
 [
   {
     "class_id": "C1",
-    "file_path": "app/src/main/java/com/pipeline/demo/Calculator.java",
-    "method_signature": "buildReport",
-    "applicable_families": [],
+    "file_path": "app/src/main/java/com/pipeline/demo/MathHelper.java",
+    "method_signature": "hasPrimeFactor",
+    "applicable_families": [
+      "F1"
+    ],
     "check_failed": false
   },
   {
     "class_id": "C2",
-    "file_path": "app/src/main/java/com/pipeline/demo/StringUtils.java",
-    "method_signature": "countVowels",
-    "applicable_families": [],
+    "file_path": "app/src/main/java/com/pipeline/demo/SortUtils.java",
+    "method_signature": "containsValue",
+    "applicable_families": [
+      "F1"
+    ],
     "check_failed": false
   },
   {
     "class_id": "C3",
+    "file_path": "app/src/main/java/com/pipeline/demo/CollectionHelper.java",
+    "method_signature": "flatten",
+    "applicable_families": [],
+    "check_failed": false
+  },
+  {
+    "class_id": "C4",
     "file_path": "app/src/main/java/com/pipeline/demo/StringUtils.java",
-    "method_signature": "joinWithSeparator",
+    "method_signature": "reverse",
     "applicable_families": [],
     "check_failed": false
   }
