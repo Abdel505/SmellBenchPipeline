@@ -15,7 +15,7 @@ for _required in ("LLM_API_KEY", "LLM_ENDPOINT"):
         raise EnvironmentError(f"Required environment variable '{_required}' is not set. Check your .env file.")
 
 # --- CONFIGURATION ---
-TARGET_JSON_PATH    = "pipeline-output/mutation-target-methods.json"
+TARGET_JSON_PATH    = "pipeline-output/applicability-targets.json"
 TEMPLATES_JSON_PATH = "mutator/generalized_templates.json"
 OUTPUT_JSON_PATH    = "pipeline-output/applicability-results.json"
 SLEEP_BETWEEN_CALLS = 5

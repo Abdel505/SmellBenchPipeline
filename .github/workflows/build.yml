@@ -40,8 +40,8 @@ jobs:
 
       - name: Set execute permission for pipeline scripts
         run: |
-          chmod +x scripts/modified_classes_detector.sh
-          chmod +x scripts/prepare_mutation_targets.sh
+          chmod +x scripts/detect_changed_methods.sh
+          chmod +x scripts/collect_applicability_targets.sh
           chmod +x scripts/filter_methods_2.sh
           chmod +x scripts/update_coverage_matrix.sh
           chmod +x scripts/run-benchmarks.sh
@@ -50,13 +50,13 @@ jobs:
           chmod +x scripts/run_mutation_testing.sh
           chmod +x tools/dashboard/generate_dashboard.sh
 
-      - name: Run Modified Classes Detector
-        run: bash scripts/modified_classes_detector.sh
+      - name: Detect Changed Methods
+        run: bash scripts/detect_changed_methods.sh
         env:
           ACTIONS_TOKEN: ${{ secrets.ACTIONS_TOKEN }}
 
-      - name: Prepare Mutation Targets
-        run: bash scripts/prepare_mutation_targets.sh
+      - name: Collect Applicability Targets
+        run: bash scripts/collect_applicability_targets.sh
 
       - name: Set up Python
         uses: actions/setup-python@v5

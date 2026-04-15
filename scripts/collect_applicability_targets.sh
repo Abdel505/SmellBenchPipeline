@@ -1,19 +1,19 @@
 #!/bin/bash
 set -euo pipefail
 
-# prepare_mutation_targets.sh
-# Reads added/modified/deleted_methods.txt, loads full Java source per method,
-# and produces pipeline-output/mutation-target-methods.json for smell_applicability_checker.py.
+# collect_applicability_targets.sh
+# Reads added/modified_methods.txt, loads full Java source per method,
+# and produces pipeline-output/applicability-targets.json for smell_applicability_checker.py.
 #
 # Input format (per line):  com/pipeline/demo/StringUtils.joinWithSeparator
-# Output: pipeline-output/mutation-target-methods.json
+# Output: pipeline-output/applicability-targets.json
 
 ADDED_FILE="${1:-pipeline-output/added_methods.txt}"
 MODIFIED_FILE="${2:-pipeline-output/modified_methods.txt}"
 DELETED_FILE="${3:-pipeline-output/deleted_methods.txt}"
-OUTPUT_FILE="pipeline-output/mutation-target-methods.json"
+OUTPUT_FILE="pipeline-output/applicability-targets.json"
 
-log() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] [prepare_mutation_targets] $*"; }
+log() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] [collect_applicability_targets] $*"; }
 
 # --- Collect all unique entries from all three input files ---
 declare -A seen_entries
@@ -35,14 +35,14 @@ for input_file in "$ADDED_FILE" "$MODIFIED_FILE"; do
 done
 
 if [[ ${#entries[@]} -eq 0 ]]; then
-    log "No changed methods found — writing empty mutation-target-methods.json."
+    log "No changed methods found — writing empty applicability-targets.json."
     echo '{}' > "$OUTPUT_FILE"
     exit 0
 fi
 
 log "Found ${#entries[@]} unique changed method(s). Building target JSON..."
 
-# --- Build mutation-target-methods.json via Python for safe JSON encoding ---
+# --- Build applicability-targets.json via Python for safe JSON encoding ---
 # Pass entries as newline-separated env var to avoid shell escaping issues
 ENTRIES="$(printf '%s\n' "${entries[@]}")" python3 - <<'PYEOF'
 import json, os
@@ -85,7 +85,7 @@ for entry in entries:
         else:
             print(f"  [DUP] {java_file} :: {method} already registered", flush=True)
 
-output_path = "pipeline-output/mutation-target-methods.json"
+output_path = "pipeline-output/applicability-targets.json"
 os.makedirs(os.path.dirname(output_path), exist_ok=True)
 with open(output_path, "w", encoding="utf-8") as f:
     json.dump(result, f, indent=2)
