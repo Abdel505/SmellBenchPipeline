@@ -22,6 +22,10 @@ fi
 
 # --- Path derivation ---
 SOURCE_FILE="$(realpath "$1")"
+if [[ ! -f "$SOURCE_FILE" ]]; then
+  echo "ERROR: source file not found: $SOURCE_FILE"
+  exit 1
+fi
 METHOD="$2"
 CLASS_NAME="$(basename "$SOURCE_FILE" .java)"
 PACKAGE_PATH="$(dirname "$SOURCE_FILE" | sed 's|.*/main/java/||')"
@@ -52,7 +56,7 @@ to_win_path() {
 SOURCE_FILE_WIN="$(to_win_path "$SOURCE_FILE")"
 
 # --- Input JSON (single method) ---
-INPUT_JSON="$(mktemp /tmp/c2b_input_XXXXXX.json)"
+INPUT_JSON="$(mktemp c2b_input_XXXXXX.json)"
 trap 'rm -f "$INPUT_JSON"' EXIT
 printf '{ "%s": ["%s"] }\n' "$SOURCE_FILE_WIN" "$METHOD" > "$INPUT_JSON"
 
