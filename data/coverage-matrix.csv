@@ -7,3 +7,5 @@ app/src/main/java/com/pipeline/demo/Calculator.java|modulo|CalculatorBenchmark_m
 app/src/main/java/com/pipeline/demo/Calculator.java|buildReport|CalculatorBenchmark_buildReport|0/1
 app/src/main/java/com/pipeline/demo/StringUtils.java|countVowels|StringUtilsBenchmark_countVowels|
 app/src/main/java/com/pipeline/demo/StringUtils.java|joinWithSeparator|StringUtilsBenchmark_joinWithSeparator|
+app/src/main/java/com/pipeline/demo/MathHelper.java|hasPrimeFactor|MathHelperBenchmark_hasPrimeFactor|
+app/src/main/java/com/pipeline/demo/SortUtils.java|containsValue|SortUtilsBenchmark_containsValue|

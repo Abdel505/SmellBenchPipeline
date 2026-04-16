@@ -116,12 +116,10 @@ for attempt in $(seq 1 $MAX_ATTEMPTS); do
       awk '/^import / && seen[$0]++ { next } { print }' "$GENERATED" > "${GENERATED}.dedup" && mv "${GENERATED}.dedup" "$GENERATED"
     fi
 
-    # Rename the public class and constructor inside the file from ${CLASS_NAME}Benchmark to ${BENCH_CLASS}
+    # Replace ALL occurrences of the old class name with the new one:
+    # covers class declaration, constructor, class literals (.class), string literals, comments
     log "  Renaming class ${CLASS_NAME}Benchmark → ${BENCH_CLASS} inside file"
-    sed -i \
-      -e "s/\(public \)\{0,1\}class ${CLASS_NAME}Benchmark\b/public class ${BENCH_CLASS}/g" \
-      -e "s/public ${CLASS_NAME}Benchmark()/public ${BENCH_CLASS}()/g" \
-      "$GENERATED"
+    sed -i "s/${CLASS_NAME}Benchmark/${BENCH_CLASS}/g" "$GENERATED"
 
     # Rename the generated file to match the per-method class name
     GENERATED_RENAMED="$(dirname "$GENERATED")/${BENCH_CLASS}.java"
