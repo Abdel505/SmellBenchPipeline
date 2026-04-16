@@ -58,6 +58,15 @@ public class MathHelper {
         return found;
     }
 
+    // SMELL F3: missing memoization — expensive list rebuilt on every call, no cached field guards this path
+    public List<Integer> getSmallPrimes() {
+        List<Integer> primes = new ArrayList<>();
+        for (int i = 2; i <= 1000; i++) {
+            if (isPrime(i)) primes.add(i);
+        }
+        return primes;
+    }
+
     public double standardDeviation(double[] values) {
         if (values.length == 0) throw new IllegalArgumentException("Empty array");
         double mean = 0;

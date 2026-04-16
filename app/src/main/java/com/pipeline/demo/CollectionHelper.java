@@ -17,10 +17,17 @@ public class CollectionHelper {
         return new ArrayList<>(new LinkedHashSet<>(list));
     }
 
+    // SMELL F15: linear scan on hot path — b should be indexed in a HashSet for O(1) lookup
     public <T> List<T> intersection(List<T> a, List<T> b) {
-        Set<T> setB = new HashSet<>(b);
         List<T> result = new ArrayList<>();
-        for (T item : a) if (setB.contains(item)) result.add(item);
+        for (T item : a) {
+            for (T bItem : b) {
+                if (item.equals(bItem)) {
+                    result.add(item);
+                    break;
+                }
+            }
+        }
         return result;
     }
 
