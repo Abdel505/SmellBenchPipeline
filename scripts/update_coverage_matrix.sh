@@ -37,13 +37,12 @@ parse_filter_entry() {
     echo "${java_file}|${method}|${type}"
 }
 
-# Parse FQN (com.pipeline.demo.Calculator.add) → echo "java_file|method"
+# Parse path entry (com/pipeline/demo/Calculator.add) → echo "java_file|method"
 parse_fqn_entry() {
     local fqn="$1"
-    local method class_fqn class_path java_file
+    local method class_path java_file
     method="${fqn##*.}"
-    class_fqn="${fqn%.*}"
-    class_path="${class_fqn//.//}"
+    class_path="${fqn%.*}"
     java_file="app/src/main/java/${class_path}.java"
     echo "${java_file}|${method}"
 }

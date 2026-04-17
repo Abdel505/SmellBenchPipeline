@@ -98,11 +98,13 @@
 
 <script>
   function fmt(n) {
-    if (n === null || n === undefined || Number.isNaN(n)) return "-";
-    const abs = Math.abs(n);
-    if (abs >= 1000) return n.toFixed(2);
-    if (abs >= 10) return n.toFixed(3);
-    return n.toFixed(6);
+    if (n === null || n === undefined) return "-";
+    const num = Number(n);
+    if (Number.isNaN(num)) return "-";
+    const abs = Math.abs(num);
+    if (abs >= 1000) return num.toFixed(2);
+    if (abs >= 10) return num.toFixed(3);
+    return num.toFixed(6);
   }
   function fmtPct(n) {
     if (n === null || n === undefined || Number.isNaN(n)) return "-";
