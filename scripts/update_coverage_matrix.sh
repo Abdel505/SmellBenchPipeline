@@ -153,7 +153,7 @@ handle_deleted() {
     # Remove from best-result.json (persistent — not overwritten by next run)
     local best_file="data/best-result.json"
     if [[ -f "$best_file" ]]; then
-        jq --arg bench "com.pipeline.demo.${old_bench_class}" \
+        jq --arg bench "com.pipeline.demo.${old_bench_class}." \
            '[.[] | select(.benchmark | startswith($bench) | not)]' \
            "$best_file" > "${best_file}.tmp" \
         && mv "${best_file}.tmp" "$best_file"
