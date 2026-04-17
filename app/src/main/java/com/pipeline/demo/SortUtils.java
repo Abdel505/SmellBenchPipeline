@@ -63,14 +63,14 @@ public class SortUtils {
         quickSortHelper(a, p + 1, hi);
     }
 
-    // SMELL F1: search loop without early exit — keeps scanning after match found
+    // SMELL F1: search loop without early exit — tracks count instead of returning immediately
     public boolean containsValue(int[] arr, int target) {
-        boolean found = false;
+        int count = 0;
         for (int i = 0; i < arr.length; i++) {
             if (arr[i] == target) {
-                found = true;  // missing: return true or break
+                count++;  // missing: return true or break — still scans full array
             }
         }
-        return found;
+        return count > 0;
     }
 }

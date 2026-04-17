@@ -47,17 +47,6 @@ public class MathHelper {
         return result;
     }
 
-    // SMELL F1: boolean flag set without break — keeps scanning after prime factor found
-    public boolean hasPrimeFactor(int n, List<Integer> candidates) {
-        boolean found = false;
-        for (int c : candidates) {
-            if (n % c == 0 && isPrime(c)) {
-                found = true;  // missing: return true or break
-            }
-        }
-        return found;
-    }
-
     // SMELL F3: missing memoization — expensive list rebuilt on every call, no cached field guards this path
     public List<Integer> getSmallPrimes() {
         List<Integer> primes = new ArrayList<>();
