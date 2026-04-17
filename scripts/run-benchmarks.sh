@@ -7,17 +7,8 @@ OUTFILE="${ROOT_DIR}/data/jmh-result.json"
 export RUN_AMBER="${RUN_AMBER:-1}"
 
 # --- Parse args ---
-# --baseline  : after JMH run, copy jmh-result.json → data/unmutated-baseline.json
-# Any other first arg: JMH regex filter (AMBER_INCLUDE), same as before.
-SAVE_BASELINE=0
-FILTER_ARG=""
-for arg in "$@"; do
-  if [[ "$arg" == "--baseline" ]]; then
-    SAVE_BASELINE=1
-  else
-    FILTER_ARG="$arg"
-  fi
-done
+# Optional first arg: JMH regex filter (AMBER_INCLUDE).
+FILTER_ARG="${1:-}"
 
 # Optional: filter to a specific benchmark. Pass as first arg or via env var AMBER_INCLUDE.
 # JMH treats this as a regex matched against "ClassName.methodName".
@@ -29,7 +20,7 @@ export AMBER_INCLUDE="${FILTER_ARG:-${AMBER_INCLUDE:-}}"
 # Example: AMBER_JMH_EXTRA="-p count=10 -p base=5" for multiple params.
 export AMBER_JMH_EXTRA="${AMBER_JMH_EXTRA:-}"
 
-mkdir -p "${ROOT_DIR}/data" "${AMBER_RESULTS}/by-benchmark"
+mkdir -p "${ROOT_DIR}/data" "${AMBER_RESULTS}"
 
 # Pre-flight: verify AMBER server is reachable when RUN_AMBER=1
 if [[ "${RUN_AMBER}" == "1" ]]; then
@@ -62,11 +53,44 @@ fi
 
 echo "[run-benchmarks] JMH run complete. Results -> ${OUTFILE}"
 
-# Save unmutated baseline if requested (used by mutation testing pipeline)
-if [[ "${SAVE_BASELINE}" == "1" ]]; then
-  cp "${OUTFILE}" "${ROOT_DIR}/data/unmutated-baseline.json"
-  echo "[run-benchmarks] Saved unmutated baseline -> ${ROOT_DIR}/data/unmutated-baseline.json"
-fi
+# --- Update best-result.json (per-benchmark) ---
+# New method    → no history → current becomes best automatically
+# Existing      → keep whichever has the lower score (faster)
+# Deleted       → already removed from best by handle_deleted before this run
+BEST_FILE="${ROOT_DIR}/data/best-result.json"
+python3 - "${OUTFILE}" "${BEST_FILE}" <<'PYEOF'
+import json, sys
+
+def score(entry):
+    try:
+        return float(entry["primaryMetric"]["score"])
+    except Exception:
+        return float("inf")
+
+curr_path, best_path = sys.argv[1], sys.argv[2]
+
+with open(curr_path, encoding="utf-8-sig") as f:
+    curr = json.load(f)
+
+try:
+    with open(best_path, encoding="utf-8-sig") as f:
+        best = json.load(f)
+except FileNotFoundError:
+    best = []
+
+best_map = {e["benchmark"]: e for e in best if isinstance(e, dict)}
+
+for entry in curr:
+    name = entry.get("benchmark")
+    if not name:
+        continue
+    if name not in best_map or score(entry) < score(best_map[name]):
+        best_map[name] = entry
+
+with open(best_path, "w", encoding="utf-8") as f:
+    json.dump(list(best_map.values()), f, indent=2)
+PYEOF
+echo "[run-benchmarks] best-result.json updated -> ${BEST_FILE}"
 
 # Archive result with timestamp + SHA for AMBER bootstrap comparison
 TIMESTAMP="$(date +%Y%m%d_%H%M%S)"
@@ -75,14 +99,13 @@ ARCH="${AMBER_RESULTS}/jmh-result-snapshot_${TIMESTAMP}_${SHA}.json"
 cp "${OUTFILE}" "${ARCH}"
 echo "[run-benchmarks] Archived -> ${ARCH}"
 
-# Hierarchical bootstrap comparison (if a previous archived result exists)
-PREV="$(ls -t "${AMBER_RESULTS}"/jmh-result-snapshot_*.json 2>/dev/null | grep -v "${ARCH}" | head -1 || true)"
-
-if [[ -n "${PREV}" && -f "${PREV}" ]]; then
-  echo "[run-benchmarks] Running bootstrap comparison: prev=${PREV}"
+# Hierarchical bootstrap comparison: current vs all-time best
+# Snapshots are kept as historical archives but are no longer the comparison reference.
+if [[ -f "${BEST_FILE}" ]]; then
+  echo "[run-benchmarks] Running bootstrap comparison: current vs best-result.json"
   BOOTSTRAP_OUT="${AMBER_RESULTS}/bootstrap_latest.json"
   python3 "${ROOT_DIR}/tools/bootstrap/hierarchical_bootstrap_compare.py" \
-    "${PREV}" "${ARCH}" > "${BOOTSTRAP_OUT}" \
+    "${BEST_FILE}" "${ARCH}" > "${BOOTSTRAP_OUT}" \
     || { echo "[run-benchmarks] WARN: bootstrap comparison failed (non-fatal)"; BOOTSTRAP_OUT=""; }
 
   # HTML dashboard with comparison
@@ -96,7 +119,7 @@ if [[ -n "${PREV}" && -f "${PREV}" ]]; then
     ${BOOTSTRAP_OUT:+--bootstrap-json "${BOOTSTRAP_OUT}"} \
     || echo "[run-benchmarks] WARN: dashboard generation failed (non-fatal)"
 else
-  echo "[run-benchmarks] No previous result found — skipping bootstrap."
+  echo "[run-benchmarks] No best result yet — skipping bootstrap (first run)."
 
   # Initial dashboard (no comparison)
   bash "${ROOT_DIR}/tools/dashboard/generate_dashboard.sh" \
