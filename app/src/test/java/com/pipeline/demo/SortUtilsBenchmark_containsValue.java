@@ -8,41 +8,42 @@ import org.openjdk.jmh.annotations.Mode;
 import org.openjdk.jmh.annotations.OutputTimeUnit;
 import org.openjdk.jmh.annotations.Param;
 import org.openjdk.jmh.annotations.Scope;
+import org.openjdk.jmh.annotations.Setup;
 import org.openjdk.jmh.annotations.State;
 import org.openjdk.jmh.annotations.Warmup;
 import org.openjdk.jmh.infra.Blackhole;
-import java.util.ArrayList;
-import java.util.List;
+
 import java.util.concurrent.TimeUnit;
 import org.openjdk.jmh.runner.Runner;
 import org.openjdk.jmh.runner.RunnerException;
 import org.openjdk.jmh.runner.options.Options;
 import org.openjdk.jmh.runner.options.OptionsBuilder;
 
-@State(Scope.Thread)
+@State(Scope.Benchmark)
 @Fork(1)
 @Warmup(iterations = 5)
 @Measurement(iterations = 10)
 @BenchmarkMode(Mode.AverageTime)
 @OutputTimeUnit(TimeUnit.NANOSECONDS)
-public class MathHelperBenchmark_hasPrimeFactor {
+public class SortUtilsBenchmark_containsValue {
 
-    @Param({"10", "20", "30"})
-    private int n;
+    @Param({"100", "1000", "10000"})
+    private int size;
 
-    private MathHelper mathHelper;
-    private List<Integer> candidates;
+    private int[] array;
+    private SortUtils sortUtils;
 
-    public MathHelperBenchmark_hasPrimeFactor() {
-        mathHelper = new MathHelper();
-        candidates = new ArrayList<>();
-        for (int i = 2; i <= 100; i++) {
-            candidates.add(i);
+    @Setup
+    public void setup() {
+        array = new int[size];
+        for (int i = 0; i < size; i++) {
+            array[i] = i;
         }
+        sortUtils = new SortUtils();
     }
 
     @Benchmark
-    public void hasPrimeFactor(Blackhole bh) {
-        bh.consume(mathHelper.hasPrimeFactor(n, candidates));
+    public void containsValue(Blackhole bh) {
+        bh.consume(sortUtils.containsValue(array, size / 2));
     }
 }
