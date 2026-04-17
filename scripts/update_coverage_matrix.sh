@@ -150,6 +150,16 @@ handle_deleted() {
     grep -vF "${java_file}|${method}|" "$MATRIX" > "${MATRIX}.tmp" || true
     mv "${MATRIX}.tmp" "$MATRIX"
     log "  [OK] Removed row for ${method}"
+
+    # Remove from best-result.json (persistent — not overwritten by next run)
+    local best_file="data/best-result.json"
+    if [[ -f "$best_file" ]]; then
+        jq --arg bench "com.pipeline.demo.${old_bench_class}" \
+           '[.[] | select(.benchmark | startswith($bench) | not)]' \
+           "$best_file" > "${best_file}.tmp" \
+        && mv "${best_file}.tmp" "$best_file"
+        log "  Cleaned ${old_bench_class} from best-result.json"
+    fi
 }
 
 # ---------------------------------------------------------------------------
