@@ -92,12 +92,25 @@ with open(best_path, "w", encoding="utf-8") as f:
 PYEOF
 echo "[run-benchmarks] best-result.json updated -> ${BEST_FILE}"
 
-# Archive result with timestamp + SHA for AMBER bootstrap comparison
 TIMESTAMP="$(date +%Y%m%d_%H%M%S)"
 SHA="$(git -C "${ROOT_DIR}" rev-parse --short HEAD 2>/dev/null || echo "unknown")"
-ARCH="${AMBER_RESULTS}/jmh-result-snapshot_${TIMESTAMP}_${SHA}.json"
-cp "${OUTFILE}" "${ARCH}"
-echo "[run-benchmarks] Archived -> ${ARCH}"
+
+# Snapshot archiving disabled — bootstrap and dashboard read directly from jmh-result.json
+# To re-enable, uncomment the three lines below:
+# ARCH="${AMBER_RESULTS}/jmh-result-snapshot_${TIMESTAMP}_${SHA}.json"
+# cp "${OUTFILE}" "${ARCH}"
+# echo "[run-benchmarks] Archived -> ${ARCH}"
+ARCH="${OUTFILE}"
+
+# Collect existing dashboards before generating.
+# Used for safe cleanup: old dashboards are removed ONLY after the new one is confirmed.
+OLD_DASHBOARDS=()
+for f in "${AMBER_RESULTS}"/dashboard_*.html; do
+  [[ -f "$f" ]] && OLD_DASHBOARDS+=("$f")
+done
+
+NEW_DASHBOARD="${AMBER_RESULTS}/dashboard_${TIMESTAMP}.html"
+DASHBOARD_OK=0
 
 # Hierarchical bootstrap comparison: current vs all-time best
 # Snapshots are kept as historical archives but are no longer the comparison reference.
@@ -109,27 +122,42 @@ if [[ -f "${BEST_FILE}" ]]; then
     || { echo "[run-benchmarks] WARN: bootstrap comparison failed (non-fatal)"; BOOTSTRAP_OUT=""; }
 
   # HTML dashboard with comparison
-  bash "${ROOT_DIR}/tools/dashboard/generate_dashboard.sh" \
+  if bash "${ROOT_DIR}/tools/dashboard/generate_dashboard.sh" \
     --kind "modified" \
     --bench-dir "${AMBER_RESULTS}" \
     --json "${ARCH}" \
-    --out "${AMBER_RESULTS}/dashboard_${TIMESTAMP}.html" \
+    --out "${NEW_DASHBOARD}" \
     --sha "${SHA}" \
     --ts "${TIMESTAMP}" \
-    ${BOOTSTRAP_OUT:+--bootstrap-json "${BOOTSTRAP_OUT}"} \
-    || echo "[run-benchmarks] WARN: dashboard generation failed (non-fatal)"
+    ${BOOTSTRAP_OUT:+--bootstrap-json "${BOOTSTRAP_OUT}"}; then
+    DASHBOARD_OK=1
+  else
+    echo "[run-benchmarks] WARN: dashboard generation failed (non-fatal) — previous dashboard kept"
+  fi
 else
   echo "[run-benchmarks] No best result yet — skipping bootstrap (first run)."
 
   # Initial dashboard (no comparison)
-  bash "${ROOT_DIR}/tools/dashboard/generate_dashboard.sh" \
+  if bash "${ROOT_DIR}/tools/dashboard/generate_dashboard.sh" \
     --kind "added" \
     --bench-dir "${AMBER_RESULTS}" \
     --json "${ARCH}" \
-    --out "${AMBER_RESULTS}/dashboard_${TIMESTAMP}.html" \
+    --out "${NEW_DASHBOARD}" \
     --sha "${SHA}" \
-    --ts "${TIMESTAMP}" \
-    || echo "[run-benchmarks] WARN: dashboard generation failed (non-fatal)"
+    --ts "${TIMESTAMP}"; then
+    DASHBOARD_OK=1
+  else
+    echo "[run-benchmarks] WARN: dashboard generation failed (non-fatal) — previous dashboard kept"
+  fi
+fi
+
+# Remove previous dashboards only after the new one was successfully generated.
+# If generation failed, old dashboards are preserved as fallback.
+if [[ "${DASHBOARD_OK}" -eq 1 && ${#OLD_DASHBOARDS[@]} -gt 0 ]]; then
+  echo "[run-benchmarks] Cleaning up old dashboards..."
+  for old in "${OLD_DASHBOARDS[@]}"; do
+    [[ -f "$old" ]] && rm -f "$old" && echo "[run-benchmarks]   Removed: $(basename "$old")"
+  done
 fi
 
 echo "[run-benchmarks] Done."

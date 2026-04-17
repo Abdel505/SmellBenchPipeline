@@ -19,6 +19,8 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 APPLICABILITY_JSON="${ROOT_DIR}/pipeline-output/applicability-results.json"
+ADDED_METHODS="${ROOT_DIR}/pipeline-output/added_methods.txt"
+MODIFIED_METHODS="${ROOT_DIR}/pipeline-output/modified_methods.txt"
 SMELLY_OUT="${ROOT_DIR}/pipeline-output/smelly_methods.txt"
 CLEAN_OUT="${ROOT_DIR}/pipeline-output/clean_methods.txt"
 
@@ -46,6 +48,28 @@ from pathlib import Path
 smelly_out       = sys.argv[1]
 clean_out        = sys.argv[2]
 applicability_in = sys.argv[3]
+added_in         = sys.argv[4]
+modified_in      = sys.argv[5]
+
+def load_set(path):
+    try:
+        lines = Path(path).read_text(encoding="utf-8").splitlines()
+        return {l.strip() for l in lines if l.strip()}
+    except FileNotFoundError:
+        return set()
+
+def to_slash_dot_key(file_path, method_sig):
+    # Convert "app/src/main/java/com/pipeline/demo/Foo.java" + "bar"
+    #      to "com/pipeline/demo/Foo.bar" (slash/dot format used in added/modified files)
+    p = file_path.replace("\\", "/")
+    if "/main/java/" in p:
+        p = p.split("/main/java/", 1)[1]
+    if p.endswith(".java"):
+        p = p[:-5]
+    return f"{p}.{method_sig}"
+
+added_set    = load_set(added_in)
+modified_set = load_set(modified_in)
 
 data = json.loads(Path(applicability_in).read_text(encoding="utf-8"))
 if not isinstance(data, list):
@@ -66,10 +90,19 @@ for entry in data:
         print(f"  [SKIP] {file_path} :: {method_sig} — check_failed, excluded from both outputs", file=sys.stderr)
         continue
 
+    # Resolve change type by cross-referencing added/modified lists.
+    key = to_slash_dot_key(file_path, method_sig)
+    if key in added_set:
+        change_type = "added"
+    elif key in modified_set:
+        change_type = "modified"
+    else:
+        change_type = "unknown"
+
     # A method is smelly if applicable_families[] is non-empty.
     has_applicable = bool(entry.get("applicable_families", []))
 
-    line = f"{file_path} | {method_sig}"
+    line = f"{file_path} | {method_sig} | {change_type}"
     if has_applicable:
         smelly.append(line)
     else:
@@ -81,7 +114,7 @@ Path(clean_out).write_text("\n".join(clean)  + ("\n" if clean  else ""), encodin
 print(f"smelly={len(smelly)} clean={len(clean)}")
 PYEOF
 
-python3 "$_TMPPY" "$SMELLY_OUT" "$CLEAN_OUT" "$APPLICABILITY_JSON"
+python3 "$_TMPPY" "$SMELLY_OUT" "$CLEAN_OUT" "$APPLICABILITY_JSON" "$ADDED_METHODS" "$MODIFIED_METHODS"
 
 # ---------------------------------------------------------------------------
 # Summary
