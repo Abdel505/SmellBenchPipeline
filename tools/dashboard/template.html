@@ -123,45 +123,22 @@
   }
 
   function formatBootstrapResult(bootEntry) {
-    // ritorna { text, cls } dove cls = pos|neg|zero per colori
-    if (!bootEntry || !bootEntry.bootstrap || !bootEntry.bootstrap.ok) {
-      return { text: "no data", cls: "zero" };
+    // Flat schema: { verdict, delta_pct, mean_prev, mean_curr, note, ... }
+    if (!bootEntry) return { text: 'no data', cls: 'zero' };
+    var verdict = bootEntry.verdict || 'INSUFFICIENT_DATA';
+    var delta = (typeof bootEntry.delta_pct === 'number') ? bootEntry.delta_pct : null;
+    if (verdict === 'INSUFFICIENT_DATA') {
+      return { text: 'insufficient data', cls: 'zero' };
     }
-
-    const ci = bootEntry.bootstrap.ci95;
-    if (!Array.isArray(ci) || ci.length !== 2) {
-      return { text: "no data", cls: "zero" };
+    if (verdict === 'NOT_SIGNIFICANT') {
+      return { text: 'no significant change (' + fmtPct(delta) + '%)', cls: 'zero' };
     }
-
-    const lo = Number(ci[0]);
-    const hi = Number(ci[1]);
-    const verdict = bootEntry.verdict || bootEntry.bootstrap.verdict || "INCONCLUSIVE";
-
-    if (verdict === "IMPROVEMENT") {
-      // CI tutto > 0
-      return {
-        text: `improvement: ${fmt2(lo)}% ${fmt2(hi)}% faster`,
-        cls: "pos"
-      };
+    // SIGNIFICANT — avgt mode: delta_pct < 0 = curr faster = improvement
+    if (delta !== null) {
+      if (delta < 0) return { text: 'improvement: ' + fmtPct(delta) + '%', cls: 'pos' };
+      if (delta > 0) return { text: 'regression: +' + fmtPct(delta) + '%', cls: 'neg' };
     }
-
-    if (verdict === "REGRESSION") {
-      // CI tutto < 0  -> “slower” in positivo
-      const a = Math.abs(hi); // più vicino a 0
-      const b = Math.abs(lo); // più lontano da 0
-      return {
-        text: `regression: ${fmt2(a)}% ${fmt2(b)}% slower`,
-        cls: "neg"
-      };
-    }
-
-    // INCONCLUSIVE / no significant change: intervallo con segno
-    const slo = (lo > 0 ? "+" : "") + fmt2(lo) + "%";
-    const shi = (hi > 0 ? "+" : "") + fmt2(hi) + "%";
-    return {
-      text: `no significant change: ${slo} ${shi}`,
-      cls: "zero"
-    };
+    return { text: verdict, cls: 'zero' };
   }
   function readJsonFromScript(id) {
     const el = document.getElementById(id);
@@ -172,18 +149,15 @@
   }
 
   function buildCompareMap(compareObj) {
-    // map: benchmark -> {prev, curr, delta_pct}
+    // map: "benchmark|params_json" -> {prev, curr, delta_pct}
     const m = new Map();
     if (!compareObj || typeof compareObj !== "object") return m;
     const comps = Array.isArray(compareObj.comparisons) ? compareObj.comparisons : [];
     for (const c of comps) {
       const name = c && c.benchmark;
       if (!name) continue;
-      m.set(name, {
-        prev: c.prev,
-        curr: c.curr,
-        delta_pct: c.delta_pct
-      });
+      const key = name + '|' + JSON.stringify(c.params || {});
+      m.set(key, { prev: c.prev, curr: c.curr, delta_pct: c.delta_pct });
     }
     return m;
   }
@@ -204,7 +178,8 @@
       const score = x?.primaryMetric?.score;           // curr
       const err   = x?.primaryMetric?.scoreError;      // error bar
       const unit  = x?.primaryMetric?.scoreUnit || "";
-      const cmp   = compareMap && benchmark ? compareMap.get(benchmark) : null;
+      const cmpKey = benchmark + '|' + JSON.stringify(x?.params || {});
+      const cmp   = compareMap && benchmark ? compareMap.get(cmpKey) : null;
       const bootE = bootstrapMap && benchmark ? bootstrapMap.get(benchmark) : null;
       return {
         benchmark,
@@ -217,7 +192,7 @@
       };
     }).sort((a,b) => (b.score ?? -Infinity) - (a.score ?? -Infinity));
 
-    const hasCompareCols = !!compareMap;
+    const hasCompareCols = !!(compareMap && compareMap.size > 0);
 
     return `
       <div class="title-row">

@@ -53,11 +53,62 @@ fi
 
 echo "[run-benchmarks] JMH run complete. Results -> ${OUTFILE}"
 
+# --- Generate compare_latest.json (prev best vs current run) ---
+# Must run BEFORE best-result.json is updated so "prev" reflects the old best.
+BEST_FILE="${ROOT_DIR}/data/best-result.json"
+COMPARE_OUT="${AMBER_RESULTS}/compare_latest.json"
+if [[ -f "${BEST_FILE}" ]]; then
+  python3 - "${BEST_FILE}" "${OUTFILE}" "${COMPARE_OUT}" <<'PYEOF'
+import json, sys
+
+def param_key(entry):
+    params = entry.get("params") or {}
+    return json.dumps(params, sort_keys=True)
+
+def slot(entry):
+    return (entry.get("benchmark", ""), param_key(entry))
+
+prev_path, curr_path, out_path = sys.argv[1], sys.argv[2], sys.argv[3]
+
+with open(prev_path, encoding="utf-8-sig") as f:
+    prev = json.load(f)
+with open(curr_path, encoding="utf-8-sig") as f:
+    curr = json.load(f)
+
+prev_map = {slot(e): e for e in prev if isinstance(e, dict)}
+
+comparisons = []
+for entry in curr:
+    if not entry.get("benchmark"):
+        continue
+    k = slot(entry)
+    prev_entry = prev_map.get(k)
+    if not prev_entry:
+        continue
+    try:
+        prev_score = float(prev_entry["primaryMetric"]["score"])
+        curr_score = float(entry["primaryMetric"]["score"])
+    except Exception:
+        continue
+    delta_pct = (curr_score - prev_score) / prev_score * 100.0 if prev_score != 0 else None
+    comparisons.append({
+        "benchmark": entry["benchmark"],
+        "params": entry.get("params") or {},
+        "prev": prev_score,
+        "curr": curr_score,
+        "delta_pct": delta_pct
+    })
+
+with open(out_path, "w", encoding="utf-8") as f:
+    json.dump({"comparisons": comparisons}, f, indent=2)
+PYEOF
+  echo "[run-benchmarks] compare_latest.json generated -> ${COMPARE_OUT}"
+fi
+
 # --- Update best-result.json (per-benchmark) ---
 # New method    → no history → current becomes best automatically
 # Existing      → keep whichever has the lower score (faster)
 # Deleted       → already removed from best by handle_deleted before this run
-BEST_FILE="${ROOT_DIR}/data/best-result.json"
 python3 - "${OUTFILE}" "${BEST_FILE}" <<'PYEOF'
 import json, sys
 
@@ -78,14 +129,21 @@ try:
 except FileNotFoundError:
     best = []
 
-best_map = {e["benchmark"]: e for e in best if isinstance(e, dict)}
+def param_key(entry):
+    params = entry.get("params") or {}
+    return json.dumps(params, sort_keys=True)
+
+def slot(entry):
+    return (entry.get("benchmark", ""), param_key(entry))
+
+best_map = {slot(e): e for e in best if isinstance(e, dict)}
 
 for entry in curr:
-    name = entry.get("benchmark")
-    if not name:
+    if not entry.get("benchmark"):
         continue
-    if name not in best_map or score(entry) < score(best_map[name]):
-        best_map[name] = entry
+    k = slot(entry)
+    if k not in best_map or score(entry) < score(best_map[k]):
+        best_map[k] = entry
 
 with open(best_path, "w", encoding="utf-8") as f:
     json.dump(list(best_map.values()), f, indent=2)
@@ -112,6 +170,22 @@ done
 NEW_DASHBOARD="${AMBER_RESULTS}/dashboard_${TIMESTAMP}.html"
 DASHBOARD_OK=0
 
+# Derive prod/test metadata for dashboard header pills.
+# TEST = benchmark class extracted from AMBER_INCLUDE (part before the first dot).
+# PROD = production class looked up from coverage matrix by benchmark class name.
+DASHBOARD_TEST=""
+DASHBOARD_PROD=""
+if [[ -n "${AMBER_INCLUDE:-}" ]]; then
+  DASHBOARD_TEST="${AMBER_INCLUDE%%.*}"
+  MATRIX="${ROOT_DIR}/data/coverage-matrix.csv"
+  if [[ -f "${MATRIX}" ]]; then
+    DASHBOARD_PROD="$(awk -F'|' -v bench="${DASHBOARD_TEST}" '
+      { gsub(/ /, "", $1); gsub(/ /, "", $3);
+        if ($3 == bench) { n=split($1,a,"/"); gsub(/\.java$/,"",a[n]); print a[n]; exit } }
+    ' "${MATRIX}")"
+  fi
+fi
+
 # Hierarchical bootstrap comparison: current vs all-time best
 # Snapshots are kept as historical archives but are no longer the comparison reference.
 if [[ -f "${BEST_FILE}" ]]; then
@@ -129,7 +203,10 @@ if [[ -f "${BEST_FILE}" ]]; then
     --out "${NEW_DASHBOARD}" \
     --sha "${SHA}" \
     --ts "${TIMESTAMP}" \
-    ${BOOTSTRAP_OUT:+--bootstrap-json "${BOOTSTRAP_OUT}"}; then
+    --prod "${DASHBOARD_PROD}" \
+    --test "${DASHBOARD_TEST}" \
+    ${BOOTSTRAP_OUT:+--bootstrap-json "${BOOTSTRAP_OUT}"} \
+    ${COMPARE_OUT:+--compare-json "${COMPARE_OUT}"}; then
     DASHBOARD_OK=1
   else
     echo "[run-benchmarks] WARN: dashboard generation failed (non-fatal) — previous dashboard kept"
@@ -144,7 +221,9 @@ else
     --json "${ARCH}" \
     --out "${NEW_DASHBOARD}" \
     --sha "${SHA}" \
-    --ts "${TIMESTAMP}"; then
+    --ts "${TIMESTAMP}" \
+    --prod "${DASHBOARD_PROD}" \
+    --test "${DASHBOARD_TEST}"; then
     DASHBOARD_OK=1
   else
     echo "[run-benchmarks] WARN: dashboard generation failed (non-fatal) — previous dashboard kept"
