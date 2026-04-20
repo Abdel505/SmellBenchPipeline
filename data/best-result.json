@@ -1,0 +1,161 @@
+[
+  {
+    "jmhVersion": "1.37",
+    "benchmark": "com.pipeline.demo.SortUtilsBenchmark_containsValue.containsValue",
+    "mode": "avgt",
+    "threads": 1,
+    "forks": 1,
+    "jvm": "/usr/lib/jvm/java-17-openjdk-amd64/bin/java",
+    "jvmArgs": [
+      "-Dfile.encoding=UTF-8",
+      "-Duser.country",
+      "-Duser.language=en",
+      "-Duser.variant"
+    ],
+    "jdkVersion": "17.0.18",
+    "vmName": "OpenJDK 64-Bit Server VM",
+    "vmVersion": "17.0.18+8-Ubuntu-124.04.1",
+    "warmupIterations": 1,
+    "warmupTime": "100 ms",
+    "warmupBatchSize": 1,
+    "measurementIterations": 1,
+    "measurementTime": "100 ms",
+    "measurementBatchSize": 1,
+    "params": {
+      "size": "100"
+    },
+    "primaryMetric": {
+      "score": 20.91514920080282,
+      "scoreError": "NaN",
+      "scoreConfidence": [
+        "NaN",
+        "NaN"
+      ],
+      "scorePercentiles": {
+        "0.0": 20.91514920080282,
+        "50.0": 20.91514920080282,
+        "90.0": 20.91514920080282,
+        "95.0": 20.91514920080282,
+        "99.0": 20.91514920080282,
+        "99.9": 20.91514920080282,
+        "99.99": 20.91514920080282,
+        "99.999": 20.91514920080282,
+        "99.9999": 20.91514920080282,
+        "100.0": 20.91514920080282
+      },
+      "scoreUnit": "ns/op",
+      "rawData": [
+        [
+          20.91514920080282
+        ]
+      ]
+    },
+    "secondaryMetrics": {}
+  },
+  {
+    "jmhVersion": "1.37",
+    "benchmark": "com.pipeline.demo.SortUtilsBenchmark_containsValue.containsValue",
+    "mode": "avgt",
+    "threads": 1,
+    "forks": 1,
+    "jvm": "/usr/lib/jvm/java-17-openjdk-amd64/bin/java",
+    "jvmArgs": [
+      "-Dfile.encoding=UTF-8",
+      "-Duser.country",
+      "-Duser.language=en",
+      "-Duser.variant"
+    ],
+    "jdkVersion": "17.0.18",
+    "vmName": "OpenJDK 64-Bit Server VM",
+    "vmVersion": "17.0.18+8-Ubuntu-124.04.1",
+    "warmupIterations": 1,
+    "warmupTime": "100 ms",
+    "warmupBatchSize": 1,
+    "measurementIterations": 1,
+    "measurementTime": "100 ms",
+    "measurementBatchSize": 1,
+    "params": {
+      "size": "1000"
+    },
+    "primaryMetric": {
+      "score": 167.00150453108782,
+      "scoreError": "NaN",
+      "scoreConfidence": [
+        "NaN",
+        "NaN"
+      ],
+      "scorePercentiles": {
+        "0.0": 167.00150453108782,
+        "50.0": 167.00150453108782,
+        "90.0": 167.00150453108782,
+        "95.0": 167.00150453108782,
+        "99.0": 167.00150453108782,
+        "99.9": 167.00150453108782,
+        "99.99": 167.00150453108782,
+        "99.999": 167.00150453108782,
+        "99.9999": 167.00150453108782,
+        "100.0": 167.00150453108782
+      },
+      "scoreUnit": "ns/op",
+      "rawData": [
+        [
+          167.00150453108782
+        ]
+      ]
+    },
+    "secondaryMetrics": {}
+  },
+  {
+    "jmhVersion": "1.37",
+    "benchmark": "com.pipeline.demo.SortUtilsBenchmark_containsValue.containsValue",
+    "mode": "avgt",
+    "threads": 1,
+    "forks": 1,
+    "jvm": "/usr/lib/jvm/java-17-openjdk-amd64/bin/java",
+    "jvmArgs": [
+      "-Dfile.encoding=UTF-8",
+      "-Duser.country",
+      "-Duser.language=en",
+      "-Duser.variant"
+    ],
+    "jdkVersion": "17.0.18",
+    "vmName": "OpenJDK 64-Bit Server VM",
+    "vmVersion": "17.0.18+8-Ubuntu-124.04.1",
+    "warmupIterations": 1,
+    "warmupTime": "100 ms",
+    "warmupBatchSize": 1,
+    "measurementIterations": 1,
+    "measurementTime": "100 ms",
+    "measurementBatchSize": 1,
+    "params": {
+      "size": "10000"
+    },
+    "primaryMetric": {
+      "score": 1557.7319304239788,
+      "scoreError": "NaN",
+      "scoreConfidence": [
+        "NaN",
+        "NaN"
+      ],
+      "scorePercentiles": {
+        "0.0": 1557.7319304239788,
+        "50.0": 1557.7319304239788,
+        "90.0": 1557.7319304239788,
+        "95.0": 1557.7319304239788,
+        "99.0": 1557.7319304239788,
+        "99.9": 1557.7319304239788,
+        "99.99": 1557.7319304239788,
+        "99.999": 1557.7319304239788,
+        "99.9999": 1557.7319304239788,
+        "100.0": 1557.7319304239788
+      },
+      "scoreUnit": "ns/op",
+      "rawData": [
+        [
+          1557.7319304239788
+        ]
+      ]
+    },
+    "secondaryMetrics": {}
+  }
+]
