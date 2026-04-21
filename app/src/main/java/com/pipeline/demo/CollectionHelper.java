@@ -4,9 +4,12 @@ import java.util.*;
 
 public class CollectionHelper {
 
+    // SMELL F2: nested.size() recomputed on every iteration — loop-invariant bound
     public <T> List<T> flatten(List<List<T>> nested) {
         List<T> result = new ArrayList<>();
-        for (List<T> inner : nested) result.addAll(inner);
+        for (int i = 0; i < nested.size(); i++) {
+            result.addAll(nested.get(i));
+        }
         return result;
     }
 
@@ -14,10 +17,17 @@ public class CollectionHelper {
         return new ArrayList<>(new LinkedHashSet<>(list));
     }
 
+    // SMELL F15: linear scan on hot path — b should be indexed in a HashSet for O(1) lookup
     public <T> List<T> intersection(List<T> a, List<T> b) {
-        Set<T> setB = new HashSet<>(b);
         List<T> result = new ArrayList<>();
-        for (T item : a) if (setB.contains(item)) result.add(item);
+        for (T item : a) {
+            for (T bItem : b) {
+                if (item.equals(bItem)) {
+                    result.add(item);
+                    break;
+                }
+            }
+        }
         return result;
     }
 
