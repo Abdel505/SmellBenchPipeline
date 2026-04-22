@@ -67,19 +67,21 @@ tasks.register<JavaExec>("jmhRun") {
     // Optional benchmark filter: env var AMBER_INCLUDE is a JMH regex (e.g. "CalculatorBench.add")
     val jmhInclude = System.getenv("AMBER_INCLUDE")
 
+    val runAmber = System.getenv("RUN_AMBER") == "1"
+
     val jmhArgs = mutableListOf(
         "-rf", "json", "-rff", "../data/jmh-result.json",
         "-f",  System.getenv("AMBER_FORKS")   ?: "5",
-        "-wi", System.getenv("AMBER_WI")      ?: "3",
-        "-w",  System.getenv("AMBER_WTIME")   ?: "1s",
-        "-i",  System.getenv("AMBER_MI")      ?: "5",
-        "-r",  System.getenv("AMBER_MTIME")   ?: "1s",
+        "-wi", if (runAmber) "500"   else (System.getenv("AMBER_WI")    ?: "3"),
+        "-w",  if (runAmber) "100ms" else (System.getenv("AMBER_WTIME") ?: "1s"),
+        "-i",  if (runAmber) "100"   else (System.getenv("AMBER_MI")    ?: "5"),
+        "-r",  if (runAmber) "100ms" else (System.getenv("AMBER_MTIME") ?: "1s"),
         "-to", System.getenv("AMBER_TIMEOUT") ?: "1m",
         "-t",  "1",
         "-v",  System.getenv("AMBER_VERBOSE") ?: "NORMAL"
     )
     // AMBER-specific flags: only add when running against a live AMBER server
-    if (System.getenv("RUN_AMBER") == "1") {
+    if (runAmber) {
         jmhArgs += listOf(
             "-hmodel", System.getenv("AMBER_MODEL") ?: "oscnn",
             "-hhost",  System.getenv("AMBER_HOST")  ?: "localhost",
