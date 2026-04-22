@@ -63,6 +63,19 @@ public class SortUtils {
         quickSortHelper(a, p + 1, hi);
     }
 
+    // SMELL F1 (outer) + calls containsValue (SMELL F1, inner):
+    // Scans all rows even after a match is found — should return on first hit.
+    // Each row is checked via containsValue which itself never short-circuits.
+    public int findFirstRowContaining(int[][] matrix, int target) {
+        int result = -1;
+        for (int i = 0; i < matrix.length; i++) {
+            if (containsValue(matrix[i], target)) {
+                result = i;      // missing: return i — scans all remaining rows needlessly
+            }
+        }
+        return result;           // returns LAST matching row, not first (semantic side-effect of missing break)
+    }
+
     // SMELL F1: search loop without early exit — tracks count instead of returning immediately
     public boolean containsValue(int[] arr, int target) {
         int count = 0;
