@@ -130,6 +130,12 @@ for attempt in $(seq 1 $MAX_ATTEMPTS); do
     mv "$GENERATED" "$GENERATED_RENAMED"
     log "  Renamed file: $(basename "$GENERATED") → $(basename "$GENERATED_RENAMED")"
 
+    # Strip @Param annotations and their import (use fixed input size instead)
+    sed -i '/@Param/d' "$GENERATED_RENAMED"
+    sed -i '/import org\.openjdk\.jmh\.annotations\.Param;/d' "$GENERATED_RENAMED"
+    sed -i 's/\(public\|private\) int size;/\1 int size = 1000;/' "$GENERATED_RENAMED"
+    log "  Stripped @Param annotations from generated benchmark (size hardcoded to 1000)"
+
     mkdir -p "$(dirname "$TARGET")"
     mv "$GENERATED_RENAMED" "$TARGET"
 

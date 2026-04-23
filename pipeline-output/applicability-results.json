@@ -2,7 +2,7 @@
   {
     "class_id": "C1",
     "file_path": "app/src/main/java/com/pipeline/demo/SortUtils.java",
-    "method_signature": "containsValue",
+    "method_signature": "findFirstRowContaining",
     "applicable_families": [
       "F1"
     ],
