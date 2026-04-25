@@ -47,7 +47,6 @@ jobs:
           chmod +x scripts/run-benchmarks.sh
           chmod +x scripts/lookup_benchmark.sh
           chmod +x scripts/generate_benchmark.sh
-          chmod +x scripts/run_mutation_testing.sh
           chmod +x tools/dashboard/generate_dashboard.sh
 
       - name: Detect Changed Methods
@@ -63,11 +62,11 @@ jobs:
         with:
           python-version: '3.12'
 
-      - name: Install mutator dependencies
-        run: pip install -r mutator/requirements.txt
+      - name: Install smell-checker dependencies
+        run: pip install -r smell-checker/requirements.txt
 
       - name: Check Smell Applicability (LLM)
-        run: python mutator/smell_applicability_checker.py
+        run: python smell-checker/smell_applicability_checker.py
         env:
           LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
           LLM_ENDPOINT: ${{ secrets.LLM_ENDPOINT }}
@@ -92,7 +91,7 @@ jobs:
           AMBER_MI: "2"
           AMBER_MTIME: "1s"
           AMBER_TIMEOUT: "1m"
-          RUN_AMBER: "1"
+          RUN_AMBER: "0"
 
       - name: Compile and run tests
         run: ./gradlew :app:test
@@ -102,7 +101,7 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add data/coverage-matrix.csv data/jmh-result.json \
-                  amber-results/ app/src/test/java/ || true
+                  data/best-result.json amber-results/ app/src/test/java/ || true
           git diff --cached --quiet || \
             git commit -m "chore: update benchmark results [skip ci]"
           git push

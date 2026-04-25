@@ -7,7 +7,7 @@ set -euo pipefail
 # smelly_methods.txt / clean_methods.txt based on the "applicable_families" field.
 #
 # Usage:
-#   python3 mutator/smell_applicability_checker.py
+#   python3 smell-checker/smell_applicability_checker.py
 #   bash scripts/filter_methods_2.sh
 #
 # Inputs:

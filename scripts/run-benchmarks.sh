@@ -27,7 +27,7 @@ if [[ "${RUN_AMBER}" == "1" ]]; then
   AMBER_HOST="${AMBER_HOST:-localhost}"
   AMBER_PORT="${AMBER_PORT:-5001}"
   echo "[run-benchmarks] Checking AMBER server at ${AMBER_HOST}:${AMBER_PORT}..."
-  if ! nc -z -w3 "${AMBER_HOST}" "${AMBER_PORT}" 2>/dev/null; then
+  if ! curl -sf --connect-timeout 3 "http://${AMBER_HOST}:${AMBER_PORT}/" > /dev/null 2>&1; then
     echo "[run-benchmarks] ERROR: AMBER server not reachable at ${AMBER_HOST}:${AMBER_PORT}" >&2
     echo "[run-benchmarks] Start it with: cd AMBER/jpt_service && source venv/bin/activate && python service.py" >&2
     exit 1

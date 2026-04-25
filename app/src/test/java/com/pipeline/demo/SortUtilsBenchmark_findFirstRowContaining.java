@@ -6,7 +6,6 @@ import org.openjdk.jmh.annotations.Fork;
 import org.openjdk.jmh.annotations.Measurement;
 import org.openjdk.jmh.annotations.Mode;
 import org.openjdk.jmh.annotations.OutputTimeUnit;
-import org.openjdk.jmh.annotations.Param;
 import org.openjdk.jmh.annotations.Scope;
 import org.openjdk.jmh.annotations.Setup;
 import org.openjdk.jmh.annotations.State;
@@ -25,25 +24,28 @@ import org.openjdk.jmh.runner.options.OptionsBuilder;
 @Measurement(iterations = 10)
 @BenchmarkMode(Mode.AverageTime)
 @OutputTimeUnit(TimeUnit.NANOSECONDS)
-public class SortUtilsBenchmark_containsValue {
+public class SortUtilsBenchmark_findFirstRowContaining {
 
-    @Param({"100", "1000", "10000"})
-    private int size;
+    private int size = 1000;
 
-    private int[] array;
-    private SortUtils sortUtils;
+    private int[][] matrix;
+    private int target;
 
     @Setup
     public void setup() {
-        array = new int[size];
+        matrix = new int[size][size];
         for (int i = 0; i < size; i++) {
-            array[i] = i;
+            for (int j = 0; j < size; j++) {
+                matrix[i][j] = i + j;
+            }
         }
-        sortUtils = new SortUtils();
+        target = size / 2;
     }
 
     @Benchmark
-    public void containsValue(Blackhole bh) {
-        bh.consume(sortUtils.containsValue(array, size / 2));
+    public void findFirstRowContaining(Blackhole bh) {
+        SortUtils sortUtils = new SortUtils();
+        int result = sortUtils.findFirstRowContaining(matrix, target);
+        bh.consume(result);
     }
 }
