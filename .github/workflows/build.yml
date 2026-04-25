@@ -63,11 +63,11 @@ jobs:
         with:
           python-version: '3.12'
 
-      - name: Install mutator dependencies
-        run: pip install -r mutator/requirements.txt
+      - name: Install smell-checker dependencies
+        run: pip install -r smell-checker/requirements.txt
 
       - name: Check Smell Applicability (LLM)
-        run: python mutator/smell_applicability_checker.py
+        run: python smell-checker/smell_applicability_checker.py
         env:
           LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
           LLM_ENDPOINT: ${{ secrets.LLM_ENDPOINT }}

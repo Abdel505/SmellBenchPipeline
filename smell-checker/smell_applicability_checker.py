@@ -16,7 +16,7 @@ for _required in ("LLM_API_KEY", "LLM_ENDPOINT"):
 
 # --- CONFIGURATION ---
 TARGET_JSON_PATH    = "pipeline-output/applicability-targets.json"
-TEMPLATES_JSON_PATH = "mutator/generalized_templates.json"
+TEMPLATES_JSON_PATH = "smell-checker/generalized_templates.json"
 OUTPUT_JSON_PATH    = "pipeline-output/applicability-results.json"
 SLEEP_BETWEEN_CALLS = 5
 MAX_RETRIES = 3

@@ -1,0 +1,621 @@
+EXTRACTED DATA FROM generalized_templates.json
+
+Total Families: 17
+
+====================================================================================================
+
+
+
+====================================================================================================
+FAMILY_ID: F1
+====================================================================================================
+
+ROOT_CAUSE: Redundant computation
+
+
+SIGNALS (Array with 9 elements):
+----------------------------------------------------------------------------------------------------
+1. Assignment to a boolean like found/any/exists/matched inside a loop without a subsequent break/return
+2. Pattern: flag = flag || <cond>(elem) or if (<cond>(elem)) flag = true; with post-loop usage of flag
+3. Pattern: result = ... inside if (predicate(elem, TARGET)); result read after the loop; no early exit
+4. Comparisons like equals(TARGET), compareTo(...) == 0, startsWith/endsWith/contains inside loops
+5. Loop over Map.entrySet()/keySet()/values() used to locate a specific key/value; suggest map.get(TARGET) or containsKey
+6. Multiple small goal flags or a remaining counter updated in-loop without a break when all goals satisfied
+7. Nested search: if (!any) any = predicate(...); then outer result = result && any; without breaks
+8. Optional sink guard present (if (sink != null) {...}) where sink-disabled path still continues scanning after match
+9. Static analysis hints: 'Loop can be terminated early', 'Search loop without break/return', 'Replace loop with map.get/contains'
+
+MATCHING_RULES (Array with 10 elements):
+----------------------------------------------------------------------------------------------------
+1. Find For/EnhancedFor/While loop(s) that implement a search-like pattern: an if-branch with predicate $PRED over the current element and loop-invariant key/target
+2. Inside the match branch, detect one or more of: (a) assignment to an outer-scoped result variable $res; (b) monotonic boolean update $found = true or $found |= <cond>; (c) decrement of a small counter $remaining-- indicating bounded goals; (d) an expensive/terminal action whose repetition is unnecessary
+3. The variables updated in the match branch ($res/$found/$remaining) are used only after the loop (or folded after the inner loop) to steer control or produce the final result
+4. No control-flow transfer (no break/return/throw) is present on the same path immediately after the first successful match or after all goals are satisfied
+5. Boolean OR/ANY pattern: inside the loop, $flag = $flag || <cond> or if (<cond>) $flag = true;, and $flag is tested only after the loop
+6. Boolean AND/ALL dual: $flag starts true and is updated as $flag = $flag && <cond> or if (!<cond>) $flag = false;, and is consumed after the loop without early exit on the absorbing value
+7. Multi-goal pattern: multiple flags (or a counter) indicate pending goals; each goal is set/cleared at most once; no exit when all goals are achieved
+8. Nested loops: inner loop sets $any (existence flag) without break; outer loop combines into $all via logical AND/OR without early exit on the absorbing result
+9. Map-lookup pattern: iterating map.entrySet/keySet/values while comparing to $KEY_invariant and assigning/using a single result, without break/return
+10. Sequential gated scans: two consecutive loops guarded by the same invariant gate with opposite polarity (if ($FLAG) ... in loop B, if (!$FLAG) ... in loop A); only one branch is semantically relevant per call, yet both loops execute without hoisting the gate
+
+NEGATIVE_CONSTRAINTS (Array with 6 elements):
+----------------------------------------------------------------------------------------------------
+1. Do not match loops that intentionally aggregate across all elements (e.g., sum, count, collect into list/map, compute min/max without an early-termination condition)
+2. Do not match if later iterations must run for required side effects (I/O, logging, metrics) that are mandated regardless of matches and regardless of $OPTIONAL_SINK/$SIDE_EFFECTS_ENABLED
+3. Do not match if the observed behavior depends on processing all matches (e.g., deliberate last-wins semantics over an unordered container, or correctness depends on evaluating all candidates)
+4. Do not match when the loop already short-circuits on all feasible paths after meeting the goal(s) (presence of break/return/throw in the match branch or loop condition uses the flag, e.g., while(!$found) ...)
+5. Do not match if boolean flags are non-monotonic (e.g., $found toggles true->false) or $res is refined by considering all elements (e.g., best-of reduction requiring full scan)
+6. Do not match last-match optimization if the container is unordered (Set, Hash-based without order guarantees) or reverse traversal is not semantically equivalent
+
+====================================================================================================
+FAMILY_ID: F2
+====================================================================================================
+
+ROOT_CAUSE: Redundant computation
+
+
+SIGNALS (Array with 6 elements):
+----------------------------------------------------------------------------------------------------
+1. Multiple identical MethodInvocation tokens in one If/While condition: e.g., foo.count(x) >= t || foo.count(x) > 0
+2. Repeated occurrences of arr[idx] in the same statement or small block
+3. Loop conditions like i < list.size() or i < sb.length() where the receiver is not modified in the loop body
+4. Single return or ternary using the same field name multiple times: return F == null ? ... : (F instanceof T ? (T) F : ...)
+5. Presence of WAIT/SLEEP/timeouts with repeated state-query calls in the same condition/iteration
+6. Utilities and pure APIs repeatedly invoked with identical arguments (e.g., Character.getType(c), Math.* on invariant operands)
+
+MATCHING_RULES (Array with 6 elements):
+----------------------------------------------------------------------------------------------------
+1. Within a single basic block, boolean expression, or one loop iteration, find two or more syntactically equivalent subexpressions S1 ≡ S2 ≡ E⟨R, A*⟩ with identical receiver and arguments
+2. Categories to match: (a) MethodInvocation R.m(A*); (b) FieldAccess or QualifiedName R.f; (c) ArrayAccess ARR[IDX]; (d) BOUND⟨C⟩ in a loop header or body
+3. Verify that none of {R, A*, C, ARR, IDX} is assigned to, mutated, or may be mutated via an alias on any path between S1 and S2 within the control step
+4. For loop bounds: detect ForStatement/WhileStatement where the condition contains BOUND⟨C⟩ and the loop body does not change C (no adds/removes/appends/reassignments affecting the bound)
+5. For polling/wait loops: detect repeated E⟨R, A*⟩ in a single condition or iteration together with WAIT/SLEEP/TIMEOUT usage; suggest caching once per iteration and refreshing after the wait/event
+6. For shared/volatile fields: detect multiple reads of the same field identifier within a single expression/branch (e.g., ternary or chained condition); suggest snapshot to a local variable
+
+NEGATIVE_CONSTRAINTS (Array with 6 elements):
+----------------------------------------------------------------------------------------------------
+1. Exclude expressions with side effects or non-idempotent behavior: iterator.next(), stream.read(), random/time sources, counters that advance state, I/O that must be reissued
+2. Exclude cases where any operand (receiver R, arguments A*, container C, array ARR, index IDX) may be mutated between occurrences or via an intervening call with side effects on those operands
+3. Exclude polling/spin loops that intentionally reread a volatile/atomic field to observe changes without a wait/sleep boundary
+4. Exclude hoisting that would increase work due to short-circuiting on the common path (e.g., a cheap precondition prevents evaluating E most of the time and E would become eagerly evaluated); only hoist after guarding with the same preconditions
+5. Exclude array/field reads that are volatile or concurrently modified when a single-snapshot semantic would be incorrect for the intended behavior within the step
+6. For external API calls in tight polling loops, exclude obviously cheap O(1) pure accessors on in-memory collections unless they occur in loop bounds (where per-iteration re-evaluation still adds overhead)
+
+====================================================================================================
+FAMILY_ID: F3
+====================================================================================================
+
+ROOT_CAUSE: Redundant computation
+
+
+SIGNALS (Array with 7 elements):
+----------------------------------------------------------------------------------------------------
+1. Introduction of fields like `private R cached;` with null/sentinel checks; patterns: `if (cached == null) cached = compute...(); return cached;`
+2. Addition of Map-based caches: WeakHashMap/ConcurrentMap, computeIfAbsent, factory classes routing creation through `create(...)`.
+3. ThreadLocal caches/helpers and calls to `init(...)`, `reset(...)`, `configure(...)` on reused helpers.
+4. Setters updated to also assign/invalidate a cache field; numeric caches using sentinel constants (e.g., Float.NEGATIVE_INFINITY).
+5. Refactoring from direct `new V(...)` in hot paths to `factory.create(...)`; addition of a Key class with equals/hashCode (Arrays.equals/hashCode for arrays).
+6. Commit messages or comments mentioning cache/memoize/reuse/performance, or warnings/profiling pointing to allocations in getters or helper constructors.
+7. Dictionary/backing lookups with constant keys (e.g., getDictionaryObject(CONST_KEY)) formerly repeated per call and now cached.
+
+MATCHING_RULES (Array with 7 elements):
+----------------------------------------------------------------------------------------------------
+1. Find a frequently invoked method M (getter/accessor/processing hot path) that, on each call, constructs an object via `new T(...)` or performs an expensive computation whose inputs are dominated by class fields, constant keys, or otherwise loop-invariant expressions.
+2. No pre-existing memoized field or cache lookup guards the expensive path; the constructed object is immediately returned or used and discarded.
+3. Parameterless or constant-argument getters: detect `new R(backing.get(CONST_KEY))` or equivalent transformations inside a no-arg method; optional paired setter writes the same backing entry without cache maintenance.
+4. Helper allocation per call: detect construction of helper H (or via F.resolve(...)) with mostly invariant constructor args, immediate use, and disposal; H exposes init/reset but was not reused prior to the fix.
+5. Keyed construction on hot paths: detect repeated `new V(ctx, p1..pk)` where (ctx, p1..pk) are stable or repeat frequently; no factory/caching present; after fix, calls route through a factory/cache using a Key with equals/hashCode.
+6. Cache ineffectiveness due to identity keys: detect a type used as a key in hash-based collections without overriding equals/hashCode (identity semantics); fix introduces value-based equals/hashCode enabling dedup/cache hits.
+7. Subclass bypassing base cache: base class has a private cached-helper method; a subclass directly does `new RES(...)` for the same resource; fix widens visibility (protected final) or exposes accessors so subclass reuses the cache.
+
+NEGATIVE_CONSTRAINTS (Array with 7 elements):
+----------------------------------------------------------------------------------------------------
+1. Exclude cases where fresh instances are required per call (e.g., defensive copies, unique mutable objects, timestamps, random, or side-effecting constructors).
+2. Exclude computations depending on frequently changing external state not invalidated by this class (e.g., external map mutated elsewhere) unless an explicit invalidation strategy exists.
+3. Exclude objects whose constructors have observable side effects that must occur on every call (I/O effects, counters, metrics) or whose reuse is semantically incorrect.
+4. Exclude scenarios where parameters vary with high entropy per call, making cache hit rates negligible or incorrect.
+5. Exclude cases lacking safe equality semantics for keys (non-deterministic floats, missing stable normalization) or where arrays/collections remain mutable without copy/immutability, breaking key stability.
+6. Exclude trivial/cheap operations (simple field reads, primitive boxing) where caching does not materially improve performance.
+7. Exclude multi-threaded access to non-thread-safe caches or helpers without confinement or proper synchronization.
+
+====================================================================================================
+FAMILY_ID: F4
+====================================================================================================
+
+ROOT_CAUSE: Redundant per-call encoding/formatting due to inefficient API usage
+
+
+SIGNALS (Array with 9 elements):
+----------------------------------------------------------------------------------------------------
+1. Frequent .getBytes("UTF-8"|"ISO-8859-1"|CONST) on string literals in hot code.
+2. append*(String) methods that immediately convert to bytes for OutputStream writes.
+3. new String(byte[], [off, len], CS) followed by getBytes(CS) or writing to an OutputStream.
+4. String.format("%02X"|"%04X", ...) inside loops or toHex helpers used in loops.
+5. Integer.toHexString(...).substring(...).toUpperCase() inside byte-processing loops.
+6. Helpers named toHex/stringToHex/byteToHexString/byteToHexBytes returning small objects per byte.
+7. Multiple new String(byte[], ...) calls in parsing/deserialization loops; nearby Charset.forName calls.
+8. Concatenation patterns like s + String.valueOf(x) or framework toString(x) where x is often CharSequence; missing (String, CharSequence) overload.
+9. Static final Charset fields (e.g., UTF_8) used across conversions without runtime adaptation logic.
+
+MATCHING_RULES (Array with 8 elements):
+----------------------------------------------------------------------------------------------------
+1. Detect call sites inside hot methods or loops that perform String.getBytes(CONST_CHARSET_OR_NAME) on string literals or fixed tokens more than once.
+2. Detect helper methods that accept String and immediately call getBytes(CONST_CHARSET_OR_NAME) to write to an OutputStream.
+3. Detect new String(byte[], [off, len], CONST_CHARSET_OR_NAME) immediately followed by getBytes of the same charset or writing via String to a byte sink (round-trip).
+4. Detect String.format with fixed-width hex patterns (%02X, %04X, etc.) invoked per element inside loops, or helper methods used in loops that contain such String.format calls.
+5. Detect per-byte hex built via Integer.toHexString(...).substring(...).toUpperCase(), or helpers returning per-byte String/byte[] used in loops.
+6. Detect repeated new String(byte[], off, len, CONST_CHARSET_OR_NAME) in hot paths without a cached CharsetDecoder.
+7. Detect concatenation or utility methods combining String + Object (or generic toString) where frequent call sites pass CharSequence; no (String, CharSequence) overload exists.
+8. Detect conversions using Charset overloads (or name overloads) in hot utilities without any environment-dependent strategy selecting the fastest equivalent overload.
+
+NEGATIVE_CONSTRAINTS (Array with 8 elements):
+----------------------------------------------------------------------------------------------------
+1. Do not match if strings are highly dynamic per call and not safe or beneficial to pre-encode.
+2. Do not match when the sink is character-only (Writer) and the code correctly works with chars rather than bytes; direct byte writing would change behavior.
+3. Do not match if the charset varies per call or is data-dependent; caching or pre-encoding could change semantics.
+4. Do not match loops that already use lookup tables and preallocated buffers for hex encoding without per-iteration String or array allocation.
+5. Do not match cold paths (initialization, error handling) where the overhead is irrelevant.
+6. Do not match if a reusable CharsetDecoder/encoder is already maintained per instance or via ThreadLocal.
+7. Do not match if specialized formatting semantics (locale, case mapping, custom rules) require String.format or Integer.toHexString(+ transforms).
+8. Do not match if overload selection is constrained by semantics (e.g., custom Charset subclass) or an existing strategy already adapts by runtime.
+
+====================================================================================================
+FAMILY_ID: F5
+====================================================================================================
+
+ROOT_CAUSE: Inefficient data structures and bad API usage (boxed numbers/containers on hot numeric paths)
+
+
+SIGNALS (Array with 7 elements):
+----------------------------------------------------------------------------------------------------
+1. Field declarations: '(public|protected|private) (Integer|Long|Float|Double|Boolean) [a-zA-Z_][a-zA-Z0-9_]*;'
+2. Hot-loop unboxing calls: '.floatValue()', '.doubleValue()', '.intValue()', '.longValue()', '.booleanValue()'
+3. Per-iteration allocations: 'new Integer(', 'Integer.valueOf(', 'new Float(', 'Float.valueOf(' inside loops
+4. Container mutations in loops: 'container.add(new ...)', 'container.set(i, new ...)'
+5. Conversions around compute: 'toFloatArray()', 'toDoubleArray()', 'toPrimitiveArray()', 'setFloatArray(...)', 'setPrimitiveArray(...)'
+6. Imports/usages of Number-like wrappers in performance-critical code (e.g., COSNumber/COSFloat in PDF processing)
+7. Compiler warnings: -Xlint:boxing/-Xlint:unboxing near hot code
+
+MATCHING_RULES (Array with 5 elements):
+----------------------------------------------------------------------------------------------------
+1. Field pattern: find a field declaration of type BOXED_T; dataflow shows no null assignments, no comparisons with null, no synchronization/identity/equality on reference; all uses of the field are compatible with primitives or autounboxing
+2. Loop/container pattern: inside a loop, detect writes of PRIM to a numeric container via set/add resulting in implicit boxing, and reads from the container followed by immediate unboxing via .<prim>Value()
+3. Method pattern: a method that accepts and/or returns CONTAINER<WRAPPER_NUM> converts to PRIM[] (via TO_PRIM_ARRAY or manual unboxing loop), performs numeric computation on PRIM, then reconstructs the container by per-element boxing/add
+4. Presence of an alternative primitive path is suggested by any of: methods like toFloatArray()/toDoubleArray()/setPrimitiveArray(...), overloads accepting PRIM[]/returning PRIM[], or utility conversion helpers
+5. Confirm that replacing BOXED_T with PRIM_T and CONTAINER<WRAPPER_NUM> with PRIM[] preserves behavior for non-null numeric values along the hot path
+
+NEGATIVE_CONSTRAINTS (Array with 6 elements):
+----------------------------------------------------------------------------------------------------
+1. Do not match if nullability of the field/element is semantically required (optional/tri-state, union-with-null schema, explicit null assignments or checks)
+2. Do not match if APIs require the boxed type or Object reference identity (e.g., the field/container elements are used as keys where null is meaningful, or passed to reflection/collections expecting Object of the boxed type)
+3. Do not match if code synchronizes on the boxed object, relies on reference equality, or uses weak/identity maps with boxed instances
+4. Do not match for BigDecimal/BigInteger or other numerical classes where primitive substitution changes semantics/precision
+5. Do not match if the container provides primitive getters/setters already used (no boxing/unboxing in the hot path)
+6. Do not match if the transform is invoked outside the loop with results reused across iterations without per-iteration boxing/unboxing
+
+====================================================================================================
+FAMILY_ID: F6
+====================================================================================================
+
+ROOT_CAUSE: Inefficient or bad API usage (per-element accessors instead of bulk row/array operations)
+
+
+SIGNALS (Array with 6 elements):
+----------------------------------------------------------------------------------------------------
+1. Grep: .getPixel(, .setPixel(, .getSample(, .setSample( inside nested for-loops over x and y
+2. Grep: getRGB(x,y) and setRGB(x,y,...) used inside loops covering full width*height
+3. Presence of temporary int[]/byte[] arrays used only to pass to per-pixel get/set calls
+4. High profiler hot spots in Raster/BufferedImage per-pixel methods or ImageInputStream.readBits during 8-bit image processing
+5. Instantiation of ColorModel with literal DataBuffer.TYPE_XXX while a Raster is in scope for pairing
+6. Absence of getPixels/setPixels, getDataElements/setDataElements, setData/copyData, or bulk getRGB/setRGB overloads
+
+MATCHING_RULES (Array with 6 elements):
+----------------------------------------------------------------------------------------------------
+1. Find a loop over two indices (X,Y) or equivalent nested iteration covering image/grid bounds; inner body invokes per-element accessor pairs (API_GET_ELEM and/or API_SET_ELEM)
+2. OR find full-image per-pixel copy using SRC.getRGB(x,y) -> DST.setRGB(x,y, ...) with no intermediate transformation
+3. OR find a generic per-sample decoding path that performs bit-unpacking and per-sample loops even when bpc == 8 and decode equals the color space default
+4. Transformation inside the inner loop uses only the current element/pixel's components; no references to neighboring coordinates (X±1,Y±1, etc.)
+5. Width/height (or bounds) are loop-invariant; may be obtained via method calls inside or outside the loop
+6. Optional: detect ColorModel created with hard-coded DataBuffer.TYPE_XXX while pairing with a Raster variable, suggesting potential repacking overhead that blocks bulk paths
+
+NEGATIVE_CONSTRAINTS (Array with 5 elements):
+----------------------------------------------------------------------------------------------------
+1. Do not match if any step already uses bulk row/rect APIs (getPixels/setPixels, getDataElements/setDataElements with arrays, getRGB/setRGB with arrays, copyData/setData) inside the loop body
+2. Do not match algorithms that depend on neighbor pixels, convolution windows, or non-linear access patterns that prevent contiguous block processing
+3. Exclude sparse updates (e.g., conditional writes to a minority of pixels) where bulk operations would move unnecessary data
+4. Exclude cases requiring filters/predictors or decoding steps that mandate per-sample processing (e.g., non-byte-aligned bpc, non-default decode, color key/mask present) unless an equivalent bulk path is proven
+5. Exclude when destination/source types are provably fixed and already optimal (e.g., DataBuffer.TYPE_BYTE with existing banked/bulk code), or when memory layout forbids safe bulk copy
+
+====================================================================================================
+FAMILY_ID: F7
+====================================================================================================
+
+ROOT_CAUSE: Inefficient or bad API usage, Inefficient algorithms
+
+
+SIGNALS (Array with 10 elements):
+----------------------------------------------------------------------------------------------------
+1. Calls to ImageIO.read(InputStream|File|URL) near identifiers/strings: "JBIG2", "JPX", "JPEG2000", "TIFF", "CMYK", "YCCK", "RAW"
+2. Absence of ImageReader.getImageReadersByFormatName/MIMEType and reader.setInput(ImageInputStream) on the same path
+3. Immediate getRaster()/getData() after ImageIO.read(...)
+4. Helper names like toRGBImageAWT, toRGBImage, convertToRGB(...) returning BufferedImage from WritableRaster
+5. Presence of ColorSpace.getInstance(...).toRGB(...) or cs.toRGB(...) inside nested loops over pixels
+6. Multiple Math.pow(...) and matrix.getValue(i,j) calls per pixel; new float[]{...} allocations in the loop
+7. SequenceInputStream used to compose streams passed to ImageIO.read(...)
+8. Low-level reads: ImageReader.readRaster(...), getDataBuffer(), followed by out.setRect(in) and then a full traversal overwriting out
+9. Comments/identifiers: BGR->RGB, CMYK->RGB, channel reorder, fast-path
+10. Branches named INVISIBLE/NEITHER_FILL_NOR_STROKE or code paths with opacity==0 using Color.BLACK/new Color(r,g,b) without alpha
+
+MATCHING_RULES (Array with 6 elements):
+----------------------------------------------------------------------------------------------------
+1. Match if ANY of the following subpatterns is present:
+2. A) Convenience decode misuse: a call to javax.imageio.ImageIO.read($src) occurs on a path where the image format is known or complex (e.g., JBIG2, JPEG2000/JPX, TIFF, CMYK JPEG) OR the code immediately uses only a subpart (e.g., getRaster/getData) without other BufferedImage-specific needs; and there is no preceding explicit ImageReader acquisition and no reader.setInput(ImageInputStream) in the same decoding path.
+3. B) Unnecessary image conversion: a helper method $CONVERTER.$toRGBImageMethod($wr,$cs) (or similarly named) is used to build a new BufferedImage from a WritableRaster whose layout/data type matches $cs such that a direct new BufferedImage(new ComponentColorModel(...), $wr, false, null) would suffice; and the result is returned/used without further required color management.
+4. C) Generic per-sample color conversion in a hot inner loop: nested loops over width/height (or a single loop over total samples) invoke ColorSpace.toRGB/ColorSpace.getInstance(...).toRGB, Math.pow per component, and/or matrix element getters per iteration; intermediate arrays are allocated inside the loop; results are written per sample to the output raster/buffer.
+5. D) Redundant pre-copy before full overwrite: after obtaining raw/banded data via a low-level read (e.g., ImageReader.readRaster, getRawData), the code creates a compatible output and performs an immediate full copy (setRect/arraycopy/clone), followed by a traversal that overwrites most/all output elements regardless of the copied values.
+6. E) Missing semantic fast-paths: a code branch explicitly labeled or implied as invisible/zero-opacity or handling different mask semantics performs drawing with an opaque Color/Composite, or applies a single alpha computation for multiple mask modes without a mode flag (e.g., no inversion for explicit masks).
+
+NEGATIVE_CONSTRAINTS (Array with 6 elements):
+----------------------------------------------------------------------------------------------------
+1. Do not match if an explicit ImageReader is obtained, an ImageInputStream is created, reader.setInput(...) is called, capabilities are checked (canReadRaster/canDecodeInput), and reader.read/readRaster is used appropriately for the format.
+2. Do not match convenience ImageIO.read for simple, efficiently supported formats (e.g., baseline PNG/JPEG) when no special capabilities or partial reads are required.
+3. Do not match if conversion is required for correctness (e.g., ICC transforms with nontrivial intents, gamma/transfer functions, different data types like short/float, premultiplied alpha constraints) and cannot be expressed by a direct ColorModel+Raster wrap.
+4. Do not match if the hot-loop conversion already uses a precomputed LUT, cached matrix primitives, or a fast-path that avoids per-sample Math.pow/ColorSpace.toRGB calls and per-iteration allocations.
+5. Do not match redundant-copy pattern if the initial copy is needed for later independent use (snapshot), or if only a small subset is updated subsequently.
+6. Do not match invisible/semantics branch if the code sets alpha=0 via Color/AlphaComposite or skips drawing entirely, or already distinguishes mask modes via a boolean/enum flag with correct per-element math.
+
+====================================================================================================
+FAMILY_ID: F8
+====================================================================================================
+
+ROOT_CAUSE: Improper I/O usage
+
+
+SIGNALS (Array with 8 elements):
+----------------------------------------------------------------------------------------------------
+1. Calls to ImageIO.read(...)/ImageIO.write(...), or matching DECODER.decode(...) and ENCODER.encode(...) pairs in clone/copy paths
+2. Use of IOUtils.copy(InputStream, OutputStream) where the InputStream is decoded and the OutputStream is encoded
+3. Zero-arg createOutputStream()/openEncodedOutput() used while SRC.getFilters()/getEncoding()/getEncodingMetadata() is available but unused
+4. Presence of API pairs like createInputStream vs createRawInputStream, createOutputStream vs createOutputStream(Filters) in the same scope
+5. Full buffering via ByteArrayOutputStream, IOUtils.toByteArray, InputStream.readAllBytes in clone/copy routines
+6. Filter/encoding names in scope: DCTDecode/JPEG, CCITTFaxDecode, FlateDecode, LZWDecode
+7. Profiles showing CPU in Inflater/Deflater, ImageIO codecs during merge/clone operations
+8. Same receiver variable used for both createInputStream and createOutputStream within a method
+
+MATCHING_RULES (Array with 5 elements):
+----------------------------------------------------------------------------------------------------
+1. Method or call chain belongs to a clone/merge/copy/import/append operation over encoded streams (identifier or callsite contains merge|clone|copy|append|import)
+2. Detect one of: (A) decode-then-encode pair on the path (DECODER.decode + ENCODER.encode or ImageIO.read + ImageIO.write) without intervening transformation, or (B) IO.copy from SRC.openDecodedInput() to DST.openEncodedOutput() without passing SRC's encoding metadata, or (C) same receiver variable used for both create/open InputStream and OutputStream in the same scope
+3. Presence of full buffering when transcoding or copying (use of byte[], ByteArrayOutputStream, IO.readAllBytes, IOUtils.toByteArray) in a clone path
+4. Absence of a compatibility guard: no branch that checks DST.supports(SRC.getEncodingMetadata()) or equivalent before choosing a raw passthrough path
+5. When an API offers metadata-aware output (createOutputStream(meta)/openRawOutput(meta)), the code uses the zero-arg variant while SRC.getEncodingMetadata()/getFilters() is in scope
+
+NEGATIVE_CONSTRAINTS (Array with 6 elements):
+----------------------------------------------------------------------------------------------------
+1. Exclude if the code performs necessary transformations (e.g., color space conversion, scaling, transparency changes, normalization, encryption policy change) that require decode and re-encode
+2. Exclude if there is an explicit compatibility check and a raw passthrough path using raw input and metadata-propagating output when encodings match
+3. Exclude if the copy uses raw-to-raw streaming passthrough without full materialization (e.g., IO.copy(SRC.openRawInput(), DST.openRawOutput(SRC.meta)))
+4. Exclude if SRC and DST are guaranteed distinct and the OutputStream is created only after the InputStream has been fully consumed and closed (no read-while-write hazard)
+5. Exclude when the target API lacks any notion of raw vs decoded I/O or encoding metadata, making passthrough impossible
+6. Exclude unit tests or sample code that intentionally re-encodes for validation
+
+====================================================================================================
+FAMILY_ID: F9
+====================================================================================================
+
+ROOT_CAUSE: Thread-safety violations in lazy initialization and put-once cache logic (non-atomic check-then-act, missing re-checks, and missing slot/value guards).
+
+
+SIGNALS (Array with 8 elements):
+----------------------------------------------------------------------------------------------------
+1. Pattern: if (field == null) synchronized(lock) { INIT(); } with no inner if (field == null) inside the synchronized block.
+2. Synchronized block or method that assigns to a shared field or writes to a shared array/HashMap, followed by COUNT++.
+3. Cache writes like CACHE[index] = v or CACHE.put(k, v) near COUNT++ and a check COUNT < MAX.
+4. Absence of checks v != null and slot empty (CACHE[k] == null or !containsKey(k)) before put and COUNT++.
+5. Use of non-concurrent structures (HashMap, arrays) for cross-thread memoization; missing volatile/Atomic/Lock usage for involved fields.
+6. Helper called inside synchronized that assigns to the same shared field (F) or cache.
+7. Shared IO resource with position/seek/save/restore calls inside synchronized; method named get*/read*/load*/init* with key/index parameter.
+8. Field names: cache, glyphs, buffer, table, entries; counters named count/size/numCached; constants MAX_*/LIMIT.
+
+MATCHING_RULES (Array with 6 elements):
+----------------------------------------------------------------------------------------------------
+1. Match if any of the following holds:
+2. A) Missing inner re-check in lazy init: there exists a method that executes if (F == null) { synchronized(LOCK) { INIT_OR_ASSIGN(F); } } where INIT_OR_ASSIGN may assign to F directly or via helper, and there is no F == null re-check inside the synchronized block before assigning/initializing.
+3. B) Put-once violation under lock: inside synchronized(LOCK), code computes V v = EXPENSIVE_COMPUTE(...); then, if (CACHE != null && COUNT < MAX) { CACHE_put(CACHE, k, v); COUNT++; } without guarding both v != null and that the target slot/key in CACHE is currently empty (CACHE[k] == null or !containsKey(k)).
+4. C) Unsynchronized memoization: a method reads and conditionally writes to CACHE (or increments COUNT) without holding any lock or using atomic/concurrent structures, following a pattern like if (CACHE != null && CACHE_get(...) != null) return ...; V v = EXPENSIVE_COMPUTE(...); if (CACHE != null && COUNT < MAX) { CACHE_put(...); COUNT++; }
+5. D) Recompute-under-lock without memoization: a synchronized method or synchronized(LOCK) block performs EXPENSIVE_COMPUTE using a shared resource S for key k on every call and returns the result, while no field-based memoization (Map/array indexed by k or a shared F) is checked before locking; repeated calls with same k redo the work under contention.
+6. For A/C/B, F/CACHE/COUNT must be class fields (not locals) and read/written along the described control flow.
+
+NEGATIVE_CONSTRAINTS (Array with 7 elements):
+----------------------------------------------------------------------------------------------------
+1. Exclude proper double-checked locking: if (F == null) { synchronized(LOCK) { if (F == null) F = compute(...); } } with F declared volatile or using correct publication.
+2. Exclude accessors where the entire method is synchronized and the null check on F occurs while the lock is held (and initialization happens only once with an inner null guard).
+3. Exclude caches implemented with ConcurrentHashMap.computeIfAbsent/putIfAbsent or equivalent atomic check-then-act.
+4. Exclude cases where COUNT is derived from cache.size() or updated atomically (AtomicInteger/LongAdder) with slot emptiness checks.
+5. Exclude logic that already checks both (v != null) and (slot empty: CACHE[k] == null or !containsKey(k)) before mutating CACHE and COUNT.
+6. Exclude thread-confined or ThreadLocal caches/fields not observable across threads.
+7. Exclude computations where per-call variation is required (e.g., depends on time/random/external side effects making caching incorrect).
+
+====================================================================================================
+FAMILY_ID: F10
+====================================================================================================
+
+ROOT_CAUSE: Improper I/O usage; Inefficient algorithms
+
+
+SIGNALS (Array with 7 elements):
+----------------------------------------------------------------------------------------------------
+1. Tight loops with InputStream.read() returning int used as a byte, often followed by (x & 0xFF) and << shift by multiples of 8
+2. Deeply nested byte comparisons against ASCII constants for delimiter/keyword detection
+3. Frequent OutputStream.write(int) calls inside the loop
+4. EOFException or similar thrown directly on read() < 0 in the loop
+5. Repeated calls to read(position, buf, off, len)/pread with pos == base + accumulatedBytes
+6. Presence of PushbackInputStream.unread(...) to push back a matched sentinel
+7. Performance counters or logs indicating many small reads or excessive block read operations
+
+MATCHING_RULES (Array with 6 elements):
+----------------------------------------------------------------------------------------------------
+1. Find a loop (for/while/do) where the body issues per-iteration I/O of exactly one byte via InputStream.read() without an intermediate byte[] buffer; optional EOFException or break on -1
+2. OR: Find a loop where the body invokes a positional read API (e.g., read(long pos, byte[], int, int), pread, positionedRead) each iteration with pos == BASE + ACCUMULATED_BYTES, and ACCUMULATED_BYTES increases monotonically
+3. Per-byte path indicators: (b & 0xFF) << (8*k) patterns OR nested if-chains comparing successive bytes against ASCII/keyword constants; frequent OutputStream.write(int)
+4. PushbackInputStream.unread(...) or unread(byte[], ...) may appear upon detecting a delimiter
+5. Absence of a reusable bulk buffer feeding the loop: either no byte[] buffer is present, or a 1-byte buffer is used, or the buffer is refilled through single-byte reads
+6. After the fix, bulk read(byte[], off, len) replaces either read() single-byte calls or positional reads; optional initial seek aligns stream position; scanning happens over the filled buffer with carry-over of partial matches
+
+NEGATIVE_CONSTRAINTS (Array with 7 elements):
+----------------------------------------------------------------------------------------------------
+1. Exclude when the method already performs bulk reads into a byte[] and scans within that buffer (no per-byte read or per-iteration positional read)
+2. Exclude genuine random-access patterns where positions are non-monotonic or revisit earlier offsets
+3. Exclude concurrency-driven designs where positional reads are required to avoid altering shared stream state across threads
+4. Exclude sources that only expose positional reads (no seek) and where switching to seek+read is impossible
+5. Exclude variable-length encodings (e.g., varints) where loop termination depends on continuation bits and the code intentionally reads one byte at a time with small, bounded length not amenable to readFully replacement
+6. Exclude cases where the data source is an in-memory byte[] or ByteBuffer accessed by indexing without I/O calls
+7. Exclude if OutputStream writes are already batched (write(byte[], off, len)) and there is no per-byte write within the loop
+
+====================================================================================================
+FAMILY_ID: F11
+====================================================================================================
+
+ROOT_CAUSE: Redundant computation due to eager diagnostic message construction on the fast path
+
+
+SIGNALS (Array with 6 elements):
+----------------------------------------------------------------------------------------------------
+1. Presence of "+" string concatenation or new StringBuilder(...) immediately feeding LOGGER.*(...).
+2. Use of .toString(), String.valueOf(...), Arrays.toString(...), Arrays.asList(...) inside LOGGER.*(...) arguments.
+3. Local variable named msg/sb/repr built before a log/throw and not used elsewhere.
+4. LOGGER.info/debug/trace(...) without a preceding isInfoEnabled/isDebugEnabled/isTraceEnabled guard.
+5. Preconditions.checkState|checkArgument with a format and multiple args where args include method calls, Arrays.* conversions, or toString().
+6. Commits that change .info(...) to .debug/.trace and add isXEnabled() guards, or rewrite Preconditions.checkX(...) into if (!COND) throw ... with deferred formatting.
+
+MATCHING_RULES (Array with 7 elements):
+----------------------------------------------------------------------------------------------------
+1. Match a MethodInvocation to a logging method: LOGGER.debug/info/trace/warn/error(...), LOG.log(LEVEL, ...), etc.
+2. Within the logging call or immediately before it, detect any of: (a) binary string concatenation '+' with non-literals; (b) ClassInstanceCreation of StringBuilder/StringBuffer with subsequent appends; (c) String.format(...) used to compute a String; (d) presence of .toString(), String.valueOf(...), Arrays.toString(...), Arrays.asList(...), collection iteration whose result feeds the message.
+3. Verify that the logging call and any message construction are not enclosed by a guard is<LEVEL>Enabled()/isEnabled(LEVEL) that dominates the expensive construction.
+4. Match a MethodInvocation to Preconditions.checkState|checkArgument|checkNotNull with a format string plus ≥1 vararg where at least one vararg is a non-trivial expression (method call, allocation, concatenation, toString/Arrays.*).
+5. For Preconditions, ensure the call is not inside a failure-only branch (no surrounding if (!COND) ... that would evaluate message only on failure).
+6. Ensure the expensive intermediate (if any, e.g., msg variable) is single-use for diagnostics and not consumed by functional logic.
+7. Optionally, favor sites at INFO/DEBUG/TRACE levels and within loops or per-event handlers to prioritize hot paths.
+
+NEGATIVE_CONSTRAINTS (Array with 6 elements):
+----------------------------------------------------------------------------------------------------
+1. Exclude logging calls already enclosed by an appropriate guard (if (LOGGER.is<LEVEL>Enabled()) { ... }) that wraps the expensive construction, or frameworks using a lazy Supplier/lambda for the message.
+2. Exclude parameterized logging that passes objects directly without precomputing strings (e.g., LOGGER.debug("msg {}", obj)) unless additional eager construction (toString/valueOf/concatenation) is present.
+3. Exclude cases where the computed string/data is also used for non-diagnostic control flow or has required side effects.
+4. Exclude WARN/ERROR/FATAL logs reporting actual errors where message construction cost is acceptable/intentional or mandated by requirements.
+5. Exclude precondition/assert calls that use only constant messages or trivial variable references (no expensive varargs), or APIs that accept a lazy Supplier<String> evaluated only on failure.
+6. Exclude startup/shutdown/admin-only code paths that are executed rarely (cold path), when identifiable.
+
+====================================================================================================
+FAMILY_ID: F12
+====================================================================================================
+
+ROOT_CAUSE: Inefficient algorithms/data structures due to missing or too-low expansion bounds (configuration-related), leading to algorithmic blowups or slow fallback paths
+
+
+SIGNALS (Array with 6 elements):
+----------------------------------------------------------------------------------------------------
+1. Overloads that differ only by an extra int/long parameter named maxDeterminizedStates, maxStates, maxNodes, capacity, limit, threshold
+2. Use of constants named DEFAULT_MAX_*, *_LIMIT, *_CAP passed to expansion methods; fix replaces with Integer.MAX_VALUE or a much larger value
+3. Calls like new CompiledAutomaton(automaton) or Operations.determinize(a) without a cap argument; fix switches to overload with cap
+4. Inputs built from regex/wildcard patterns or large unions (e.g., RegExp.toAutomaton, Automata.makeStringUnion)
+5. Performance symptoms reported near the callsite: exponential state growth, OOM/TooComplex/TooManyStates exceptions, long GC pauses
+6. API changes in fixes that add and thread a max*/limit parameter through constructors and builders
+
+MATCHING_RULES (Array with 5 elements):
+----------------------------------------------------------------------------------------------------
+1. Match a ConstructorInvocation or MethodInvocation EXPAND_OP where either (a) the cap argument L is missing while an overload with L exists, or (b) L is provided but bound to a small/default constant (identifier matches DEFAULT_MAX_*, *_LIMIT, *_CAP, *_THRESHOLD or similar)
+2. Confirm via symbol resolution that an alternative overload exists with an additional int/long cap parameter affecting expansion complexity
+3. CI originates from complex sources: new RegExp(...).toAutomaton(), makeStringUnion(...), wildcard/regex pattern compilation, union of many terms, or an Automaton/graph produced upstream
+4. If inside a wrapper API (e.g., Query/Parser/Builder constructor), check that the wrapper does not accept or propagate a max/cap parameter to EXPAND_OP
+5. Optional strengthening: immediate uses assert or rely on determinization/minimization completeness (e.g., isDeterministic(), language-equivalence checks, creating CompiledAutomaton)
+
+NEGATIVE_CONSTRAINTS (Array with 6 elements):
+----------------------------------------------------------------------------------------------------
+1. Exclude if an explicit high/unbounded cap is already passed (e.g., Integer.MAX_VALUE or a large configured value) or the efficient algorithmic path is guaranteed
+2. Exclude calls where the extra argument is unrelated to performance (e.g., debug flags, comparators, enum modes not controlling expansion size)
+3. Exclude if prior checks provably bound CI size/complexity so the default cap is sufficient (validated by guards or preconditions)
+4. Exclude if the transformation is lazy/streaming and does not materialize the expanded structure
+5. Exclude code that intentionally enforces the cap and handles TooManyStates/TooComplex exceptions as part of normal control flow
+6. Exclude if the limit value is user-configured for safety in production and documented as intentionally restrictive
+
+====================================================================================================
+FAMILY_ID: F13
+====================================================================================================
+
+ROOT_CAUSE: Inefficient data structures, Inefficiencies in third-party libraries or dependencies
+
+
+SIGNALS (Array with 7 elements):
+----------------------------------------------------------------------------------------------------
+1. Collections.max(...) immediately after constructing/populating a Collection or Map
+2. Collections.max over Map.keySet() or Map.values() used to size arrays or buffers (e.g., new byte[max+1])
+3. Presence of boxing: Collection<Integer>/Collection<Long> populated then scanned by Collections.max
+4. A preceding loop that inserted exactly the elements later scanned by Collections.max
+5. Modulo by familiar power-of-two constants: % 256, % 65536, % 0x100, % 0x10000, % (1<<K)
+6. Nearby constants of the form (1<<K)-1, 0xFF, 0xFFFF; usage as array index or mask operations
+7. Hot/inner loops in parsing/decoding or raster/font processing routines
+
+MATCHING_RULES (Array with 2 elements):
+----------------------------------------------------------------------------------------------------
+1. Pattern A match:
+    - Find a loop that executes ADD/PUT into a target collection/map C_src (or M) derived from the same method scope
+    - After the loop, detect Collections.max(T, optComparator) where T is either the same collection C_src, M.keySet(), or M.values()
+    - The result of Collections.max(...) (optionally plus/minus a small constant OFFSET) is used immediately as an allocation size, capacity hint, or index bound
+    - The numeric quantity used for max can be computed at insertion time (the inserted key/value or a numeric derived from the loop element)
+2. Pattern B match:
+    - Detect an integer remainder operator '%' or '%=' where the divisor is a literal or compile-time constant that equals 2^K (e.g., 256, 65536, 0x100, 1<<K)
+    - The expression occurs in a loop or method identified as hot (heuristic: in a tight loop, decoding/parsing, or followed by immediate indexing/keying)
+    - The result is used to normalize/wrap a value into a fixed-width unsigned range (e.g., array index, glyph/code unit, hash bucket, byte/char/short normalization)
+    - Types of EXPR and result are primitive int or long (or narrower promoted to int)
+
+NEGATIVE_CONSTRAINTS (Array with 7 elements):
+----------------------------------------------------------------------------------------------------
+1. Pattern A: Exclude if the collection/map is mutated (adds/removes) between the population loop and the Collections.max call by code not dominated by that loop
+2. Pattern A: Exclude if a custom Comparator imposes a non-numeric or non-natural order (e.g., reverse with side conditions, non-total order) that cannot be reproduced by a simple max accumulator
+3. Pattern A: Exclude if Collections.max is intentionally recomputed multiple times interleaved with mutations, making a single tracked max unsafe
+4. Pattern B: Exclude if divisor is not an exact power of two or is not a compile-time constant
+5. Pattern B: Exclude if code relies on signed remainder semantics for negatives (e.g., distinguishing -1 % 256 from 255 wrap)
+6. Pattern B: Exclude BigInteger/BigDecimal or other non-primitive integer arithmetic
+7. Pattern B: Exclude cases where masking would change width semantics (e.g., expecting >31-bit modulo in int, or long without 64-bit mask/literals)
+
+====================================================================================================
+FAMILY_ID: F14
+====================================================================================================
+
+ROOT_CAUSE: Redundant repeated evaluation of expensive color functions/conversions in rasterization loops
+
+
+SIGNALS (Array with 7 elements):
+----------------------------------------------------------------------------------------------------
+1. Nested loops writing to pixel buffers with patterns like out[idx++] = ..., or (r<<16)|(g<<8)|b packing
+2. Per-iteration calls to methods named toRGB, toRGBImage, ColorSpace.toRGB, or Function.eval/evaluate
+3. Per-iteration allocations of float[] channel arrays or temporary buffers
+4. Repeated computation of the same background/fallback color conversion inside the loop
+5. Introduction or presence of int[]/byte[] lookup tables named lut/lookup/cache in fixes
+6. Discretization index computed via cast and clamp: (int)((t - T0) * N / (T1 - T0)) with Math.min/Math.max
+7. Third-party containers (e.g., COSDictionary or ICC profiles) accessed via get*(CONST_KEY) inside getters used in hot paths
+
+MATCHING_RULES (Array with 6 elements):
+----------------------------------------------------------------------------------------------------
+1. Detect one or more loops (often nested) iterating over an image/grid domain and writing per-element color data into an array/buffer (e.g., byte[]/int[]/WritableRaster)
+2. Inside the innermost loop, identify an expensive call chain of the form vals = F.eval/apply(t); rgb = CS.toRGB(vals) (or similar color conversion) executed per iteration
+3. The scalar parameter t is computed from loop indices (x,y, or i,j) and is independent of other mutable state; its domain can be bounded to [T0, T1]
+4. The result of CS.toRGB(...) is immediately packed or copied into output channels; frequent per-iteration float[] temporaries or Math.min/Math.max clamps around channels are present
+5. A constant or fallback color conversion (e.g., background/overprint) is recomputed inside the loop and reused in multiple iterations
+6. Optionally, getters used by F/CS repeatedly call immutable third-party container lookups (dict.get*(CONST_KEY)) on every invocation
+
+NEGATIVE_CONSTRAINTS (Array with 6 elements):
+----------------------------------------------------------------------------------------------------
+1. Exclude if F or CS.toRGB have side effects or depend on mutable state varying per iteration beyond the scalar parameter (e.g., global mutable caches, I/O, randomness)
+2. Exclude if t cannot be reasonably bounded or discretized to a 1D LUT without violating correctness/quality requirements (visible banding or unacceptable quantization error)
+3. Exclude if the function depends on multiple independent variables (true 2D/3D domain) making LUT dimensionality or memory impractical
+4. Exclude if per-iteration calls are already cheap (simple arithmetic or field access) and LUT/memoization would not measurably reduce cost
+5. Exclude if the container lookup/memoized value can change after construction or must reflect mutations (would lead to stale reads)
+6. Exclude contexts requiring strict NaN-propagation semantics if clamping/packs alter behavior in ways that affect correctness
+
+====================================================================================================
+FAMILY_ID: F15
+====================================================================================================
+
+ROOT_CAUSE: Inefficient algorithms and data structures
+
+
+SIGNALS (Array with 6 elements):
+----------------------------------------------------------------------------------------------------
+1. For-loops over collections with immediate return of loop index or element upon predicate match; throws if not found.
+2. Map<..., List<...>> used as an index; inner loop with Math.abs(...) <= tol and a suppress/found boolean flag.
+3. Iteration over Map.Entry<Range<...>, Collection<...>> with entry.getKey().contains(point) and allocation of a new HashSet/ArrayList on each query.
+4. Introduction of fields like Map<K, Integer>/Map<K, A> built in a constructor/init, or NavigableMap/NavigableSet for numeric dimensions, or a custom IntervalIndex/RangeIndex class.
+5. Calls to subMap(...), subSet(...), ceiling/floor, or query(point) replacing linear scans.
+6. Helper methods added to compute canonical keys (e.g., full type/schema name) or to extract numeric coordinates/tolerance.
+
+MATCHING_RULES (Array with 6 elements):
+----------------------------------------------------------------------------------------------------
+1. Detect a hot method that, per invocation, iterates a collection or map entries and selects elements via a predicate PRED(e, q) where q is the method parameter or derived from it.
+2. Equality/type resolution variant: a loop over a fixed List/Collection returning the loop index or element when MATCHES(alt, q) holds (e.g., instanceOf, name/schema matching), otherwise throws/returns empty.
+3. Numeric proximity variant: Map<K, List<E>> or similar bucketing; for each incoming item, linearly scan the List<E> using Math.abs(a - b) <= tol (possibly for 2D) to set a found/suppress flag, then add when not found.
+4. Interval membership variant: iterate Map<Range<T>, Collection<V>> or Multimap<Range<T>, V>; inside the loop call range.contains(point) and accumulate matches into a new collection per call.
+5. The method is executed frequently (e.g., called in tight loops, hot paths, or request processing) while the underlying data grows or is non-trivial in size.
+6. The optimized version introduces or uses an index field (Map, NavigableMap/NavigableSet, or IntervalIndex) built at construction/rebuild time or maintained via add/remove, and replaces the scan with a direct lookup (get/subMap/subSet/query).
+
+NEGATIVE_CONSTRAINTS (Array with 7 elements):
+----------------------------------------------------------------------------------------------------
+1. Exclude if SOURCE is frequently mutated in ways not reflected in the index (stale index risk) and no maintenance path is present.
+2. Exclude if PRED depends on transient or value-dependent state beyond stable keys/ranges (e.g., requires visiting all elements for side effects).
+3. Exclude if key uniqueness cannot be guaranteed or ambiguity is semantically meaningful (cannot map to a single entry).
+4. Exclude if List iteration order is semantically required for correctness and the indexed structure would change behavior.
+5. Exclude if metrics are non-orderable or require non-axis-aligned proximity (e.g., arbitrary distance without an order decomposition), making range trees inapplicable.
+6. Exclude when per-call data size is provably tiny and queries are infrequent (no measurable benefit).
+7. Exclude if an indexed or logarithmic lookup is already in place (e.g., NavigableMap/TreeSet.subMap/subSet, interval tree).
+
+====================================================================================================
+FAMILY_ID: F16
+====================================================================================================
+
+ROOT_CAUSE: Improper I/O usage, Inefficient or bad API usage
+
+
+SIGNALS (Array with 6 elements):
+----------------------------------------------------------------------------------------------------
+1. new StringReader(<charseq>.toString())
+2. Calls like readLines(Reader), IOUtils.readLines(...), IOGroovyMethods.readLines(...), Files.readAllLines(...) followed by immediate single-pass iteration
+3. Local variable named lines or similar assigned from a read-all-lines API, then used only in one for-each loop
+4. Method or block declares/catches IOException even though only in-memory text is processed
+5. CharSequence.toString() used solely to satisfy an API that also has a CharSequence overload or to perform operations available on CharSequence
+6. Large intermediate List<String> allocation visible in profiles or memory, with simple per-line processing
+
+MATCHING_RULES (Array with 6 elements):
+----------------------------------------------------------------------------------------------------
+1. Find an expression E_CS with static type CharSequence used to construct a Reader via new StringReader(E_CS.toString()) (or equivalent CharSequence->String->Reader wrapping)
+2. From that Reader (or from E_CS.toString()), detect a call that eagerly reads all lines into a List/Collection of Strings
+3. Verify the resulting List is iterated once (enhanced for, index-based single pass, or stream-forEach derived from the list) and not used for random access, sorting, or multiple passes
+4. Optionally, detect that the method declares throws IOException or has a try/catch(IOException) solely because of the Reader-based call on in-memory data
+5. Alternatively (Pattern B), detect a local assignment String S = E_CS.toString(); where subsequent uses of S are restricted to CharSequence-level operations and/or passing to methods that also accept CharSequence
+6. Confirm there exists an alternative API to iterate lazily or accept CharSequence directly (e.g., line iterator over CharSequence or overloads that take CharSequence) or that CharSequence operations can replace String-only conveniences used
+
+NEGATIVE_CONSTRAINTS (Array with 6 elements):
+----------------------------------------------------------------------------------------------------
+1. Exclude when the source is actual external I/O (e.g., FileReader, Socket, URLConnection, Files.newBufferedReader) rather than an in-memory CharSequence
+2. Exclude when the materialized list L is intentionally needed for random access, multiple traversals, size-dependent decisions prior to iteration, or bulk operations requiring all lines resident (e.g., sorting all lines before processing)
+3. Exclude when downstream APIs strictly require a Reader or a String and no CharSequence-based or lazy alternative exists
+4. Exclude when String-specific semantics are intentionally relied upon (e.g., String.intern(), getBytes(Charset), regionMatches with locale-specific behavior) without a CharSequence-equivalent path
+5. Exclude when immediate toString() is required to capture a stable snapshot because CS may mutate between uses and correctness depends on freezing the content
+6. Exclude if the existing API already returns a lazy view (e.g., a line Stream that is not collected) and the code is not eagerly materializing
+
+====================================================================================================
+FAMILY_ID: F17
+====================================================================================================
+
+ROOT_CAUSE: Improper I/O usage: incorrect buffering strategy (redundant wrapping or missing buffering) that degrades performance or correctness
+
+
+SIGNALS (Array with 8 elements):
+----------------------------------------------------------------------------------------------------
+1. new BufferedOutputStream(Files.newOutputStream(...
+2. new BufferedWriter(new OutputStreamWriter(Files.newOutputStream(...
+3. new BufferedWriter(new FileWriter(... or new BufferedOutputStream(new FileOutputStream(... with only one write(...) before close
+4. Exactly one occurrence of write(byte[]|String)/read(byte[]) on the wrapped object followed by flush() and close() in the same scope
+5. Unconditional new BufferedReader/BufferedInputStream/BufferedWriter/BufferedOutputStream on a parameter without instanceof BufferedX guard
+6. Nested buffering: new BufferedX(new BufferedX(...))
+7. Direct new FileInputStream(...) or new FileOutputStream(...) passed to methods named save/write/copy/process/load/parse without a BufferedX wrapper
+8. Loops with small buffer sizes performing read()/write() on unbuffered file streams
+
+MATCHING_RULES (Array with 2 elements):
+----------------------------------------------------------------------------------------------------
+1. Over-buffered (redundant) match if any of the following hold:
+  - new BufferedX(Files.newOutputStream(...|Files.newInputStream(...))) (or File{Input|Output}Stream) is created and used for ONE_SHOT_IO followed by close/flush in the same scope,
+  - new BufferedX(s) where s is already an instance of BufferedX (nested buffering),
+  - new BufferedX(s) occurs unconditionally on a parameter s without any guard like (s instanceof BufferedX) and the subsequent usage does not require buffering (e.g., single bulk op).
+2. Under-buffered (missing) match if:
+  - new FileInputStream(...) or new FileOutputStream(...[, append]) or Files.newInputStream/OutputStream(...) is created and used directly without any BufferedX (or equivalent buffered) wrapper, and
+  - MULTI_STEP_IO is detected: repeated small read()/write() calls (e.g., inside loops) or the stream is passed to an API that performs sequential processing (e.g., save/copy/process/load/serialize) performing multiple I/O operations.
+
+NEGATIVE_CONSTRAINTS (Array with 5 elements):
+----------------------------------------------------------------------------------------------------
+1. Exclude if multiple small writes/reads are performed and a proper BufferedX wrapper is already present (buffering is appropriate)
+2. Exclude if the wrapper adds required semantics beyond buffering (e.g., GZIP/Cipher streams, PrintWriter formatting, OutputStreamWriter/OutputStreamReader for charset conversion); in such cases, only flag redundant extra BufferedX on top of a buffered chain, not the semantic wrapper itself
+3. Exclude one-shot trivial small I/O (e.g., writing a short constant string or reading a known small header) where buffering is unnecessary and cost is negligible
+4. Exclude when using NIO channels, Files.newBuffered* helpers, or memory-mapped I/O providing equivalent buffering
+5. Exclude sockets/network streams where buffering strategy is dictated by protocol or latency constraints and cannot be inferred locally
