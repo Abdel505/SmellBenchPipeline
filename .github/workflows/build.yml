@@ -20,6 +20,13 @@ jobs:
           fetch-depth: 0
           token: ${{ secrets.ACTIONS_TOKEN }}
 
+      - name: Checkout byte-buddy (SUT)
+        uses: actions/checkout@v4
+        with:
+          repository: raphw/byte-buddy
+          path: sut/byte-buddy
+          fetch-depth: 2
+
       - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
@@ -53,9 +60,15 @@ jobs:
         run: bash scripts/detect_changed_methods.sh
         env:
           ACTIONS_TOKEN: ${{ secrets.ACTIONS_TOKEN }}
+          SUT_GIT_DIR: sut/byte-buddy
+          SUT_SRC_FILTER: "byte-buddy-dep/src/main/java.*\\.java$"
+          SUT_SRC_STRIP: "byte-buddy-dep/src/main/java/"
+          SUT_SRC_ROOT: "${{ github.workspace }}/sut/byte-buddy/byte-buddy-dep/src/main/java"
 
       - name: Collect Applicability Targets
         run: bash scripts/collect_applicability_targets.sh
+        env:
+          SUT_SRC_ROOT: "${{ github.workspace }}/sut/byte-buddy/byte-buddy-dep/src/main/java"
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -80,6 +93,7 @@ jobs:
         env:
           LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
           LLM_ENDPOINT: ${{ secrets.LLM_ENDPOINT }}
+          SUT_SRC_ROOT: "${{ github.workspace }}/sut/byte-buddy/byte-buddy-dep/src/main/java"
 
       - name: Run JMH Benchmarks with AMBER
         run: bash scripts/run-benchmarks.sh

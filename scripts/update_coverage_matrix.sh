@@ -16,6 +16,8 @@ set -euo pipefail
 SMELLY_FILE="${1:-pipeline-output/smelly_methods.txt}"
 DELETED_FILE="${2:-pipeline-output/deleted_methods.txt}"
 
+SUT_SRC_ROOT="${SUT_SRC_ROOT:-app/src/main/java}"
+
 MATRIX="data/coverage-matrix.csv"
 BENCH_DIR="app/src/test/java"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -43,7 +45,7 @@ parse_fqn_entry() {
     local method class_path java_file
     method="${fqn##*.}"
     class_path="${fqn%.*}"
-    java_file="app/src/main/java/${class_path}.java"
+    java_file="${SUT_SRC_ROOT}/${class_path}.java"
     echo "${java_file}|${method}"
 }
 
@@ -153,7 +155,9 @@ handle_deleted() {
     # Remove from best-result.json (persistent — not overwritten by next run)
     local best_file="data/best-result.json"
     if [[ -f "$best_file" ]]; then
-        jq --arg bench "com.pipeline.demo.${old_bench_class}." \
+        local package_path
+        package_path="$(dirname "$java_file" | sed 's|.*/main/java/||' | tr '/' '.')"
+        jq --arg bench "${package_path}.${old_bench_class}." \
            '[.[] | select(.benchmark | startswith($bench) | not)]' \
            "$best_file" > "${best_file}.tmp" \
         && mv "${best_file}.tmp" "$best_file"

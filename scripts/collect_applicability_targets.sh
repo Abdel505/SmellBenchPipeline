@@ -64,7 +64,8 @@ for entry in entries:
     # com/pipeline/demo/StringUtils.joinWithSeparator
     class_part = entry.rsplit(".", 1)[0]   # com/pipeline/demo/StringUtils
     method     = entry.rsplit(".", 1)[1]   # joinWithSeparator
-    java_file  = f"app/src/main/java/{class_part}.java"
+    sut_src_root = os.environ.get("SUT_SRC_ROOT", "app/src/main/java")
+    java_file    = f"{sut_src_root}/{class_part}.java"
 
     if not os.path.isfile(java_file):
         print(f"  [WARN] Source file not found: {java_file} — skipping", flush=True)

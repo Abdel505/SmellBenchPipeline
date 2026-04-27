@@ -38,6 +38,10 @@ dependencies {
     testAnnotationProcessor(files("../libs/jmh-generator-annprocess-1.37-amber.jar"))
     testAnnotationProcessor(files("../libs/jmh-core-1.37-all.jar"))
 
+    // byte-buddy SUT: needed by generated benchmarks that import net.bytebuddy.*
+    implementation("net.bytebuddy:byte-buddy:1.15.11")
+    testImplementation("net.bytebuddy:byte-buddy:1.15.11")
+
 }
 
 tasks.test {
@@ -72,9 +76,7 @@ tasks.register<JavaExec>("jmhRun") {
     val jmhArgs = mutableListOf(
         "-rf", "json", "-rff", "../data/jmh-result.json",
 
-//        "-f",  System.getenv("AMBER_FORKS")   ?: "5",
-
-        "-f",  System.getenv("AMBER_FORKS")   ?: "1",
+        "-f",  System.getenv("AMBER_FORKS")   ?: "5",
 
         "-wi", if (runAmber) "500"   else (System.getenv("AMBER_WI")    ?: "3"),
         "-w",  if (runAmber) "100ms" else (System.getenv("AMBER_WTIME") ?: "1s"),
