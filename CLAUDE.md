@@ -6,7 +6,7 @@ This is a **Pipeline Migration** project: migrating from EvoBench (unit test pip
 
 The pipeline flow:
 ```
-git diff → AST analysis → smell filter → microbenchmark generation → coverage matrix update → AMBER analysis → results
+git push → AST analysis → collect targets → LLM smell check → filter → coverage matrix update → JMH + AMBER → results
 ```
 
 ## Project Structure
@@ -27,30 +27,46 @@ SmellBenchPipeline/
 │       │   └── MathHelper.java
 │       └── test/java/                     # Generated benchmarks go here
 ├── scripts/                         # All shell scripts
-│   ├── filter_methods.sh            # Smell filter orchestration (smelly vs clean split)
-│   ├── smell_rules.sh               # Project-specific smell detection rules (sourced by filter_methods.sh)
+│   ├── detect_changed_methods.sh    # git diff → AST jar → added/modified/deleted_methods.txt
+│   ├── collect_applicability_targets.sh  # method lists + Java source → applicability-targets.json
+│   ├── filter_methods_2.sh          # applicability-results.json → smelly_methods.txt / clean_methods.txt
 │   ├── generate_benchmark.sh        # Chat2Benchmark with 10-retry
-│   ├── run-benchmarks.sh           # JMH benchmark execution
-│   ├── modified_classes_detector.sh # Git diff → changed classes
-│   ├── lookup_benchmark.sh       # Coverage matrix query
+│   ├── run-benchmarks.sh            # JMH benchmark execution + AMBER + dashboard
+│   ├── lookup_benchmark.sh          # Coverage matrix query
 │   ├── update_coverage_matrix.sh    # Matrix CRUD (add/modify/delete)
 │   └── test_generate.sh             # Manual test helper
+├── smell-checker/                   # LLM-based smell applicability checker
+│   ├── smell_applicability_checker.py    # LLM checks which smell templates apply
+│   ├── generalized_templates.json        # Smell family templates (input to LLM)
+│   └── requirements.txt                  # Python dependencies
 ├── pipeline-output/                 # Runtime artifacts produced by pipeline
 │   ├── added_methods.txt
 │   ├── modified_methods.txt
 │   ├── deleted_methods.txt
+│   ├── applicability-targets.json
+│   ├── applicability-results.json
 │   ├── smelly_methods.txt
 │   └── clean_methods.txt
 ├── data/                            # Persistent data files
 │   ├── coverage-matrix.csv          # Maps production methods → benchmark classes
-│   └── jmh-result.json             # JMH benchmark results
+│   ├── jmh-result.json              # Latest JMH benchmark results
+│   └── best-result.json             # Per-benchmark all-time best (used for bootstrap comparison)
 ├── docs/                            # Developer documentation
-│   ├── REFERENCE.md                 # Pipeline documentation
-│   ├── VALIDATION_REPORT.md         # Final validation report
-│   ├── crlf-fix.md                  # CRLF line ending fix guide
-│   └── amber-integration-fixes.md  # AMBER errors and fixes log
-├── amber-results/                   # AMBER statistical analysis output
-├── libs/                            # External JARs (ast-generator.jar, chat2benchmark.jar)
+│   ├── pipeline-order.md            # Authoritative pipeline step diagram
+│   ├── scripts_structure.md         # Script roles and flow
+│   ├── amber-server-guide.md        # How to start/integrate AMBER server
+│   ├── amber-warmup-mechanism.md    # AMBER warmup internals
+│   └── running-python-locally.md    # Local Python setup for smell-checker
+├── tools/                           # Analysis and reporting tools
+│   ├── bootstrap/
+│   │   └── hierarchical_bootstrap_compare.py   # Statistical comparison current vs best
+│   └── dashboard/
+│       ├── generate_dashboard.sh    # HTML dashboard generator
+│       └── template.html            # Dashboard HTML template
+├── amber-results/                   # AMBER output: bootstrap JSON + HTML dashboards
+├── libs/                            # External JARs
+│   ├── ast-generator.jar            # Git diff → method lists
+│   ├── chat2benchmark.jar           # LLM benchmark generation
 │   ├── jmh-core-1.37-all.jar                    # AMBER runtime (modified JMH core)
 │   └── jmh-generator-annprocess-1.37-amber.jar  # AMBER annotation processor (must match runtime)
 ├── build.gradle.kts                 # Root Gradle build file
@@ -76,14 +92,16 @@ SmellBenchPipeline/
 |------|---------|----------|
 | Chat2Benchmark | Generate JMH microbenchmarks via LLM | `libs/chat2benchmark.jar` |
 | AST jar | Git diff → added/modified/deleted method lists | `libs/ast-generator.jar` |
-| smell_rules.sh | Project-specific performance smell detection | `smell_rules.sh` (sourced by filter_methods.sh) |
+| smell_applicability_checker.py | LLM checks which smell templates apply to each method | `smell-checker/smell_applicability_checker.py` |
+| generalized_templates.json | Smell family definitions fed to the LLM | `smell-checker/generalized_templates.json` |
 | AMBER | AI-enabled JMH extension; uses TSC (OSCNN/FCN/ROCKET) to auto-detect steady-state and halt warm-up early | Controlled via CLI flags only (`-hmodel/-hhost/-hport`), never via `@DynamicHalt` in source |
-| Coverage Matrix | Maps production methods → benchmark classes | `coverage-matrix.csv` |
+| Coverage Matrix | Maps production methods → benchmark classes | `data/coverage-matrix.csv` |
 
 ## Environment Variables
 
-- `LLM_API_KEY` — API key for Chat2Benchmark LLM calls
-- `LLM_ENDPOINT` — LLM API endpoint (if configurable)
+- `LLM_API_KEY` — API key for LLM calls (Chat2Benchmark + smell_applicability_checker.py)
+- `LLM_ENDPOINT` — LLM API endpoint
+- `LLM_MODEL` — LLM model identifier (used by smell_applicability_checker.py)
 
 ### AMBER / run-benchmarks.sh variables
 
@@ -111,8 +129,8 @@ SmellBenchPipeline/
 - Deleted methods ALWAYS go through the full pipeline (never skipped)
 - Non-smelly added/modified methods skip benchmark generation (go to push)
 - Smelly methods + deleted methods continue through the pipeline
-- Smell detection rules live in `smell_rules.sh` (not in `filter_methods.sh`) — swap this file to change rules per project
-- Smell checks (Smells 1 & 2) run against **loop body only** (via `extract_loop_bodies()`), not the full method body, to avoid false positives
+- Smell detection is LLM-based: `smell_applicability_checker.py` reads `generalized_templates.json` and outputs `applicability-results.json`; `filter_methods_2.sh` then splits results into `smelly_methods.txt` / `clean_methods.txt`
+- `smelly_methods.txt` format: `java_file | method | added|modified` (3 fields, pipe-separated)
 - **AMBER must be controlled via CLI flags only** — never add `@DynamicHalt` annotations to benchmark source. The annotation takes priority over CLI flags in AMBER's 3-level resolution chain (`options → annotation → Defaults`), causing AMBER to activate even with `RUN_AMBER=0`
 - **Both JARs must be from AMBER's build** — `jmh-core-1.37-all.jar` (runtime) and `jmh-generator-annprocess-1.37-amber.jar` (annotation processor) must be kept in sync. Using the standard `jmh-generator-annprocess:1.37` from Maven Central causes `Error: unexpected tag = I` at startup because AMBER's `BenchmarkListEntry` expects 3 extra fields (`dynamicHaltHost/Port/Model`) that the standard processor never writes
 - **`run-benchmarks.sh` accepts an optional first arg** as a JMH regex filter (maps to `AMBER_INCLUDE`). Use the exact class name: `CalculatorBenchmark.buildMultiples` not `CalculatorBench.buildMultiples`
@@ -120,15 +138,20 @@ SmellBenchPipeline/
 ## Pipeline Flow (Detailed)
 
 1. **Trigger**: push to `main`
-2. **Git diff**: `HEAD~1..HEAD` → list of changed files
-3. **Modified classes detector**: extract changed Java classes from diff
-4. **AST analysis**: `java -jar libs/ast-generator.jar` → added/modified/deleted methods
-5. **Smell filter**: `filter_methods.sh` → split into `smelly_methods.txt` + `clean_methods.txt`
-6. **For smelly + deleted**: `update_coverage_matrix.sh` → calls `generate_benchmark.sh` (10-retry)
-7. **For clean**: skip to push (no benchmark generation)
-8. **Run benchmarks**: `run-benchmarks.sh` → `jmh-result.json`
-9. **AMBER analysis**: statistical analysis on JMH results → `amber-results/`
-10. **Commit & push**: save results back to repo
+2. **detect_changed_methods.sh**: git diff → AST jar → `added/modified/deleted_methods.txt`
+3. **collect_applicability_targets.sh**: method lists + Java source → `applicability-targets.json`
+4. **smell_applicability_checker.py**: LLM checks which smell templates apply → `applicability-results.json`
+5. **filter_methods_2.sh**: reads `applicability-results.json` → `smelly_methods.txt` (format: `java_file | method | added|modified`) + `clean_methods.txt`
+6. **update_coverage_matrix.sh**: processes `smelly_methods.txt` + `deleted_methods.txt`
+   - ADDED → `generate_benchmark.sh` (10-retry) → new benchmark file → add matrix row
+   - MODIFIED → matrix row exists → keep existing benchmark (no regeneration)
+   - DELETED → remove benchmark file + matrix row + clean `best-result.json`
+7. **run-benchmarks.sh**: `./gradlew :app:jmhRun` → `data/jmh-result.json`
+   → update `data/best-result.json` (per-benchmark all-time best)
+   → `amber-results/bootstrap_latest.json` (hierarchical bootstrap vs best)
+   → `amber-results/compare_latest.json` (delta % vs previous best)
+   → `amber-results/dashboard_<ts>.html` (HTML report)
+8. **Commit & push**: `coverage-matrix.csv`, `jmh-result.json`, `best-result.json`, `amber-results/`, `app/src/test/java/`
 
 ## Task Reference
 
@@ -264,31 +287,22 @@ Complete these tasks in order. Each task has subtasks to check off.
 
 ## Phase 4 — Add the Performance Smell Filter
 
-### Task 4.1 — Set up AST jar
+### Task 4.1 — Set up AST jar + detect_changed_methods.sh
 - [x] Place `ast-generator.jar` in `libs/`
-- [x] Analyze jar: CLI arguments, input format, output format
-- [x] If no docs: decompile and find main class
-- [x] Test: `java -jar libs/ast-generator.jar` on a sample file
-- [x] Save sample output for next task
+- [x] Write `scripts/detect_changed_methods.sh`: git diff → AST jar → `added/modified/deleted_methods.txt`
+- [x] Write `scripts/collect_applicability_targets.sh`: method lists + Java source → `applicability-targets.json`
 
-### Task 4.2 — Write filter_methods.sh
-- [x] Create `filter_methods.sh` in `scripts/`
-- [x] Accept AST output file as input
-- [x] Parse AST output format
-- [x] Run smell detection on each method
-- [x] Output `smelly_methods.txt`: smelly methods + ALL deleted methods
-- [x] Output `clean_methods.txt`: non-smelly added/modified methods
-- [x] Log which methods went where and why
+### Task 4.2 — Write smell_applicability_checker.py + filter_methods_2.sh
+- [x] Create `smell-checker/smell_applicability_checker.py` — LLM reads `generalized_templates.json`, checks each target, writes `applicability-results.json`
+- [x] Create `scripts/filter_methods_2.sh` — reads `applicability-results.json`, cross-references `added/modified_methods.txt`, writes `smelly_methods.txt` (format: `java_file | method | added|modified`) and `clean_methods.txt`
+- [x] Handle `check_failed` entries (excluded from both outputs)
 - [x] Add `set -euo pipefail`
-- [x] `chmod +x filter_methods.sh`
 - [x] Handle edge cases: empty input, all clean, all smelly
 
 ### Task 4.3 — Test filter ✅ CHECKPOINT
-- [x] Create input files: 3 added, 2 modified, 1 deleted methods
-- [x] Run: `bash filter_methods.sh added_methods.txt modified_methods.txt deleted_methods.txt`
-- [x] Verify `smelly_methods.txt` has smelly + deleted
+- [x] Run smell checker + filter on sample methods
+- [x] Verify `smelly_methods.txt` has smelly methods with correct 3-field format
 - [x] Verify `clean_methods.txt` has non-smelly only
-- [x] Verify deleted method is NEVER in clean
 - [x] **VERIFY**: Filter correctly classifies all methods
 
 ---
@@ -382,24 +396,16 @@ Complete these tasks in order. Each task has subtasks to check off.
 
 ## Phase 7 — Rewire the GitHub Actions Workflow
 
-### Task 7.1 — Write complete pipeline.yml
-- [ ] Create `.github/workflows/pipeline.yml` with full flow:
-  1. Trigger: `on: push` to `main`
-  2. `git diff HEAD~1 HEAD`
-  3. `modified_classes_detector.sh`
-  4. `java -jar libs/ast-generator.jar` (AST analysis)
-  5. `filter_methods.sh` (smelly vs clean)
-  6. `update_coverage_matrix.sh` (smelly + deleted only)
-  7. Skip clean methods
-  8. `run-benchmarks.sh`
-  9. AMBER analysis
-  10. Save to `amber-results/` and `jmh-result.json`
-  11. Commit & push results
-- [ ] Add: Java 17 setup (`actions/setup-java@v4`)
-- [ ] Add: Gradle caching
-- [ ] Add: `LLM_API_KEY` from `${{ secrets.LLM_API_KEY }}`
-- [ ] Add: Artifact upload (`actions/upload-artifact@v4`)
-- [ ] Add: Error handling per step
+### Task 7.1 — build.yml is the complete pipeline
+- [x] `.github/workflows/build.yml` implements the full flow:
+  1. `detect_changed_methods.sh`
+  2. `collect_applicability_targets.sh`
+  3. `smell_applicability_checker.py` (LLM, needs `LLM_API_KEY`, `LLM_ENDPOINT`, `LLM_MODEL`)
+  4. `filter_methods_2.sh`
+  5. `update_coverage_matrix.sh`
+  6. `run-benchmarks.sh` (set `RUN_AMBER=0` for CI unless AMBER server is running)
+  7. Commit: `coverage-matrix.csv`, `jmh-result.json`, `best-result.json`, `amber-results/`, `app/src/test/java/`
+- [ ] Add AMBER server integration for CI (see `docs/amber-server-guide.md`)
 
 ### Task 7.2 — Test locally with act
 - [ ] Install act and Docker
