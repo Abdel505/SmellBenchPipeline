@@ -35,6 +35,7 @@ docs/
 
 # Python virtual environment
 .venv/
+venv/
 __pycache__/
 *.pyc
 
@@ -43,12 +44,18 @@ __pycache__/
 *.env
 test_generate.sh
 
+# Local-only test scripts (not part of the pipeline)
+tests/
+
 # OS
 .DS_Store
 Thumbs.db
 
 # Nested repo — reference only, never commit
 EvoBench/
+
+# External SUT checkout (byte-buddy or any other SUT — cloned locally, not tracked)
+sut/
 
 # Backup folder
 backup/

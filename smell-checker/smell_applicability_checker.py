@@ -32,8 +32,20 @@ target_data    = json.loads(Path(TARGET_JSON_PATH).read_text(encoding="utf-8"))
 templates_data = json.loads(Path(TEMPLATES_JSON_PATH).read_text(encoding="utf-8"))
 if not isinstance(templates_data, list):
     raise ValueError(f"Expected a JSON array in {TEMPLATES_JSON_PATH} but got {type(templates_data).__name__}.")
-templates_json = json.dumps(templates_data, indent=2)
 template_count = len(templates_data)
+
+# Build a compact template summary: only family_id, root_cause, signals, and one short example.
+# Sending the full 35K-token schema overwhelms smaller models; signals + example preserve detection accuracy.
+def _compact(t):
+    ex = t.get("canonical_examples", [])
+    short_ex = ex[0][:600] if ex else ""
+    return {
+        "family_id":  t["family_id"],
+        "root_cause": t["root_cause"],
+        "signals":    t.get("signals", []),
+        "example":    short_ex,
+    }
+templates_json = json.dumps([_compact(t) for t in templates_data], indent=2)
 
 log(f"Loaded {len(target_data)} target class(es) and {template_count} template(s).")
 
@@ -67,22 +79,22 @@ for file_path, info in target_data.items():
 # ---------------------------------------------------------------------------
 CHECK_PROMPT_TEMPLATE = """
 You are a performance-pattern analyst.
-Your task is to determine, for the given (class, method) pair, which of the provided code templates are applicable.
-A template is applicable if its matching rules hold and none of its negative constraints are violated for the target method.
+Your task: read the TARGET method carefully, then decide which of the provided templates are applicable.
+A template is applicable if its matching_rules hold AND none of its negative_constraints are violated.
 Do NOT generate any mutated code — only evaluate applicability.
 
-Templates:
-{generalized_templates}
-
-Target:
+TARGET (read this first and keep it in mind throughout):
 {target_json_object}
+
+TEMPLATES to evaluate against the target above:
+{generalized_templates}
 
 Respond with a VALID JSON ARRAY with no extra text, no markdown, no explanation.
 Each element must have EXACTLY this structure:
 {{
   "family_id": "<FX>",
   "applicable": true or false,
-  "reason": "brief explanation of why the template does or does not apply"
+  "reason": "cite the exact line(s) from the target that match or violate the rule"
 }}
 Every one of the {template_count} templates must appear — none may be omitted.
 """
@@ -120,16 +132,29 @@ def extract_json(text):
     return None
 
 
+SYSTEM_MSG = (
+    "You are a Java performance-smell analyst. "
+    "You receive a Java method and a list of smell templates. "
+    "For EACH template, carefully examine the method source and decide if the smell pattern is present. "
+    "Cite exact line content when you match or reject a template. "
+    "Be thorough — err on the side of marking applicable=true when the signal is present even partially."
+)
+
 def llm_call(prompt):
     """Single LLM call with MAX_RETRIES attempts. Returns parsed JSON or None."""
     for attempt in range(1, MAX_RETRIES + 1):
         try:
             response = client.chat.completions.create(
-                model=os.environ.get("LLM_MODEL", "llama-3.3-70b-versatile"),
-                messages=[{"role": "user", "content": prompt}],
-                temperature=0.2
+                model=os.environ.get("LLM_MODEL", "openai/gpt-oss-120b"),
+                messages=[
+                    {"role": "system", "content": SYSTEM_MSG},
+                    {"role": "user",   "content": prompt},
+                ],
+                temperature=0.3
             )
             output_text = response.choices[0].message.content.strip()
+            if os.environ.get("DEBUG_LLM"):
+                log(f"  [DEBUG RAW] {output_text[:2000]}")
             parsed = extract_json(output_text)
             if parsed is not None:
                 return parsed
