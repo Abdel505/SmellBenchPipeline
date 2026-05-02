@@ -72,8 +72,11 @@ log "Expected Chat2Benchmark output: $GENERATED"
 for attempt in $(seq 1 $MAX_ATTEMPTS); do
   log "Attempt $attempt/$MAX_ATTEMPTS — ${BENCH_CLASS}"
 
+  # LLMClient reads OPENAI_API_KEY from env
+  export OPENAI_API_KEY="$LLM_API_KEY"
+
   # Run Chat2Benchmark (allow failure so we can retry)
-  OPENAI_API_KEY="$LLM_API_KEY" java -jar "$JAR" "$INPUT_JSON" -host "$LLM_ENDPOINT" -mdl "$LLM_MODEL" || true
+  java -jar "$JAR" "$INPUT_JSON" -host "$LLM_ENDPOINT" -mdl "$LLM_MODEL" || true
 
   if [[ -f "$GENERATED" ]]; then
     log "Chat2Benchmark produced output — post-processing and moving to target location"
