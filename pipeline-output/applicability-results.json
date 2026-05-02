@@ -1,27 +1,9 @@
 [
   {
     "class_id": "C1",
-    "file_path": "/mnt/c/Users/Pc/OneDrive - Universit\u00e0 di Salerno/Desktop/Filter_project/EvoBench_3/SmellBenchPipeline/sut/byte-buddy/byte-buddy-dep/src/main/java/net/bytebuddy/ClassFileVersion.java",
-    "method_signature": "isAtLeast",
+    "file_path": "/mnt/c/Users/Pc/OneDrive - Universit\u00e0 di Salerno/Desktop/Filter_project/EvoBench_3/SmellBenchPipeline/sut/byte-buddy/byte-buddy-dep/src/main/java/net/bytebuddy/description/annotation/AnnotationList.java",
+    "method_signature": "inherited",
     "applicable_families": [],
-    "check_failed": false
-  },
-  {
-    "class_id": "C2",
-    "file_path": "/mnt/c/Users/Pc/OneDrive - Universit\u00e0 di Salerno/Desktop/Filter_project/EvoBench_3/SmellBenchPipeline/sut/byte-buddy/byte-buddy-dep/src/main/java/net/bytebuddy/description/annotation/AnnotationValue.java",
-    "method_signature": "equals",
-    "applicable_families": [
-      "F2"
-    ],
-    "check_failed": false
-  },
-  {
-    "class_id": "C3",
-    "file_path": "/mnt/c/Users/Pc/OneDrive - Universit\u00e0 di Salerno/Desktop/Filter_project/EvoBench_3/SmellBenchPipeline/sut/byte-buddy/byte-buddy-dep/src/main/java/net/bytebuddy/description/method/MethodDescription.java",
-    "method_signature": "isBridgeCompatible",
-    "applicable_families": [
-      "F2"
-    ],
     "check_failed": false
   }
 ]
