@@ -1,9 +1,18 @@
 [
   {
     "class_id": "C1",
-    "file_path": "/mnt/c/Users/Pc/OneDrive - Universit\u00e0 di Salerno/Desktop/Filter_project/EvoBench_3/SmellBenchPipeline/sut/byte-buddy/byte-buddy-dep/src/main/java/net/bytebuddy/description/annotation/AnnotationList.java",
-    "method_signature": "inherited",
+    "file_path": "sut/byte-buddy/byte-buddy-dep/src/main/java/net/bytebuddy/description/method/ParameterList.java",
+    "method_signature": "hasExplicitMetaData",
     "applicable_families": [],
+    "check_failed": false
+  },
+  {
+    "class_id": "C2",
+    "file_path": "sut/byte-buddy/byte-buddy-dep/src/main/java/net/bytebuddy/description/annotation/AnnotationList.java",
+    "method_signature": "inherited",
+    "applicable_families": [
+      "F15"
+    ],
     "check_failed": false
   }
 ]
