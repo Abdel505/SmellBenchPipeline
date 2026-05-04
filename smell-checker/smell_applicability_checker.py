@@ -33,7 +33,6 @@ templates_data = json.loads(Path(TEMPLATES_JSON_PATH).read_text(encoding="utf-8"
 if not isinstance(templates_data, list):
     raise ValueError(f"Expected a JSON array in {TEMPLATES_JSON_PATH} but got {type(templates_data).__name__}.")
 template_count = len(templates_data)
-known_family_ids = {t["family_id"] for t in templates_data}
 
 # Build a compact template summary: only family_id, root_cause, signals, and one short example.
 # Sending the full 35K-token schema overwhelms smaller models; signals + example preserve detection accuracy.
@@ -46,6 +45,8 @@ def _compact(t):
         "signals":    t.get("signals", []),
         "example":    short_ex,
     }
+templates_json = json.dumps([_compact(t) for t in templates_data], indent=2)
+
 log(f"Loaded {len(target_data)} target class(es) and {template_count} template(s).")
 
 # --- MAP TARGET DATA TO PROMPT FORMAT ---
@@ -71,31 +72,31 @@ for file_path, info in target_data.items():
         log(f"  [ADDED] {file_path} :: {method}")
         entry_idx += 1
 
-SINGLE_CHECK_PROMPT = """
-You are a Java performance-smell analyst.
-Decide if the smell pattern below is present in the TARGET method.
+# ---------------------------------------------------------------------------
+# PROMPT 1 — CHECK APPLICABILITY
+# Ask the LLM which templates are applicable to the target method.
+# No code generation here — only reasoning about pattern matching.
+# ---------------------------------------------------------------------------
+CHECK_PROMPT_TEMPLATE = """
+You are a performance-pattern analyst.
+Your task: read the TARGET method carefully, then decide which of the provided templates are applicable.
+A template is applicable if its matching_rules hold AND none of its negative_constraints are violated.
+Do NOT generate any mutated code — only evaluate applicability.
 
-TARGET METHOD:
-{target_json}
+TARGET (read this first and keep it in mind throughout):
+{target_json_object}
 
-SMELL TEMPLATE:
-{template_json}
+TEMPLATES to evaluate against the target above:
+{generalized_templates}
 
-CONFIRMED MATCH EXAMPLE (same family — use this to calibrate your verdict):
-{example}
-
-Think step by step:
-1. Identify the signals listed in the template.
-2. Search each signal in the target method line by line.
-3. Conclude.
-
-Reply with VALID JSON only — no markdown, no explanation:
+Respond with a VALID JSON ARRAY with no extra text, no markdown, no explanation.
+Each element must have EXACTLY this structure:
 {{
-  "family_id": "{family_id}",
-  "reasoning": "step-by-step evidence from the target",
+  "family_id": "<FX>",
   "applicable": true or false,
-  "reason": "one-line summary citing exact line(s)"
+  "reason": "cite the exact line(s) from the target that match or violate the rule"
 }}
+Every one of the {template_count} templates must appear — none may be omitted.
 """
 
 # --- LLM CLIENT ---
@@ -133,9 +134,9 @@ def extract_json(text):
 
 SYSTEM_MSG = (
     "You are a Java performance-smell analyst. "
-    "You receive a Java method and a single smell template. "
-    "Carefully examine the method source and decide if the smell pattern is present. "
-    "Cite exact line content when you match or reject the template. "
+    "You receive a Java method and a list of smell templates. "
+    "For EACH template, carefully examine the method source and decide if the smell pattern is present. "
+    "Cite exact line content when you match or reject a template. "
     "Be thorough — err on the side of marking applicable=true when the signal is present even partially."
 )
 
@@ -144,7 +145,7 @@ def llm_call(prompt):
     for attempt in range(1, MAX_RETRIES + 1):
         try:
             response = client.chat.completions.create(
-                model=os.environ.get("LLM_MODEL", "llama-3.3-70b-versatile"),
+                model=os.environ.get("LLM_MODEL", "openai/gpt-oss-120b"),
                 messages=[
                     {"role": "system", "content": SYSTEM_MSG},
                     {"role": "user",   "content": prompt},
@@ -166,32 +167,35 @@ def llm_call(prompt):
     return None
 
 
+# ---------------------------------------------------------------------------
+# PHASE 1 — CHECK APPLICABILITY
+# Determines which templates match the target method. No code generated.
+# Returns list of applicable family_ids for the target.
+# ---------------------------------------------------------------------------
 def check_applicability(target):
     log(f"  [CHECK] {target['file_path']} :: {target['method_signature']}")
-    applicable = []
-    failed_count = 0
-    for idx, template in enumerate(templates_data):
-        compact = _compact(template)
-        prompt = SINGLE_CHECK_PROMPT\
-            .replace("{target_json}",   json.dumps(target, indent=2))\
-            .replace("{template_json}", json.dumps(compact, indent=2))\
-            .replace("{family_id}",     template["family_id"])\
-            .replace("{example}",       json.dumps(compact.get("example") or "N/A"))
-        result = llm_call(prompt)
-        if result is None:
-            failed_count += 1
-            log(f"  [WARN] {template['family_id']}: LLM call failed — skipping")
-            continue
-        entry = result if isinstance(result, dict) else (result[0] if isinstance(result, list) and result else None)
-        if entry and entry.get("applicable") is True and entry.get("family_id") in known_family_ids:
-            applicable.append(entry["family_id"])
-            log(f"  [MATCH] {entry['family_id']}: {entry.get('reason','')[:80]}")
-        if idx < len(templates_data) - 1:
-            sleep(SLEEP_BETWEEN_CALLS)
-    if failed_count == len(templates_data):
-        log(f"  [ERROR] All template calls failed for {target['file_path']} :: {target['method_signature']}")
+    prompt = CHECK_PROMPT_TEMPLATE\
+        .replace("{generalized_templates}", templates_json)\
+        .replace("{target_json_object}", json.dumps(target, indent=2))\
+        .replace("{template_count}", str(template_count))
+
+    result = llm_call(prompt)
+    if result is None:
+        log(f"  [ERROR] LLM call failed for {target['file_path']} :: {target['method_signature']} — marking as check_failed")
+        return None   # None = failure, [] = genuine "nothing applies"
+    if not isinstance(result, list):
+        log(f"  [WARN] Unexpected check response format — marking as check_failed")
         return None
-    log(f"  [CHECK] Applicable: {applicable if applicable else 'none'}")
+
+    known_ids = {t.get("family_id") for t in templates_data}
+    applicable = [
+        entry["family_id"]
+        for entry in result
+        if isinstance(entry, dict)
+        and entry.get("applicable") is True
+        and entry.get("family_id") in known_ids
+    ]
+    log(f"  [CHECK] Applicable templates: {applicable if applicable else 'none'}")
     return applicable
 
 
