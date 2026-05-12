@@ -205,7 +205,24 @@ def check_applicability(target):
 
     # Stage 1: keyword pre-filter (no LLM cost)
     source = target.get('source_code', '')
-    candidates = _keyword_filter(source, templates_data)
+    method_name = target.get('method_signature', '')
+
+    # Filter on method body only — avoids false positives from import/package lines in the header
+    body_source = source
+    if method_name:
+        src_lines = source.split('\n')
+        for i, line in enumerate(src_lines):
+            stripped = line.strip()
+            if (stripped
+                    and not stripped.startswith('//')
+                    and not stripped.startswith('*')
+                    and not stripped.startswith('import')
+                    and not stripped.startswith('package')
+                    and re.search(r'(?<!\.)\b' + re.escape(method_name) + r'\s*\(', stripped)):
+                body_source = '\n'.join(src_lines[i:])
+                break
+
+    candidates = _keyword_filter(body_source, templates_data)
     log(f"  [FILTER] {len(candidates)}/{template_count} template(s) pass keyword filter")
     for tmpl, matched_kws in candidates:
         log(f"    → {tmpl['family_id']}: {matched_kws}")
