@@ -55,7 +55,7 @@ Thumbs.db
 EvoBench/
 
 # External SUT checkout (byte-buddy or any other SUT — cloned locally, not tracked)
-#sut/
+sut/
 
 # Backup folder
 backup/
