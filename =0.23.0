@@ -1,0 +1,12 @@
+Collecting tree-sitter
+  Downloading tree_sitter-0.25.2-cp314-cp314-win_amd64.whl.metadata (10 kB)
+Collecting tree-sitter-java
+  Downloading tree_sitter_java-0.23.5-cp39-abi3-win_amd64.whl.metadata (1.8 kB)
+Downloading tree_sitter-0.25.2-cp314-cp314-win_amd64.whl (130 kB)
+Downloading tree_sitter_java-0.23.5-cp39-abi3-win_amd64.whl (60 kB)
+Installing collected packages: tree-sitter-java, tree-sitter
+
+Successfully installed tree-sitter-0.25.2 tree-sitter-java-0.23.5
+
+[notice] A new release of pip is available: 25.3 -> 26.1.1
+[notice] To update, run: C:\Users\Pc\AppData\Local\Programs\Python\Python314\python.exe -m pip install --upgrade pip

@@ -47,10 +47,8 @@ log "Found ${#entries[@]} unique changed method(s). Building target JSON..."
 ENTRIES="$(printf '%s\n' "${entries[@]}")" python3 - <<'PYEOF'
 import json, os, re
 
-def extract_method_windows(lines, method_name, context_before=15):
-    """Extract ALL implementations of method_name in the file (handles multiple inner classes).
-    Uses brace-counting from each declaration to find its closing brace.
-    Returns a list of line-windows (each a list of strings), or [] if none found."""
+def _extract_method_windows_regex(lines, method_name, context_before=15):
+    """Fallback: original regex + brace-counting extraction."""
     windows = []
     search_from = 0
     while search_from < len(lines):
@@ -63,7 +61,6 @@ def extract_method_windows(lines, method_name, context_before=15):
                     break
         if method_idx is None:
             break
-        # Skip interface/abstract declarations: scan ahead for '{' or ';' — ';' first means no body
         has_body = False
         for j in range(method_idx, min(method_idx + 10, len(lines))):
             for ch in lines[j]:
@@ -94,6 +91,78 @@ def extract_method_windows(lines, method_name, context_before=15):
         windows.append(lines[start:end_idx])
         search_from = end_idx
     return windows
+
+
+def extract_method_windows(lines, method_name, context_before=15):
+    """Extract ALL implementations of method_name using tree-sitter AST.
+    Each window includes: package + imports + enclosing class line + full method body.
+    Falls back to regex if tree-sitter-java is not installed or parsing fails."""
+    try:
+        import tree_sitter_java as tsjava
+        from tree_sitter import Language, Parser
+    except ImportError:
+        print(f"  [WARN] tree-sitter-java not installed — falling back to regex extraction", flush=True)
+        return _extract_method_windows_regex(lines, method_name, context_before)
+
+    source = "\n".join(lines)
+    try:
+        JAVA_LANGUAGE = Language(tsjava.language())
+        try:
+            ts_parser = Parser(JAVA_LANGUAGE)
+        except TypeError:
+            ts_parser = Parser()
+            ts_parser.set_language(JAVA_LANGUAGE)
+
+        tree = ts_parser.parse(source.encode("utf-8"))
+        root = tree.root_node
+
+        if root.has_error:
+            print(f"  [WARN] tree-sitter parse errors — falling back to regex extraction", flush=True)
+            return _extract_method_windows_regex(lines, method_name, context_before)
+
+        # Collect package + import lines from the file header (always at root level)
+        header_end = 0
+        for child in root.children:
+            if child.type in ("package_declaration", "import_declaration"):
+                header_end = max(header_end, child.end_point[0])
+        header_lines = lines[:header_end + 1]
+
+        # Walk the AST and collect all concrete method declarations matching method_name
+        windows = []
+
+        def visit(node):
+            if node.type == "method_declaration":
+                name_node = next((c for c in node.children if c.type == "identifier"), None)
+                if name_node and name_node.text.decode("utf-8") == method_name:
+                    if any(c.type == "block" for c in node.children):
+                        # Walk up to find the nearest enclosing class/interface
+                        enc = node.parent
+                        while enc and enc.type not in (
+                            "class_declaration", "interface_declaration",
+                            "enum_declaration", "record_declaration"
+                        ):
+                            enc = enc.parent
+                        # Build: header + enclosing class declaration line + method body
+                        ctx = list(header_lines)
+                        if enc:
+                            ctx.append(lines[enc.start_point[0]])
+                        m_start = node.start_point[0]
+                        m_end   = node.end_point[0]
+                        ctx.extend(lines[m_start : m_end + 1])
+                        windows.append(ctx)
+            for child in node.children:
+                visit(child)
+
+        visit(root)
+
+        if not windows:
+            return _extract_method_windows_regex(lines, method_name, context_before)
+
+        return windows
+
+    except Exception as e:
+        print(f"  [WARN] AST extraction failed ({e}) — falling back to regex", flush=True)
+        return _extract_method_windows_regex(lines, method_name, context_before)
 
 entries_env = os.environ.get("ENTRIES", "")
 entries = [e for e in entries_env.split("\n") if e.strip()]
