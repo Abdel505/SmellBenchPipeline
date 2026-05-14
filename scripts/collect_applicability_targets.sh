@@ -181,8 +181,10 @@ for entry in entries:
     # com/pipeline/demo/StringUtils.joinWithSeparator
     class_part = entry.rsplit(".", 1)[0]   # com/pipeline/demo/StringUtils
     method     = entry.rsplit(".", 1)[1]   # joinWithSeparator
-    sut_src_root = os.environ.get("SUT_SRC_ROOT", "app/src/main/java")
-    java_file    = f"{sut_src_root}/{class_part}.java"
+    sut_src_root = os.environ.get("SUT_SRC_ROOT", "sut/byte-buddy/byte-buddy-dep/src/main/java")
+    # Strip inner-class suffix ($Inner) — the source always lives in the outer class file
+    file_class_part = class_part.split("$")[0]
+    java_file    = f"{sut_src_root}/{file_class_part}.java"
 
     if not os.path.isfile(java_file):
         print(f"  [WARN] Source file not found: {java_file} — skipping", flush=True)
