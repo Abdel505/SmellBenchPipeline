@@ -111,51 +111,6 @@ PYEOF
   echo "[run-benchmarks] compare_latest.json generated -> ${COMPARE_OUT}"
 fi
 
-# --- Update best-result.json (per-benchmark) ---
-# New method    → no history → current becomes best automatically
-# Existing      → keep whichever has the lower score (faster)
-# Deleted       → already removed from best by handle_deleted before this run
-python3 - "${OUTFILE}" "${BEST_FILE}" <<'PYEOF'
-import json, sys
-
-def score(entry):
-    try:
-        return float(entry["primaryMetric"]["score"])
-    except Exception:
-        return float("inf")
-
-curr_path, best_path = sys.argv[1], sys.argv[2]
-
-with open(curr_path, encoding="utf-8-sig") as f:
-    curr = json.load(f)
-
-try:
-    with open(best_path, encoding="utf-8-sig") as f:
-        best = json.load(f)
-except FileNotFoundError:
-    best = []
-
-def param_key(entry):
-    params = entry.get("params") or {}
-    return json.dumps(params, sort_keys=True)
-
-def slot(entry):
-    return (entry.get("benchmark", ""), param_key(entry))
-
-best_map = {slot(e): e for e in best if isinstance(e, dict)}
-
-for entry in curr:
-    if not entry.get("benchmark"):
-        continue
-    k = slot(entry)
-    if k not in best_map or score(entry) < score(best_map[k]):
-        best_map[k] = entry
-
-with open(best_path, "w", encoding="utf-8") as f:
-    json.dump(list(best_map.values()), f, indent=2)
-PYEOF
-echo "[run-benchmarks] best-result.json updated -> ${BEST_FILE}"
-
 TIMESTAMP="$(date +%Y%m%d_%H%M%S)"
 SHA="$(git -C "${ROOT_DIR}" rev-parse --short HEAD 2>/dev/null || echo "unknown")"
 
@@ -244,5 +199,51 @@ if [[ "${DASHBOARD_OK}" -eq 1 && ${#OLD_DASHBOARDS[@]} -gt 0 ]]; then
     [[ -f "$old" ]] && rm -f "$old" && echo "[run-benchmarks]   Removed: $(basename "$old")"
   done
 fi
+
+# --- Update best-result.json (per-benchmark) ---
+# Runs LAST so bootstrap and compare both read the old best as a stable reference.
+# New method    → no history → current becomes best automatically
+# Existing      → keep whichever has the lower score (faster)
+# Deleted       → already removed from best by handle_deleted before this run
+python3 - "${OUTFILE}" "${BEST_FILE}" <<'PYEOF'
+import json, sys
+
+def score(entry):
+    try:
+        return float(entry["primaryMetric"]["score"])
+    except Exception:
+        return float("inf")
+
+curr_path, best_path = sys.argv[1], sys.argv[2]
+
+with open(curr_path, encoding="utf-8-sig") as f:
+    curr = json.load(f)
+
+try:
+    with open(best_path, encoding="utf-8-sig") as f:
+        best = json.load(f)
+except FileNotFoundError:
+    best = []
+
+def param_key(entry):
+    params = entry.get("params") or {}
+    return json.dumps(params, sort_keys=True)
+
+def slot(entry):
+    return (entry.get("benchmark", ""), param_key(entry))
+
+best_map = {slot(e): e for e in best if isinstance(e, dict)}
+
+for entry in curr:
+    if not entry.get("benchmark"):
+        continue
+    k = slot(entry)
+    if k not in best_map or score(entry) < score(best_map[k]):
+        best_map[k] = entry
+
+with open(best_path, "w", encoding="utf-8") as f:
+    json.dump(list(best_map.values()), f, indent=2)
+PYEOF
+echo "[run-benchmarks] best-result.json updated -> ${BEST_FILE}"
 
 echo "[run-benchmarks] Done."
