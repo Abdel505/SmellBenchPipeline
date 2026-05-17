@@ -115,7 +115,7 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add data/coverage-matrix.csv data/jmh-result.json \
-                  data/best-result.json amber-results/ app/src/test/java/ || true
+                  data/best-result.json bench-reports/ app/src/test/java/ || true
           git diff --cached --quiet || \
             git commit -m "chore: update benchmark results [skip ci]"
           git push
@@ -127,5 +127,5 @@ jobs:
           name: benchmark-results-${{ github.sha }}
           path: |
             data/jmh-result.json
-            amber-results/
+            bench-reports/
           retention-days: 30

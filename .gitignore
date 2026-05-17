@@ -21,8 +21,9 @@ out/
 
 # Pipeline outputs
 jmh-result.json
-amber-results/*
-!amber-results/.gitkeep
+bench-reports/*
+!bench-reports/amber/.gitkeep
+!bench-reports/standard/.gitkeep
 smelly_methods.txt
 clean_methods.txt
 added_methods.txt

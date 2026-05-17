@@ -63,7 +63,7 @@ SmellBenchPipeline/
 │   └── dashboard/
 │       ├── generate_dashboard.sh    # HTML dashboard generator
 │       └── template.html            # Dashboard HTML template
-├── amber-results/                   # AMBER output: bootstrap JSON + HTML dashboards
+├── bench-reports/                   # AMBER output: bootstrap JSON + HTML dashboards
 ├── libs/                            # External JARs
 │   ├── ast-generator.jar            # Git diff → method lists
 │   ├── chat2benchmark.jar           # LLM benchmark generation
@@ -148,10 +148,10 @@ SmellBenchPipeline/
    - DELETED → remove benchmark file + matrix row + clean `best-result.json`
 7. **run-benchmarks.sh**: `./gradlew :app:jmhRun` → `data/jmh-result.json`
    → update `data/best-result.json` (per-benchmark all-time best)
-   → `amber-results/bootstrap_latest.json` (hierarchical bootstrap vs best)
-   → `amber-results/compare_latest.json` (delta % vs previous best)
-   → `amber-results/dashboard_<ts>.html` (HTML report)
-8. **Commit & push**: `coverage-matrix.csv`, `jmh-result.json`, `best-result.json`, `amber-results/`, `app/src/test/java/`
+   → `bench-reports/bootstrap_latest.json` (hierarchical bootstrap vs best)
+   → `bench-reports/compare_latest.json` (delta % vs previous best)
+   → `bench-reports/dashboard_<ts>.html` (HTML report)
+8. **Commit & push**: `coverage-matrix.csv`, `jmh-result.json`, `best-result.json`, `bench-reports/`, `app/src/test/java/`
 
 ## Task Reference
 
@@ -212,7 +212,7 @@ Complete these tasks in order. Each task has subtasks to check off.
   - `CollectionHelper.java` — list operations (flatten, removeDuplicates, intersection, union, partition) — 5+ public methods
   - `MathHelper.java` — math functions (fibonacci, isPrime, sieveOfEratosthenes, nthRoot, combinations) — 5+ public methods
 - [x] Create empty `app/src/test/java/` directory
-- [x] Create empty directories: `amber-results/`, `libs/`, `tools/`, `ju-to-jmh/`, `ju2jmh/`
+- [x] Create empty directories: `bench-reports/`, `libs/`, `tools/`, `ju-to-jmh/`, `ju2jmh/`
 - [x] Create placeholder scripts: `run-benchmarks.sh`, `modified_classes_detector.sh`, `lookup_benchmark.sh`
 - [x] Create `.gitignore` for Java/Gradle
 
@@ -370,7 +370,7 @@ Complete these tasks in order. Each task has subtasks to check off.
   ```
 - [x] Run pre-flight only when `RUN_AMBER=1`, skip entirely when `RUN_AMBER=0`
 - [x] Call `./gradlew :app:jmhRun` and verify `data/jmh-result.json` is produced
-- [x] Archive result to `amber-results/jmh-result-snapshot_<timestamp>_<sha>.json`
+- [x] Archive result to `bench-reports/jmh-result-snapshot_<timestamp>_<sha>.json`
 - [x] Run hierarchical bootstrap comparison if a previous archived result exists
 - [x] Generate HTML dashboard via `tools/dashboard/generate_dashboard.sh`
 
@@ -388,7 +388,7 @@ Complete these tasks in order. Each task has subtasks to check off.
   - `[benchmark_tests] AMBER server is up.` printed
   - Dynamic warmup (up to 500 × 100ms iterations per fork)
   - `Halt eseguito` printed when TSC detects steady-state
-  - `amber-results/` populated with archived JSON and dashboard HTML
+  - `bench-reports/` populated with archived JSON and dashboard HTML
 - [ ] Run with filter: `RUN_AMBER=0 bash scripts/run-benchmarks.sh "CalculatorBenchmark.buildMultiples"` — verify only that method runs
 - [ ] **VERIFY**: see `docs/amber-integration-fixes.md` for a full list of pitfalls to avoid
 
@@ -404,7 +404,7 @@ Complete these tasks in order. Each task has subtasks to check off.
   4. `filter_methods_2.sh`
   5. `update_coverage_matrix.sh`
   6. `run-benchmarks.sh` (set `RUN_AMBER=0` for CI unless AMBER server is running)
-  7. Commit: `coverage-matrix.csv`, `jmh-result.json`, `best-result.json`, `amber-results/`, `app/src/test/java/`
+  7. Commit: `coverage-matrix.csv`, `jmh-result.json`, `best-result.json`, `bench-reports/`, `app/src/test/java/`
 - [ ] Add AMBER server integration for CI (see `docs/amber-server-guide.md`)
 
 ### Task 7.2 — Test locally with act
@@ -456,7 +456,7 @@ Complete these tasks in order. Each task has subtasks to check off.
 - [ ] Verify all 8 commits processed correctly
 - [ ] Verify coverage matrix is consistent (no orphans, no duplicates)
 - [ ] Verify benchmark files follow naming conventions
-- [ ] Verify AMBER results in `amber-results/` are structured correctly
+- [ ] Verify AMBER results in `bench-reports/` are structured correctly
 - [ ] Run: `grep -r "EvoBench\|ByteBuddy\|byte-buddy" .` → should return nothing
 - [ ] Run: `grep -rn "/home/\|/Users/" .` → should return nothing
 - [ ] Create `VALIDATION_REPORT.md` summarizing all results

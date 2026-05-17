@@ -2,9 +2,15 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-AMBER_RESULTS="${ROOT_DIR}/amber-results"
+BENCH_REPORTS="${ROOT_DIR}/bench-reports"
 OUTFILE="${ROOT_DIR}/data/jmh-result.json"
 export RUN_AMBER="${RUN_AMBER:-1}"
+
+if [[ "${RUN_AMBER}" == "1" ]]; then
+  RUN_DIR="${BENCH_REPORTS}/amber"
+else
+  RUN_DIR="${BENCH_REPORTS}/standard"
+fi
 
 # --- Parse args ---
 # Optional first arg: JMH regex filter (AMBER_INCLUDE).
@@ -20,7 +26,7 @@ export AMBER_INCLUDE="${FILTER_ARG:-${AMBER_INCLUDE:-}}"
 # Example: AMBER_JMH_EXTRA="-p count=10 -p base=5" for multiple params.
 export AMBER_JMH_EXTRA="${AMBER_JMH_EXTRA:-}"
 
-mkdir -p "${ROOT_DIR}/data" "${AMBER_RESULTS}"
+mkdir -p "${ROOT_DIR}/data" "${RUN_DIR}"
 
 # Pre-flight: verify AMBER server is reachable when RUN_AMBER=1
 if [[ "${RUN_AMBER}" == "1" ]]; then
@@ -56,7 +62,7 @@ echo "[run-benchmarks] JMH run complete. Results -> ${OUTFILE}"
 # --- Generate compare_latest.json (prev best vs current run) ---
 # Must run BEFORE best-result.json is updated so "prev" reflects the old best.
 BEST_FILE="${ROOT_DIR}/data/best-result.json"
-COMPARE_OUT="${AMBER_RESULTS}/compare_latest.json"
+COMPARE_OUT="${RUN_DIR}/compare_latest.json"
 if [[ -f "${BEST_FILE}" ]]; then
   python3 - "${BEST_FILE}" "${OUTFILE}" "${COMPARE_OUT}" <<'PYEOF'
 import json, sys
@@ -155,7 +161,7 @@ SHA="$(git -C "${ROOT_DIR}" rev-parse --short HEAD 2>/dev/null || echo "unknown"
 
 # Snapshot archiving disabled — bootstrap and dashboard read directly from jmh-result.json
 # To re-enable, uncomment the three lines below:
-# ARCH="${AMBER_RESULTS}/jmh-result-snapshot_${TIMESTAMP}_${SHA}.json"
+# ARCH="${RUN_DIR}/jmh-result-snapshot_${TIMESTAMP}_${SHA}.json"
 # cp "${OUTFILE}" "${ARCH}"
 # echo "[run-benchmarks] Archived -> ${ARCH}"
 ARCH="${OUTFILE}"
@@ -163,11 +169,11 @@ ARCH="${OUTFILE}"
 # Collect existing dashboards before generating.
 # Used for safe cleanup: old dashboards are removed ONLY after the new one is confirmed.
 OLD_DASHBOARDS=()
-for f in "${AMBER_RESULTS}"/dashboard_*.html; do
+for f in "${RUN_DIR}"/dashboard_*.html; do
   [[ -f "$f" ]] && OLD_DASHBOARDS+=("$f")
 done
 
-NEW_DASHBOARD="${AMBER_RESULTS}/dashboard_${TIMESTAMP}.html"
+NEW_DASHBOARD="${RUN_DIR}/dashboard_${TIMESTAMP}.html"
 DASHBOARD_OK=0
 
 # Derive prod/test metadata for dashboard header pills.
@@ -190,7 +196,7 @@ fi
 # Snapshots are kept as historical archives but are no longer the comparison reference.
 if [[ -f "${BEST_FILE}" ]]; then
   echo "[run-benchmarks] Running bootstrap comparison: current vs best-result.json"
-  BOOTSTRAP_OUT="${AMBER_RESULTS}/bootstrap_latest.json"
+  BOOTSTRAP_OUT="${RUN_DIR}/bootstrap_latest.json"
   python3 "${ROOT_DIR}/tools/bootstrap/hierarchical_bootstrap_compare.py" \
     "${BEST_FILE}" "${ARCH}" > "${BOOTSTRAP_OUT}" \
     || { echo "[run-benchmarks] WARN: bootstrap comparison failed (non-fatal)"; BOOTSTRAP_OUT=""; }
@@ -198,7 +204,7 @@ if [[ -f "${BEST_FILE}" ]]; then
   # HTML dashboard with comparison
   if bash "${ROOT_DIR}/tools/dashboard/generate_dashboard.sh" \
     --kind "modified" \
-    --bench-dir "${AMBER_RESULTS}" \
+    --bench-dir "${RUN_DIR}" \
     --json "${ARCH}" \
     --out "${NEW_DASHBOARD}" \
     --sha "${SHA}" \
@@ -217,7 +223,7 @@ else
   # Initial dashboard (no comparison)
   if bash "${ROOT_DIR}/tools/dashboard/generate_dashboard.sh" \
     --kind "added" \
-    --bench-dir "${AMBER_RESULTS}" \
+    --bench-dir "${RUN_DIR}" \
     --json "${ARCH}" \
     --out "${NEW_DASHBOARD}" \
     --sha "${SHA}" \
