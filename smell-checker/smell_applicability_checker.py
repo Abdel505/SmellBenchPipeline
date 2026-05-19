@@ -9,10 +9,18 @@ from time import sleep
 from json_repair import repair_json
 
 # --- LOAD ENVIRONMENT ---
-load_dotenv()
+# First try to load from .env file if it exists
+env_file = Path(".env")
+if env_file.is_file():
+    load_dotenv(env_file)
+else:
+    # If no .env file, load_dotenv still attempts to find .env in default locations
+    load_dotenv()
+
+# Validate required environment variables
 for _required in ("LLM_API_KEY", "LLM_ENDPOINT"):
     if not os.environ.get(_required):
-        raise EnvironmentError(f"Required environment variable '{_required}' is not set. Check your .env file.")
+        raise EnvironmentError(f"Required environment variable '{_required}' is not set. Please set it via GitHub secrets or .env file.")
 
 # --- CONFIGURATION ---
 TARGET_JSON_PATH    = "pipeline-output/applicability-targets.json"
