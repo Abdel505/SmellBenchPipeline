@@ -7,10 +7,11 @@ on:
   workflow_dispatch:
 
 jobs:
+
+  # ─── JOB 1 ───────────────────────────────────────────
   build:
     name: Build Project
     runs-on: ubuntu-latest
-
     permissions:
       contents: write
 
@@ -45,16 +46,31 @@ jobs:
       - name: Build Project
         run: ./gradlew build
 
-      - name: Set execute permission for pipeline scripts
+  # ─── JOB 2 ───────────────────────────────────────────
+  detect-and-collect:
+    name: Detect Changes & Collect Targets
+    runs-on: ubuntu-latest
+    needs: build
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Checkout byte-buddy (SUT)
+        uses: actions/checkout@v4
+        with:
+          repository: raphw/byte-buddy
+          path: sut/byte-buddy
+          fetch-depth: 2
+
+      - name: Set execute permissions
         run: |
           chmod +x scripts/detect_changed_methods.sh
           chmod +x scripts/collect_applicability_targets.sh
-          chmod +x scripts/filter_methods_2.sh
-          chmod +x scripts/update_coverage_matrix.sh
-          chmod +x scripts/run-benchmarks.sh
-          chmod +x scripts/lookup_benchmark.sh
-          chmod +x scripts/generate_benchmark.sh
-          chmod +x tools/dashboard/generate_dashboard.sh
 
       - name: Detect Changed Methods
         run: bash scripts/detect_changed_methods.sh
@@ -70,6 +86,18 @@ jobs:
         env:
           SUT_SRC_ROOT: "${{ github.workspace }}/sut/byte-buddy/byte-buddy-dep/src/main/java"
 
+  # ─── JOB 3 ───────────────────────────────────────────
+  smell-check:
+    name: LLM Smell Check
+    runs-on: ubuntu-latest
+    needs: detect-and-collect
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
@@ -84,11 +112,55 @@ jobs:
           LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
           LLM_ENDPOINT: ${{ secrets.LLM_ENDPOINT }}
           LLM_MODEL: ${{ secrets.LLM_MODEL }}
-    
+
+      - name: Set execute permission for filter script
+        run: chmod +x scripts/filter_methods_2.sh
+
       - name: Run LLM Smell Filter
         run: bash scripts/filter_methods_2.sh
 
-      - name: Update Coverage Matrix (smelly + deleted methods)
+  # ─── JOB 4 ───────────────────────────────────────────
+  coverage-and-benchmarks:
+    name: Update Coverage & Run Benchmarks
+    runs-on: ubuntu-latest
+    needs: smell-check
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Checkout byte-buddy (SUT)
+        uses: actions/checkout@v4
+        with:
+          repository: raphw/byte-buddy
+          path: sut/byte-buddy
+          fetch-depth: 2
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v3
+
+      - name: Set execute permission for gradlew
+        run: chmod +x gradlew
+
+      - name: Set execute permissions for scripts
+        run: |
+          chmod +x scripts/update_coverage_matrix.sh
+          chmod +x scripts/run-benchmarks.sh
+          chmod +x scripts/lookup_benchmark.sh
+          chmod +x scripts/generate_benchmark.sh
+          chmod +x tools/dashboard/generate_dashboard.sh
+
+      - name: Update Coverage Matrix
         run: bash scripts/update_coverage_matrix.sh
         env:
           BENCH_API_KEY: ${{ secrets.BENCH_API_KEY }}
@@ -107,6 +179,20 @@ jobs:
           AMBER_MTIME: "1s"
           AMBER_TIMEOUT: "1m"
           RUN_AMBER: "0"
+
+  # ─── JOB 5 ───────────────────────────────────────────
+  commit-and-upload:
+    name: Commit Results & Upload Artifacts
+    runs-on: ubuntu-latest
+    needs: coverage-and-benchmarks
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Commit and push results
         run: |
