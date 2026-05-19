@@ -19,7 +19,6 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          token: ${{ secrets.ACTIONS_TOKEN }}
 
       - name: Checkout byte-buddy (SUT)
         uses: actions/checkout@v4
