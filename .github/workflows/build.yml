@@ -91,8 +91,9 @@ jobs:
       - name: Update Coverage Matrix (smelly + deleted methods)
         run: bash scripts/update_coverage_matrix.sh
         env:
-          LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
-          LLM_ENDPOINT: ${{ secrets.LLM_ENDPOINT }}
+          BENCH_API_KEY: ${{ secrets.BENCH_API_KEY }}
+          BENCH_ENDPOINT: ${{ secrets.BENCH_ENDPOINT }}
+          BENCH_MODEL: ${{ secrets.BENCH_MODEL }}
           SUT_SRC_ROOT: "${{ github.workspace }}/sut/byte-buddy/byte-buddy-dep/src/main/java"
 
       - name: Run JMH Benchmarks with AMBER
@@ -107,9 +108,6 @@ jobs:
           AMBER_TIMEOUT: "1m"
           RUN_AMBER: "0"
 
-      - name: Compile and run tests
-        run: ./gradlew :app:test
-
       - name: Commit and push results
         run: |
           git config user.name "github-actions[bot]"
@@ -118,7 +116,7 @@ jobs:
                   data/best-result.json bench-reports/ app/src/test/java/ || true
           git diff --cached --quiet || \
             git commit -m "chore: update benchmark results [skip ci]"
-          git push
+          git push origin main
 
       - name: Upload benchmark artifacts
         if: always()
@@ -127,5 +125,6 @@ jobs:
           name: benchmark-results-${{ github.sha }}
           path: |
             data/jmh-result.json
+            data/best-result.json
             bench-reports/
           retention-days: 30

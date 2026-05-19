@@ -17,8 +17,8 @@ if [[ $# -ne 2 ]]; then
 fi
 
 # --- Env validation ---
-: "${LLM_API_KEY:?LLM_API_KEY is required}"
-: "${LLM_ENDPOINT:?LLM_ENDPOINT is required}"
+: "${BENCH_API_KEY:?BENCH_API_KEY is required}"
+: "${BENCH_ENDPOINT:?BENCH_ENDPOINT is required}"
 
 # --- Path derivation ---
 SOURCE_FILE="$(realpath "$1")"
@@ -39,7 +39,7 @@ GENERATED="$(echo "$SOURCE_FILE" | sed 's|/main/|/jmh/|; s|\.java$|Benchmark.jav
 BENCH_CLASS="${CLASS_NAME}Benchmark_${METHOD}"
 TARGET="app/src/test/java/${PACKAGE_PATH}/${BENCH_CLASS}.java"
 JAR="$(realpath "libs/chat2benchmark.jar")"
-LLM_MODEL="${LLM_MODEL:-llama-3.3-70b-versatile}"
+BENCH_MODEL="${BENCH_MODEL:-llama-3.3-70b-versatile}"
 MAX_ATTEMPTS=10
 
 # --- Convert WSL path to Windows path for Java on Windows ---
@@ -73,10 +73,10 @@ for attempt in $(seq 1 $MAX_ATTEMPTS); do
   log "Attempt $attempt/$MAX_ATTEMPTS — ${BENCH_CLASS}"
 
   # LLMClient reads OPENAI_API_KEY from env
-  export OPENAI_API_KEY="$LLM_API_KEY"
+  export OPENAI_API_KEY="$BENCH_API_KEY"
 
   # Run Chat2Benchmark (allow failure so we can retry)
-  java -jar "$JAR" "$INPUT_JSON" -host "$LLM_ENDPOINT" -mdl "$LLM_MODEL" || true
+  java -jar "$JAR" "$INPUT_JSON" -host "$BENCH_ENDPOINT" -mdl "$BENCH_MODEL" || true
 
   if [[ -f "$GENERATED" ]]; then
     log "Chat2Benchmark produced output — post-processing and moving to target location"
