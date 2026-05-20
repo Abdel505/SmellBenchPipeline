@@ -206,7 +206,7 @@ jobs:
           AMBER_MI: "2"
           AMBER_MTIME: "1s"
           AMBER_TIMEOUT: "1m"
-          RUN_AMBER: "0"
+          RUN_AMBER: "1"
 
   # ─── JOB 5 ───────────────────────────────────────────
   commit-and-upload:
