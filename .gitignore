@@ -4,6 +4,7 @@ CLAUDE.md
 build/
 **/build/
 out/
+app/bin/
 
 # IDE
 .idea/
