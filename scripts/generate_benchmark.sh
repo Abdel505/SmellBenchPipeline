@@ -133,8 +133,17 @@ for attempt in $(seq 1 $MAX_ATTEMPTS); do
     # Strip @Param annotations and their import (use fixed input size instead)
     sed -i '/@Param/d' "$GENERATED_RENAMED"
     sed -i '/import org\.openjdk\.jmh\.annotations\.Param;/d' "$GENERATED_RENAMED"
-    sed -i 's/\(public\|private\) int size;/\1 int size = 1000;/' "$GENERATED_RENAMED"
-    log "  Stripped @Param annotations from generated benchmark (size hardcoded to 1000)"
+
+    # Fix: initialize all uninitialized primitive fields to safe non-zero defaults.
+    # Java silently defaults int/long/double/float to 0, which breaks any API
+    # that requires a positive value (version numbers, sizes, counts, etc.).
+    sed -i -E 's/(private|public) int ([a-zA-Z_][a-zA-Z0-9_]*);/\1 int \2 = 1;/g' "$GENERATED_RENAMED"
+    sed -i -E 's/(private|public) long ([a-zA-Z_][a-zA-Z0-9_]*);/\1 long \2 = 1L;/g' "$GENERATED_RENAMED"
+    sed -i -E 's/(private|public) double ([a-zA-Z_][a-zA-Z0-9_]*);/\1 double \2 = 1.0;/g' "$GENERATED_RENAMED"
+    sed -i -E 's/(private|public) float ([a-zA-Z_][a-zA-Z0-9_]*);/\1 float \2 = 1.0f;/g' "$GENERATED_RENAMED"
+    # Override: size/count/length/capacity → 1000 (meaningful benchmark collection size)
+    sed -i -E 's/(private|public) int (size|count|length|capacity) = 1;/\1 int \2 = 1000;/g' "$GENERATED_RENAMED"
+    log "  Initialized uninitialized primitive fields to safe defaults (int=1, long=1L, double=1.0, float=1.0f; size/count/length/capacity=1000)"
 
     mkdir -p "$(dirname "$TARGET")"
     mv "$GENERATED_RENAMED" "$TARGET"

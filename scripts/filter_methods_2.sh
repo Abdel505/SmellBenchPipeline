@@ -114,7 +114,7 @@ Path(clean_out).write_text("\n".join(clean)  + ("\n" if clean  else ""), encodin
 print(f"smelly={len(smelly)} clean={len(clean)}")
 PYEOF
 
-python3 "$_TMPPY" "$SMELLY_OUT" "$CLEAN_OUT" "$APPLICABILITY_JSON" "$ADDED_METHODS" "$MODIFIED_METHODS"
+python "$_TMPPY" "$SMELLY_OUT" "$CLEAN_OUT" "$APPLICABILITY_JSON" "$ADDED_METHODS" "$MODIFIED_METHODS"
 
 # ---------------------------------------------------------------------------
 # Summary

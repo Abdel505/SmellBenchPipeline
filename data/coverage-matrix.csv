@@ -1,2 +1,1 @@
-sut/byte-buddy/byte-buddy-dep/src/main/java/net/bytebuddy/utility/MethodComparator.java|compare|MethodComparatorBenchmark_compare|
-sut/byte-buddy/byte-buddy-dep/src/main/java/net/bytebuddy/matcher/FilterableList.java|filter|FilterableListBenchmark_filter|
+sut/byte-buddy/byte-buddy-dep/src/main/java/net/bytebuddy/ClassFileVersion.java|getJavaVersion|ClassFileVersionBenchmark_getJavaVersion|

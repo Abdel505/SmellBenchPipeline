@@ -183,7 +183,7 @@ declare -A DELETED_SET
 
 if [[ -f "$DELETED_FILE" && -s "$DELETED_FILE" ]]; then
     log "--- Processing DELETED methods ---"
-    while IFS= read -r line <&3; do
+    while IFS= read -r line <&3 || [[ -n "$line" ]]; do
         [[ -z "$line" ]] && continue
         parsed="$(parse_fqn_entry "$line")"
         java_file="$(echo "$parsed" | cut -d'|' -f1)"
@@ -201,7 +201,7 @@ fi
 if [[ -f "$SMELLY_FILE" && -s "$SMELLY_FILE" ]]; then
     log "--- Processing SMELLY (added/modified) methods ---"
 
-    while IFS= read -r line <&3; do
+    while IFS= read -r line <&3 || [[ -n "$line" ]]; do
         [[ -z "$line" ]] && continue
         parsed="$(parse_filter_entry "$line")"
         java_file="$(echo "$parsed" | cut -d'|' -f1)"

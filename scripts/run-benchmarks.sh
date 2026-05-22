@@ -64,7 +64,7 @@ echo "[run-benchmarks] JMH run complete. Results -> ${OUTFILE}"
 BEST_FILE="${ROOT_DIR}/data/best-result.json"
 COMPARE_OUT="${RUN_DIR}/compare_latest.json"
 if [[ -f "${BEST_FILE}" ]]; then
-  python3 - "${BEST_FILE}" "${OUTFILE}" "${COMPARE_OUT}" <<'PYEOF'
+  python - "${BEST_FILE}" "${OUTFILE}" "${COMPARE_OUT}" <<'PYEOF'
 import json, sys
 
 def param_key(entry):
@@ -152,7 +152,7 @@ fi
 if [[ -f "${BEST_FILE}" ]]; then
   echo "[run-benchmarks] Running bootstrap comparison: current vs best-result.json"
   BOOTSTRAP_OUT="${RUN_DIR}/bootstrap_latest.json"
-  python3 "${ROOT_DIR}/tools/bootstrap/hierarchical_bootstrap_compare.py" \
+  python "${ROOT_DIR}/tools/bootstrap/hierarchical_bootstrap_compare.py" \
     "${BEST_FILE}" "${ARCH}" > "${BOOTSTRAP_OUT}" \
     || { echo "[run-benchmarks] WARN: bootstrap comparison failed (non-fatal)"; BOOTSTRAP_OUT=""; }
 
@@ -205,7 +205,7 @@ fi
 # New method    → no history → current becomes best automatically
 # Existing      → keep whichever has the lower score (faster)
 # Deleted       → already removed from best by handle_deleted before this run
-python3 - "${OUTFILE}" "${BEST_FILE}" <<'PYEOF'
+python - "${OUTFILE}" "${BEST_FILE}" <<'PYEOF'
 import json, sys
 
 def score(entry):

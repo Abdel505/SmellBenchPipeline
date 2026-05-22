@@ -5,8 +5,8 @@ import sys
 from pathlib import Path
 import openai
 from dotenv import load_dotenv
-from time import sleep
-from json_repair import repair_json
+from tim
+from json_repair impore import sleept repair_json
 
 # --- LOAD ENVIRONMENT ---
 # First try to load from .env file if it exists

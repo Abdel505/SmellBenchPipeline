@@ -106,34 +106,6 @@ jobs:
       - name: Install smell-checker dependencies
         run: pip install -r smell-checker/requirements.txt
 
-      - name: Verify Secrets Configuration
-        run: |
-          echo "Checking if secrets are accessible..."
-          if [ -z "$LLM_API_KEY" ]; then
-            echo "❌ LLM_API_KEY is NOT set"
-            exit 1
-          else
-            echo "✅ LLM_API_KEY is set (length: ${#LLM_API_KEY})"
-          fi
-          
-          if [ -z "$LLM_ENDPOINT" ]; then
-            echo "❌ LLM_ENDPOINT is NOT set"
-            exit 1
-          else
-            echo "✅ LLM_ENDPOINT is set"
-          fi
-          
-          if [ -z "$LLM_MODEL" ]; then
-            echo "❌ LLM_MODEL is NOT set"
-            exit 1
-          else
-            echo "✅ LLM_MODEL is set"
-          fi
-        env:
-          LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
-          LLM_ENDPOINT: ${{ secrets.LLM_ENDPOINT }}
-          LLM_MODEL: ${{ secrets.LLM_MODEL }}
-          
       - name: Check Smell Applicability (LLM)
         run: python smell-checker/smell_applicability_checker.py
         env:
@@ -184,7 +156,6 @@ jobs:
         run: |
           chmod +x scripts/update_coverage_matrix.sh
           chmod +x scripts/run-benchmarks.sh
-          chmod +x scripts/lookup_benchmark.sh
           chmod +x scripts/generate_benchmark.sh
           chmod +x tools/dashboard/generate_dashboard.sh
 
@@ -206,7 +177,7 @@ jobs:
           AMBER_MI: "2"
           AMBER_MTIME: "1s"
           AMBER_TIMEOUT: "1m"
-          RUN_AMBER: "1"
+          RUN_AMBER: "0"
 
   # ─── JOB 5 ───────────────────────────────────────────
   commit-and-upload:

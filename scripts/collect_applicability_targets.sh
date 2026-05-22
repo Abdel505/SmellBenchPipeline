@@ -44,7 +44,7 @@ log "Found ${#entries[@]} unique changed method(s). Building target JSON..."
 
 # --- Build applicability-targets.json via Python for safe JSON encoding ---
 # Pass entries as newline-separated env var to avoid shell escaping issues
-ENTRIES="$(printf '%s\n' "${entries[@]}")" python3 - <<'PYEOF'
+ENTRIES="$(printf '%s\n' "${entries[@]}")" python - <<'PYEOF'
 import json, os, re
 
 def _extract_method_windows_regex(lines, method_name, context_before=15):

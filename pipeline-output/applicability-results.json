@@ -1,9 +1,1 @@
-[
-  {
-    "class_id": "C1",
-    "file_path": "sut/byte-buddy/byte-buddy-dep/src/main/java/net/bytebuddy/dynamic/scaffold/MethodGraph.java",
-    "method_signature": "combine",
-    "applicable_families": [],
-    "check_failed": false
-  }
-]
+[]
