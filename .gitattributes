@@ -1,4 +1,5 @@
 *.sh  text eol=lf
+gradlew text eol=lf
 *.csv text eol=lf
 *.json text eol=lf
 *.py  text eol=lf
