@@ -7,7 +7,6 @@ import openai
 from dotenv import load_dotenv
 from time import sleep
 from json_repair import repair_json
-
 # --- LOAD ENVIRONMENT ---
 # First try to load from .env file if it exists
 env_file = Path(".env")
