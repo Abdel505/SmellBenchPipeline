@@ -75,9 +75,6 @@
         In modified, se il compare è presente: mostro prev/curr/delta% (verde migliora, rosso peggiora).
       </div>
 
-      <div class="rowhint" id="kpi-compare-path" style="display:none;">
-        <span class="muted">Compare JSON:</span> <span class="mono" id="cmp-path"></span>
-      </div>
     </div>
     <div class="rowhint" id="kpi-bootstrap-path" style="display:none;">
       <span class="muted">Bootstrap JSON:</span> <span class="mono" id="boot-path"></span>
@@ -85,7 +82,6 @@
 
     <!-- payload embed (NO fetch) -->
     <script id="payload" type="text/plain">@@JSON_DATA@@</script>
-    <script id="payload_compare" type="text/plain">@@COMPARE_JSON_DATA@@</script>
     <script id="payload_bootstrap" type="text/plain">@@BOOTSTRAP_JSON_DATA@@</script>
 
     <div id="content" class="card"></div>
@@ -148,19 +144,6 @@
     try { return JSON.parse(raw); } catch (_) { return null; }
   }
 
-  function buildCompareMap(compareObj) {
-    // map: "benchmark|params_json" -> {prev, curr, delta_pct}
-    const m = new Map();
-    if (!compareObj || typeof compareObj !== "object") return m;
-    const comps = Array.isArray(compareObj.comparisons) ? compareObj.comparisons : [];
-    for (const c of comps) {
-      const name = c && c.benchmark;
-      if (!name) continue;
-      const key = name + '|' + JSON.stringify(c.params || {});
-      m.set(key, { prev: c.prev, curr: c.curr, delta_pct: c.delta_pct });
-    }
-    return m;
-  }
   function buildBootstrapMap(bootArr) {
     // bootArr: [{ benchmark, bootstrap:{ok,ci95,...}, verdict }, ...]
     const m = new Map();
@@ -172,27 +155,25 @@
     }
     return m;
   }
-  function renderAddedOrModified(jmhArr, compareMap /* optional */, bootstrapMap /* optional */) {
+  function renderAddedOrModified(jmhArr, bootstrapMap /* optional */) {
     const rows = jmhArr.map(x => {
       const benchmark = x?.benchmark || "";
-      const score = x?.primaryMetric?.score;           // curr
-      const err   = x?.primaryMetric?.scoreError;      // error bar
+      const score = x?.primaryMetric?.score;
+      const err   = x?.primaryMetric?.scoreError;
       const unit  = x?.primaryMetric?.scoreUnit || "";
-      const cmpKey = benchmark + '|' + JSON.stringify(x?.params || {});
-      const cmp   = compareMap && benchmark ? compareMap.get(cmpKey) : null;
       const bootE = bootstrapMap && benchmark ? bootstrapMap.get(benchmark) : null;
       return {
         benchmark,
         score, err, unit,
-        prev: cmp ? cmp.prev : null,
-        curr: cmp ? cmp.curr : score,
-        delta_pct: cmp ? cmp.delta_pct : null,
+        prev: bootE ? bootE.mean_prev : null,
+        curr: bootE ? bootE.mean_curr : score,
+        delta_pct: bootE ? bootE.delta_pct : null,
         boot: bootE,
-        hasCmp: !!cmp
+        hasCmp: !!bootE
       };
     }).sort((a,b) => (b.score ?? -Infinity) - (a.score ?? -Infinity));
 
-    const hasCompareCols = !!(compareMap && compareMap.size > 0);
+    const hasCompareCols = !!(bootstrapMap && bootstrapMap.size > 0);
 
     return `
       <div class="title-row">
@@ -302,16 +283,8 @@
 
     const kind = "@@KIND@@";
     const data = readJsonFromScript("payload");
-    const cmp  = readJsonFromScript("payload_compare");
     const boot = readJsonFromScript("payload_bootstrap");
 
-    // mostra path compare se presente nel template (anche se vuoto non cambia)
-    const cmpPath = "@@COMPARE_JSON_PATH@@";
-    if (cmpPath && cmpPath.trim().length > 0) {
-      const box = document.getElementById("kpi-compare-path");
-      const span = document.getElementById("cmp-path");
-      if (box && span) { box.style.display = "block"; span.textContent = cmpPath; }
-    }
     const bootPath = "@@BOOTSTRAP_JSON_PATH@@";
     if (bootPath && bootPath.trim().length > 0) {
       const box = document.getElementById("kpi-bootstrap-path");
@@ -339,15 +312,10 @@
 
     // JMH array (added/modified)
     if (Array.isArray(data)) {
-      // aggancia compare SOLO se kind=modified e cmp è valido
-      const cmpLooksOk = (cmp && typeof cmp === "object" && !Array.isArray(cmp) && Array.isArray(cmp.comparisons));
-      const useCompare = ((kind === "modified" || kind === "added") && cmpLooksOk);
-      const compareMap = useCompare ? buildCompareMap(cmp) : null;
-
       const bootLooksOk = Array.isArray(boot);
       const bootstrapMap = ((kind === "modified" || kind === "added") && bootLooksOk) ? buildBootstrapMap(boot) : null;
 
-      content.innerHTML = renderAddedOrModified(data, compareMap, bootstrapMap);
+      content.innerHTML = renderAddedOrModified(data, bootstrapMap);
       return;
     }
 
