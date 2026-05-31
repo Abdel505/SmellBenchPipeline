@@ -235,7 +235,8 @@ jobs:
           AMBER_MTIME: "1s"
           AMBER_TIMEOUT: "1m"
           RUN_AMBER: "1"
-          AMBER_HOST: "http://localhost:5001"
+          AMBER_HOST: "localhost"
+          AMBER_PORT: "5001"
 
       - name: Stop AMBER service
         if: always()
