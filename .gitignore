@@ -64,3 +64,5 @@ sut/
 # Backup folder
 backup/
 .github/workflows/test_suite_executor.yml
+
+ast-generator.jar.bak

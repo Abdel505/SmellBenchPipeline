@@ -7,8 +7,8 @@ mkdir -p "${ROOT_DIR}/pipeline-output"
 # SUT configuration — override these for external projects (e.g. byte-buddy)
 SUT_GIT_DIR="${SUT_GIT_DIR:-${ROOT_DIR}}"
 SUT_SRC_FILTER="${SUT_SRC_FILTER:-src/main/java.*\.java\$}"
-SUT_SRC_STRIP="${SUT_SRC_STRIP:-app/src/main/java/}"
-SUT_SRC_ROOT="${SUT_SRC_ROOT:-${ROOT_DIR}/app/src/main/java}"
+SUT_SRC_STRIP="${SUT_SRC_STRIP:-sut/byte-buddy}"
+SUT_SRC_ROOT="${SUT_SRC_ROOT:-${ROOT_DIR}/sut/byte-buddy}"
 
 echo "[detect_changed_methods] Detecting changed Java source files..."
 echo "[detect_changed_methods] SUT_GIT_DIR=${SUT_GIT_DIR}"
