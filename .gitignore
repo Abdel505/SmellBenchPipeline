@@ -26,9 +26,9 @@ jmh-result.json
 bench-reports/*
 !bench-reports/amber/.gitkeep
 !bench-reports/standard/.gitkeep
-#smelly_methods.txt
+smelly_methods.txt
 clean_methods.txt
-#added_methods.txt
+added_methods.txt
 modified_methods.txt
 deleted_methods.txt
 modified_classes.txt
