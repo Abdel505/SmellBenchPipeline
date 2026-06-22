@@ -19,7 +19,7 @@ DELETED_FILE="${2:-pipeline-output/deleted_methods.txt}"
 SUT_SRC_ROOT="${SUT_SRC_ROOT:-app/src/main/java}"
 
 MATRIX="data/coverage-matrix.csv"
-BENCH_DIR="app/src/test/java"
+BENCH_DIR="sut/byte-buddy/byte-buddy-benchmark/src/main/java/net/bytebuddy/benchmark"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 log() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*"; }
@@ -58,14 +58,15 @@ bench_class_for() {
     echo "${class_name}Benchmark_${method}"
 }
 
-# Physical path of the benchmark file for a given production file and method
+# Physical path of the benchmark file for a given production file and method.
+# Benchmarks all live flat under net.bytebuddy.benchmark, not under the
+# production class's own package — must match generate_benchmark.sh's TARGET.
 bench_file_for() {
     local java_file="$1"
     local method="$2"
-    local package_path class_name
-    package_path="$(dirname "$java_file" | sed 's|.*/main/java/||')"
+    local class_name
     class_name="$(basename "$java_file" .java)"
-    echo "${BENCH_DIR}/${package_path}/${class_name}Benchmark_${method}.java"
+    echo "${BENCH_DIR}/${class_name}Benchmark_${method}.java"
 }
 
 # Look up benchmark_class from matrix; prints nothing if not found

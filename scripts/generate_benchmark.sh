@@ -12,7 +12,7 @@ fi
 # --- Args validation ---
 if [[ $# -ne 2 ]]; then
   echo "Usage: $0 <java_source_file> <method_name>"
-  echo "  Example: $0 app/src/main/java/com/pipeline/demo/Calculator.java factorial"
+  echo "  Example: $0 sut/byte-buddy/byte-buddy-dep/src/main/java/net/bytebuddy/ClassFileVersion.java getJavaVersion"
   exit 1
 fi
 
@@ -28,16 +28,17 @@ if [[ ! -f "$SOURCE_FILE" ]]; then
 fi
 METHOD="$2"
 CLASS_NAME="$(basename "$SOURCE_FILE" .java)"
-PACKAGE_PATH="$(dirname "$SOURCE_FILE" | sed 's|.*/main/java/||')"
 
-# Chat2Benchmark writes to: <path with /main/ replaced by /jmh/> + Benchmark.java
-# Example: app/src/main/java/com/pipeline/demo/Calculator.java
-#       -> app/src/jmh/java/com/pipeline/demo/CalculatorBenchmark.java
+# Chat2Benchmark's BenchmarkFileWriter hardcodes this same /main/ -> /jmh/ and
+# .java -> Benchmark.java replacement internally (verified by disassembling
+# chat2benchmark.jar), so this mirrors its real output location regardless of
+# which module/build-tool the source file belongs to.
 GENERATED="$(echo "$SOURCE_FILE" | sed 's|/main/|/jmh/|; s|\.java$|Benchmark.java|')"
 
-# Per-method bench class and target file
+# Per-method bench class and target file — lands in the real Byte Buddy
+# benchmark module (Maven), not the demo app's test tree.
 BENCH_CLASS="${CLASS_NAME}Benchmark_${METHOD}"
-TARGET="app/src/test/java/${PACKAGE_PATH}/${BENCH_CLASS}.java"
+TARGET="sut/byte-buddy/byte-buddy-benchmark/src/main/java/net/bytebuddy/benchmark/${BENCH_CLASS}.java"
 JAR="$(realpath "libs/chat2benchmark.jar")"
 BENCH_MODEL="${BENCH_MODEL:-llama-3.3-70b-versatile}"
 MAX_ATTEMPTS=10
@@ -81,12 +82,35 @@ for attempt in $(seq 1 $MAX_ATTEMPTS); do
   if [[ -f "$GENERATED" ]]; then
     log "Chat2Benchmark produced output — post-processing and moving to target location"
 
-    # Fix: inject missing package declaration (Chat2Benchmark never adds it)
-    PACKAGE_NAME="${PACKAGE_PATH//\//.}"
+    # Fix: ensure the package declaration is net.bytebuddy.benchmark, matching
+    # where the file will be moved to — never copy the package from the
+    # production source file (Chat2Benchmark usually omits the line, but may
+    # also copy the source's own package if it does add one).
+    PACKAGE_NAME="net.bytebuddy.benchmark"
     if ! grep -q "^package " "$GENERATED"; then
       log "  Injecting missing package declaration: package ${PACKAGE_NAME};"
       { echo "package ${PACKAGE_NAME};"; echo ""; cat "$GENERATED"; } > "${GENERATED}.fixed"
       mv "${GENERATED}.fixed" "$GENERATED"
+    else
+      log "  Rewriting package declaration to: package ${PACKAGE_NAME};"
+      sed -i "0,/^package .*/s//package ${PACKAGE_NAME};/" "$GENERATED"
+    fi
+
+    # Fix: import the production class under test. Chat2Benchmark references it
+    # by simple name only, which used to work because the benchmark was placed
+    # in the *same* package as the production class — now that benchmarks always
+    # live in net.bytebuddy.benchmark (a different package), the class needs an
+    # explicit import or the compile fails with "cannot find symbol".
+    PRODUCTION_PACKAGE="$(dirname "$SOURCE_FILE" | sed 's|.*/main/java/||' | tr '/' '.')"
+    PRODUCTION_IMPORT="import ${PRODUCTION_PACKAGE}.${CLASS_NAME};"
+    if [[ "$PRODUCTION_PACKAGE" != "$PACKAGE_NAME" ]] \
+       && grep -qw "$CLASS_NAME" "$GENERATED" \
+       && ! grep -qF "$PRODUCTION_IMPORT" "$GENERATED"; then
+      log "  Injecting missing import for production class: ${PRODUCTION_IMPORT}"
+      awk -v imp="$PRODUCTION_IMPORT" '
+        /^import / && !done { print imp; done=1 }
+        { print }
+      ' "$GENERATED" > "${GENERATED}.fixed" && mv "${GENERATED}.fixed" "$GENERATED"
     fi
 
     # Fix: inject JMH runner imports required by the main() method
@@ -155,8 +179,8 @@ for attempt in $(seq 1 $MAX_ATTEMPTS); do
       log "Cleaned up jmh directory: $JMH_DIR"
     fi
 
-    log "Validating with compileTestJava..."
-    if ./gradlew compileTestJava -q 2>&1; then
+    log "Validating with Maven compile (byte-buddy-benchmark module)..."
+    if (cd sut/byte-buddy && mvn -q -pl byte-buddy-benchmark -am compile 2>&1); then
       log "SUCCESS — benchmark written to $TARGET"
       exit 0
     else
