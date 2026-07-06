@@ -1,1 +1,2 @@
 sut/byte-buddy/byte-buddy-dep/src/main/java/net/bytebuddy/ClassFileVersion.java|getJavaVersion|ClassFileVersionBenchmark_getJavaVersion|
+sut/byte-buddy/byte-buddy-dep/src/main/java/net/bytebuddy/ClassFileVersion.java|tostring|ClassFileVersionBenchmark_tostring|
