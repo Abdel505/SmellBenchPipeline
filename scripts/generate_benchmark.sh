@@ -63,6 +63,30 @@ printf '{ "%s": ["%s"] }\n' "$SOURCE_FILE_WIN" "$METHOD" > "$INPUT_JSON"
 
 log() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*"; }
 
+# --- Validation: does the @Benchmark method actually call the target method? ---
+# Extracts the STATEMENTS inside the @Benchmark-annotated method (strictly after its
+# opening brace, up to its matching closing brace) and checks they reference
+# ${method}(...). Deliberately excludes the signature line itself — Chat2Benchmark
+# names the wrapper method after the target (e.g. "public void getJavaVersion(...)"),
+# and that declaration would otherwise false-positive-match even when the body never
+# actually calls the target.
+benchmark_calls_target() {
+  local file="$1"
+  local method="$2"
+  local body
+  body="$(awk '
+    /@Benchmark/ { armed=1; next }
+    armed && /\{/ { armed=0; capture=1; depth=1; next }
+    capture {
+      depth += gsub(/\{/, "{")
+      depth -= gsub(/\}/, "}")
+      if (depth <= 0) { capture=0; next }
+      print
+    }
+  ' "$file")"
+  [[ -n "$body" ]] && grep -qE "\<${method}\(" <<< "$body"
+}
+
 log "Starting benchmark generation for ${CLASS_NAME}.${METHOD}"
 log "Source  : $SOURCE_FILE"
 log "Target  : $TARGET"
@@ -181,8 +205,14 @@ for attempt in $(seq 1 $MAX_ATTEMPTS); do
 
     log "Validating with Maven compile (byte-buddy-benchmark module)..."
     if (cd sut/byte-buddy && mvn -q -pl byte-buddy-benchmark -am compile 2>&1); then
-      log "SUCCESS — benchmark written to $TARGET"
-      exit 0
+      if benchmark_calls_target "$TARGET" "$METHOD"; then
+        log "  Method-target check: PASS — @Benchmark method calls ${METHOD}()"
+        log "SUCCESS — benchmark written to $TARGET"
+        exit 0
+      else
+        log "Method-target check FAILED on attempt $attempt — @Benchmark method does not call ${METHOD}(); removing bad file"
+        rm -f "$TARGET"
+      fi
     else
       log "Compile failed on attempt $attempt — removing bad file"
       rm -f "$TARGET"
