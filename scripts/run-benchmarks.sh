@@ -65,6 +65,25 @@ TIMESTAMP="$(date +%Y%m%d_%H%M%S)"
 SHA="$(git -C "${ROOT_DIR}" rev-parse --short HEAD 2>/dev/null || echo "unknown")"
 SUT_SHA="$(git -C "${ROOT_DIR}/sut/byte-buddy" rev-parse --short HEAD 2>/dev/null || echo "unknown")"
 
+echo "[run-benchmarks] Stamping commit_id=${SUT_SHA} on jmh-result.json..."
+python - "${OUTFILE}" "${SUT_SHA}" <<'PYEOF'
+import json, sys
+
+curr_path, sut_sha = sys.argv[1], sys.argv[2]
+
+with open(curr_path, encoding="utf-8-sig") as f:
+    data = json.load(f)
+
+data = [
+    {"commit_id": sut_sha, **entry} if isinstance(entry, dict) else entry
+    for entry in data
+]
+
+with open(curr_path, "w", encoding="utf-8") as f:
+    json.dump(data, f, indent=2)
+PYEOF
+echo "[run-benchmarks] Stamped commit_id=${SUT_SHA} on jmh-result.json"
+
 # Snapshot archiving disabled — bootstrap and dashboard read directly from jmh-result.json
 # To re-enable, uncomment the three lines below:
 # ARCH="${RUN_DIR}/jmh-result-snapshot_${TIMESTAMP}_${SHA}.json"
@@ -189,8 +208,7 @@ for entry in curr:
         continue
     k = slot(entry)
     if k not in best_map or score(entry) < score(best_map[k]):
-        entry["commit_id"] = sut_sha
-        best_map[k] = entry
+        best_map[k] = {"commit_id": sut_sha, **entry}
 
 with open(best_path, "w", encoding="utf-8") as f:
     json.dump(list(best_map.values()), f, indent=2)
