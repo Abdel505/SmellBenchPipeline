@@ -19,6 +19,13 @@ jacoco {
     toolVersion = "0.8.12"
 }
 
+// Benchmarks live in the real Byte Buddy checkout, not this module's own test tree.
+sourceSets {
+    test {
+        java.setSrcDirs(listOf("../sut/byte-buddy/byte-buddy-benchmark/src/main/java"))
+    }
+}
+
 dependencies {
 
     // JUnit 5
@@ -38,9 +45,16 @@ dependencies {
     testAnnotationProcessor(files("../libs/jmh-generator-annprocess-1.37-amber.jar"))
     testAnnotationProcessor(files("../libs/jmh-core-1.37-all.jar"))
 
-    // byte-buddy SUT: needed by generated benchmarks that import net.bytebuddy.*
-    implementation("net.bytebuddy:byte-buddy:1.15.11")
-    testImplementation("net.bytebuddy:byte-buddy:1.15.11")
+    // byte-buddy SUT: the actual checked-out commit under test (Maven-built classes),
+    // not a pinned Maven Central release — otherwise benchmarks would never reflect
+    // the commit_id stamped in best-result.json.
+    testImplementation(files("../sut/byte-buddy/byte-buddy-dep/target/classes"))
+
+    // Third-party libs used by byte-buddy-benchmark's own handwritten benchmarks
+    // (ClassByExtensionBenchmark, StubInvocationBenchmark, etc.) — versions match
+    // sut/byte-buddy/pom.xml's <version.cglib>/<version.javassist>.
+    testImplementation("cglib:cglib-nodep:3.3.0")
+    testImplementation("org.javassist:javassist:3.29.0-GA")
 
 }
 
@@ -57,6 +71,20 @@ tasks.jacocoTestReport {
         xml.required.set(true)
         html.required.set(true)
     }
+}
+
+// Rebuilds byte-buddy-dep's classes from the current sut/byte-buddy checkout so the
+// testImplementation(files(...)) dependency above always reflects the checked-out commit.
+val compileSutByteBuddy = tasks.register<Exec>("compileSutByteBuddy") {
+    group = "benchmark"
+    description = "mvn compile the SUT's byte-buddy-dep module"
+    workingDir = file("../sut/byte-buddy")
+    val mvnCmd = if (System.getProperty("os.name").lowercase().contains("windows")) "mvn.cmd" else "mvn"
+    commandLine(mvnCmd, "-q", "-pl", "byte-buddy-dep", "-am", "compile")
+}
+
+tasks.compileTestJava {
+    dependsOn(compileSutByteBuddy)
 }
 
 // Task to run JMH benchmarks after compiling test sources

@@ -63,6 +63,7 @@ BEST_FILE="${ROOT_DIR}/data/best-result.json"
 
 TIMESTAMP="$(date +%Y%m%d_%H%M%S)"
 SHA="$(git -C "${ROOT_DIR}" rev-parse --short HEAD 2>/dev/null || echo "unknown")"
+SUT_SHA="$(git -C "${ROOT_DIR}/sut/byte-buddy" rev-parse --short HEAD 2>/dev/null || echo "unknown")"
 
 # Snapshot archiving disabled — bootstrap and dashboard read directly from jmh-result.json
 # To re-enable, uncomment the three lines below:
@@ -154,7 +155,7 @@ fi
 # New method    → no history → current becomes best automatically
 # Existing      → keep whichever has the lower score (faster)
 # Deleted       → already removed from best by handle_deleted before this run
-python - "${OUTFILE}" "${BEST_FILE}" <<'PYEOF'
+python - "${OUTFILE}" "${BEST_FILE}" "${SUT_SHA}" <<'PYEOF'
 import json, sys
 
 def score(entry):
@@ -163,7 +164,7 @@ def score(entry):
     except Exception:
         return float("inf")
 
-curr_path, best_path = sys.argv[1], sys.argv[2]
+curr_path, best_path, sut_sha = sys.argv[1], sys.argv[2], sys.argv[3]
 
 with open(curr_path, encoding="utf-8-sig") as f:
     curr = json.load(f)
@@ -188,6 +189,7 @@ for entry in curr:
         continue
     k = slot(entry)
     if k not in best_map or score(entry) < score(best_map[k]):
+        entry["commit_id"] = sut_sha
         best_map[k] = entry
 
 with open(best_path, "w", encoding="utf-8") as f:
