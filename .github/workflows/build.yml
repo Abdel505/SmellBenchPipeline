@@ -225,9 +225,8 @@ jobs:
           exit 1
 
       - name: Run JMH Benchmarks with AMBER
-        run: bash scripts/run-benchmarks.sh
+        run: bash scripts/run-benchmarks.sh ClassFileVersionBenchmark_getJavaVersion.getJavaVersion
         env:
-          AMBER_INCLUDE: "ClassFileVersionBenchmark.getJavaVersion"
           AMBER_MODEL: oscnn
           AMBER_FORKS: "5"
           AMBER_WI: "1"
@@ -238,6 +237,7 @@ jobs:
           RUN_AMBER: "1"
           AMBER_HOST: "localhost"
           AMBER_PORT: "5001"
+
       - name: Stop AMBER service
         if: always()
         run: docker stop amber && docker rm amber
