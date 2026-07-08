@@ -1,0 +1,14 @@
+[
+  {
+    "benchmark": "net.bytebuddy.benchmark.ClassFileVersionBenchmark_toString.toStringBenchmark",
+    "unit": "ns/op",
+    "n_prev": 25,
+    "n_curr": 25,
+    "mean_prev": 102.40539756706968,
+    "mean_curr": 80.04410856288222,
+    "delta_pct": -21.836045301754826,
+    "p_value": 0.26,
+    "verdict": "NOT_SIGNIFICANT",
+    "note": null
+  }
+]

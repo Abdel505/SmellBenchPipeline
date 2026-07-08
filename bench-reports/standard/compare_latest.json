@@ -1,0 +1,25 @@
+{
+  "comparisons": [
+    {
+      "benchmark": "net.bytebuddy.matcher.FilterableListBenchmark_filter.filterEven",
+      "params": {},
+      "prev": 92792.8928024574,
+      "curr": 91935.49725016914,
+      "delta_pct": -0.9239883857414934
+    },
+    {
+      "benchmark": "com.pipeline.demo.SortUtilsBenchmark_findFirstRowContaining.findFirstRowContaining",
+      "params": {},
+      "prev": 305842.8913628714,
+      "curr": 490370.3128840658,
+      "delta_pct": 60.33405605699018
+    },
+    {
+      "benchmark": "net.bytebuddy.ClassFileVersionBenchmark_getJavaVersion.getJavaVersion",
+      "params": {},
+      "prev": 3.5873297807607343,
+      "curr": 4.678652555776721,
+      "delta_pct": 30.4215904784912
+    }
+  ]
+}
