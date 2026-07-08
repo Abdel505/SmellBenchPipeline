@@ -56,6 +56,10 @@ dependencies {
     testImplementation("cglib:cglib-nodep:3.3.0")
     testImplementation("org.javassist:javassist:3.29.0-GA")
 
+    // Resolves javax.annotation.meta.When for javac so it can read JSR-305 nullability
+    // annotations on dependency class files (e.g. Guava) without "unknown enum constant" warnings.
+    testCompileOnly("com.google.code.findbugs:jsr305:3.0.2")
+
 }
 
 tasks.test {
