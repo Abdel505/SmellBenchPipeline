@@ -5,11 +5,6 @@ on:
     branches:
       - main
   workflow_dispatch:
-    inputs:
-      bench_filter:
-        description: 'Run only this benchmark (JMH regex on ClassName.methodName, e.g. ClassFileVersionBenchmark_getJavaVersion.getJavaVersion). Leave empty to run all.'
-        required: false
-        default: ''
 
 jobs:
 
@@ -78,7 +73,7 @@ jobs:
           chmod +x scripts/collect_applicability_targets.sh
 
       - name: Detect Changed Methods
-        run: bash scripts/detect_changed_methods.sh
+        run: bash scripts/run-benchmarks.sh ClassFileVersionBenchmark_getJavaVersion.getJavaVersion
         env:
           ACTIONS_TOKEN: ${{ secrets.ACTIONS_TOKEN }}
           SUT_GIT_DIR: sut/byte-buddy
@@ -242,7 +237,6 @@ jobs:
           RUN_AMBER: "1"
           AMBER_HOST: "localhost"
           AMBER_PORT: "5001"
-          AMBER_INCLUDE: ${{ github.event.inputs.bench_filter }}
 
       - name: Stop AMBER service
         if: always()
