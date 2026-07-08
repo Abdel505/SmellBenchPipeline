@@ -73,7 +73,7 @@ jobs:
           chmod +x scripts/collect_applicability_targets.sh
 
       - name: Detect Changed Methods
-        run: bash scripts/run-benchmarks.sh ClassFileVersionBenchmark_getJavaVersion.getJavaVersion
+        run: bash scripts/detect_changed_methods.sh
         env:
           ACTIONS_TOKEN: ${{ secrets.ACTIONS_TOKEN }}
           SUT_GIT_DIR: sut/byte-buddy
@@ -225,7 +225,7 @@ jobs:
           exit 1
 
       - name: Run JMH Benchmarks with AMBER
-        run: bash scripts/run-benchmarks.sh
+        run: bash scripts/run-benchmarks.sh ClassFileVersionBenchmark_getJavaVersion.getJavaVersion
         env:
           AMBER_MODEL: oscnn
           AMBER_FORKS: "5"
