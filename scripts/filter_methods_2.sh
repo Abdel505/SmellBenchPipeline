@@ -61,6 +61,14 @@ def load_set(path):
 def to_slash_dot_key(file_path, method_sig):
     # Convert "app/src/main/java/com/pipeline/demo/Foo.java" + "bar"
     #      to "com/pipeline/demo/Foo.bar" (slash/dot format used in added/modified files)
+    #
+    # method_sig may be a bare name ("bar") or the parameter-qualified
+    # identifier produced by the AST pipeline — "bar(paramType1,paramType2)"
+    # (erased types, comma-separated, no spaces; e.g. "bar()" for zero-arg
+    # methods). It's appended verbatim/opaquely here, so this key naturally
+    # matches the added/modified_methods.txt entries written by
+    # ASTGenerator's extractMethodNameAndParameters(), keeping overloaded
+    # methods distinct instead of colliding on a single key.
     p = file_path.replace("\\", "/")
     if "/main/java/" in p:
         p = p.split("/main/java/", 1)[1]

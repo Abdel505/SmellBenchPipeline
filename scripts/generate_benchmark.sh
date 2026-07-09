@@ -13,6 +13,7 @@ fi
 if [[ $# -ne 2 ]]; then
   echo "Usage: $0 <java_source_file> <method_name>"
   echo "  Example: $0 sut/byte-buddy/byte-buddy-dep/src/main/java/net/bytebuddy/ClassFileVersion.java getJavaVersion"
+  echo "  Example (overloaded): $0 .../ClassFileVersion.java 'ofMinorMajor(int,int)'"
   exit 1
 fi
 
@@ -26,7 +27,15 @@ if [[ ! -f "$SOURCE_FILE" ]]; then
   echo "ERROR: source file not found: $SOURCE_FILE"
   exit 1
 fi
-METHOD="$2"
+
+# $2 may be a bare method name ("getJavaVersion") or the parameter-qualified
+# identifier produced by the AST pipeline ("methodName(paramType1,paramType2)").
+# METHOD is the bare name — the only thing that actually appears as a call in
+# generated Java source, so it's what's used for the Chat2Benchmark request and
+# the method-target validation. METHOD_ID keeps the full qualified identifier
+# (when present) so overloaded methods still get distinct BENCH_CLASS names.
+METHOD_ID="$2"
+METHOD="${METHOD_ID%%(*}"
 CLASS_NAME="$(basename "$SOURCE_FILE" .java)"
 
 # Chat2Benchmark's BenchmarkFileWriter hardcodes this same /main/ -> /jmh/ and
@@ -35,9 +44,20 @@ CLASS_NAME="$(basename "$SOURCE_FILE" .java)"
 # which module/build-tool the source file belongs to.
 GENERATED="$(echo "$SOURCE_FILE" | sed 's|/main/|/jmh/|; s|\.java$|Benchmark.java|')"
 
+# Sanitize the (possibly parameter-qualified) method identifier into a valid
+# Java identifier suffix for BENCH_CLASS — parens/commas aren't legal in a
+# Java identifier. Zero-arg methods ("getJavaVersion()") reduce to their bare
+# name (no trailing underscore), matching the pre-existing naming convention;
+# overloads ("doWork(String,int)") become e.g. "doWork_String_int" so sibling
+# overloads never collide on the same BENCH_CLASS.
+METHOD_ID_SAFE="${METHOD_ID//,/_}"
+METHOD_ID_SAFE="${METHOD_ID_SAFE//(/_}"
+METHOD_ID_SAFE="${METHOD_ID_SAFE//)/}"
+METHOD_ID_SAFE="${METHOD_ID_SAFE%_}"
+
 # Per-method bench class and target file — lands in the real Byte Buddy
 # benchmark module (Maven), not the demo app's test tree.
-BENCH_CLASS="${CLASS_NAME}Benchmark_${METHOD}"
+BENCH_CLASS="${CLASS_NAME}Benchmark_${METHOD_ID_SAFE}"
 TARGET="sut/byte-buddy/byte-buddy-benchmark/src/main/java/net/bytebuddy/benchmark/${BENCH_CLASS}.java"
 JAR="$(realpath "libs/chat2benchmark.jar")"
 BENCH_MODEL="${BENCH_MODEL:-llama-3.3-70b-versatile}"

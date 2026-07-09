@@ -41,6 +41,12 @@ sed "s|${SUT_SRC_STRIP}||; s|\.java\$||" \
     > "${ROOT_DIR}/pipeline-output/changed_classes.txt"
 
 # AST jar resolves .java files relative to its working directory — run from SUT_SRC_ROOT
+#
+# ast-generator.jar writes added/modified/deleted_methods.txt entries as
+# "className.methodName(paramType1,paramType2)" (erased types, comma-separated,
+# no spaces; e.g. "className.getJavaVersion()" for zero-arg methods) — this
+# script passes that output straight through unmodified, so overloaded
+# methods (same name, different params) stay distinct all the way downstream.
 pushd "${SUT_SRC_ROOT}" > /dev/null
 java -jar "${ROOT_DIR}/libs/ast-generator.jar" \
      "${ROOT_DIR}/pipeline-output/changed_classes.txt"
