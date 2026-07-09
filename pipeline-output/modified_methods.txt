@@ -1,1 +1,2 @@
-byte-buddy-dep/src/main/java/net/bytebuddy/ClassFileVersion.getJavaVersion
+net/bytebuddy/ClassFileVersion.of(Class,ClassFileLocator)
+net/bytebuddy/ClassFileVersion.resolve()

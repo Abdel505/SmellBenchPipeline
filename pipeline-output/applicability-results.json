@@ -1,29 +1,17 @@
 [
   {
     "class_id": "C1",
-    "file_path": "sut/byte-buddy/byte-buddy-dep/src/main/java/net/bytebuddy/ClassFileVersion.java",
-    "method_signature": "isPreviewVersion",
-    "applicable_families": [],
+    "file_path": "C:/Users/ww/Desktop/Filter/SmellBenchPipeline/sut/byte-buddy/byte-buddy-dep/src/main/java/net/bytebuddy/ClassFileVersion.java",
+    "method_signature": "of(Class,ClassFileLocator)",
+    "applicable_families": [
+      "F2"
+    ],
     "check_failed": false
   },
   {
     "class_id": "C2",
-    "file_path": "sut/byte-buddy/byte-buddy-dep/src/main/java/net/bytebuddy/ClassFileVersion.java",
-    "method_signature": "latest",
-    "applicable_families": [],
-    "check_failed": false
-  },
-  {
-    "class_id": "C3",
-    "file_path": "sut/byte-buddy/byte-buddy-dep/src/main/java/net/bytebuddy/ClassFileVersion.java",
-    "method_signature": "resolve",
-    "applicable_families": [],
-    "check_failed": false
-  },
-  {
-    "class_id": "C4",
-    "file_path": "sut/byte-buddy/byte-buddy-dep/src/main/java/net/bytebuddy/ClassFileVersion.java",
-    "method_signature": "toString",
+    "file_path": "C:/Users/ww/Desktop/Filter/SmellBenchPipeline/sut/byte-buddy/byte-buddy-dep/src/main/java/net/bytebuddy/ClassFileVersion.java",
+    "method_signature": "resolve()",
     "applicable_families": [],
     "check_failed": false
   }
