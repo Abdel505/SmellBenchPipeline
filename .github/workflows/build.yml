@@ -225,7 +225,7 @@ jobs:
           exit 1
 
       - name: Run JMH Benchmarks with AMBER
-        run: bash scripts/run-benchmarks.sh ClassFileVersionBenchmark_getJavaVersion
+        run: run: bash scripts/run-benchmarks.sh "net.bytebuddy.benchmark.ClassFileVersionBenchmark_getJavaVersion"
         env:
           AMBER_MODEL: oscnn
           AMBER_FORKS: "5"
