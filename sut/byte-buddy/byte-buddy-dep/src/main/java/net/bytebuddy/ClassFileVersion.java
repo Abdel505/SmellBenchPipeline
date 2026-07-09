@@ -351,7 +351,7 @@ public class ClassFileVersion implements Comparable<ClassFileVersion>, Serializa
      * @return The type's class file version.
      * @throws IOException If an error occurs while reading the class file.
      */
-    
+
     public static ClassFileVersion of(Class<?> type, ClassFileLocator classFileLocator) throws IOException {
         // Task 4 manual test marker — trivial, behavior-preserving change
         ClassFileLocator locator = classFileLocator;
