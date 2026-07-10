@@ -59,8 +59,9 @@ EvoBench/
 
 # External SUT checkout (byte-buddy or any other SUT — cloned locally, not tracked)
 sut/byte-buddy/*
+!sut/byte-buddy/byte-buddy-dep/
 !sut/byte-buddy/byte-buddy-benchmark/
-!sut/byte-buddy/byte-buddy-dep/src/main/java/net/bytebuddy/ClassFileVersion.java
+
 # Backup folder
 backup/
 .github/workflows/test_suite_executor.yml
