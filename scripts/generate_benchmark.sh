@@ -38,11 +38,6 @@ METHOD_ID="$2"
 METHOD="${METHOD_ID%%(*}"
 CLASS_NAME="$(basename "$SOURCE_FILE" .java)"
 
-# Chat2Benchmark's BenchmarkFileWriter hardcodes this same /main/ -> /jmh/ and
-# .java -> Benchmark.java replacement internally (verified by disassembling
-# chat2benchmark.jar), so this mirrors its real output location regardless of
-# which module/build-tool the source file belongs to.
-GENERATED="$(echo "$SOURCE_FILE" | sed 's|/main/|/jmh/|; s|\.java$|Benchmark.java|')"
 
 # Sanitize the (possibly parameter-qualified) method identifier into a valid
 # Java identifier suffix for BENCH_CLASS — parens/commas aren't legal in a
@@ -58,7 +53,8 @@ METHOD_ID_SAFE="${METHOD_ID_SAFE%_}"
 # Per-method bench class and target file — lands in the real Byte Buddy
 # benchmark module (Maven), not the demo app's test tree.
 BENCH_CLASS="${CLASS_NAME}Benchmark_${METHOD_ID_SAFE}"
-TARGET="sut/byte-buddy/byte-buddy-benchmark/src/main/java/net/bytebuddy/benchmark/${BENCH_CLASS}.java"
+TARGET_DIR="sut/byte-buddy/byte-buddy-benchmark/src/main/java/net/bytebuddy/benchmark"
+TARGET="${TARGET_DIR}/${BENCH_CLASS}.java"
 JAR="$(realpath "libs/chat2benchmark.jar")"
 BENCH_MODEL="${BENCH_MODEL:-llama-3.3-70b-versatile}"
 MAX_ATTEMPTS=10
@@ -75,6 +71,13 @@ to_win_path() {
   fi
 }
 SOURCE_FILE_WIN="$(to_win_path "$SOURCE_FILE")"
+
+# Chat2Benchmark writes directly into the real byte-buddy-benchmark module
+# (via -out) instead of guessing a scratch location under the SUT's own
+# module, so GENERATED is just TARGET_DIR/<ClassName>Benchmark.java.
+mkdir -p "$TARGET_DIR"
+OUTPUT_DIR_WIN="$(to_win_path "$(realpath "$TARGET_DIR")")"
+GENERATED="${TARGET_DIR}/${CLASS_NAME}Benchmark.java"
 
 # --- Input JSON (single method) ---
 INPUT_JSON="$(mktemp c2b_input_XXXXXX.json)"
@@ -121,7 +124,7 @@ for attempt in $(seq 1 $MAX_ATTEMPTS); do
   export OPENAI_API_KEY="$BENCH_API_KEY"
 
   # Run Chat2Benchmark (allow failure so we can retry)
-  java -jar "$JAR" "$INPUT_JSON" -host "$BENCH_ENDPOINT" -mdl "$BENCH_MODEL" || true
+  java -jar "$JAR" "$INPUT_JSON" -host "$BENCH_ENDPOINT" -mdl "$BENCH_MODEL" -out "$OUTPUT_DIR_WIN" || true
 
   if [[ -f "$GENERATED" ]]; then
     log "Chat2Benchmark produced output — post-processing and moving to target location"
@@ -243,15 +246,7 @@ for attempt in $(seq 1 $MAX_ATTEMPTS); do
     sed -i -E 's/(private|public) int (size|count|length|capacity) = 1;/\1 int \2 = 1000;/g' "$GENERATED_RENAMED"
     log "  Initialized uninitialized primitive fields to safe defaults (int=1, long=1L, double=1.0, float=1.0f; size/count/length/capacity=1000)"
 
-    mkdir -p "$(dirname "$TARGET")"
     mv "$GENERATED_RENAMED" "$TARGET"
-
-    # Clean up jmh dir left by BenchmarkFileWriter
-    JMH_DIR="$(echo "$SOURCE_FILE" | sed 's|/main/.*||')/jmh"
-    if [[ -d "$JMH_DIR" ]]; then
-      rm -rf "$JMH_DIR"
-      log "Cleaned up jmh directory: $JMH_DIR"
-    fi
 
     log "Validating with Maven compile (byte-buddy-benchmark module)..."
     if (cd sut/byte-buddy && mvn -q -pl byte-buddy-benchmark -am compile 2>&1); then
