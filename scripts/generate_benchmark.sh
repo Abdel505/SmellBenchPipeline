@@ -79,7 +79,7 @@ SOURCE_FILE_WIN="$(to_win_path "$SOURCE_FILE")"
 # --- Input JSON (single method) ---
 INPUT_JSON="$(mktemp c2b_input_XXXXXX.json)"
 trap 'rm -f "$INPUT_JSON"' EXIT
-printf '{ "%s": ["%s"] }\n' "$SOURCE_FILE_WIN" "$METHOD" > "$INPUT_JSON"
+printf '{ "%s": ["%s"] }\n' "$SOURCE_FILE_WIN" "$METHOD_ID" > "$INPUT_JSON"
 
 log() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*"; }
 
@@ -140,21 +140,44 @@ for attempt in $(seq 1 $MAX_ATTEMPTS); do
       sed -i "0,/^package .*/s//package ${PACKAGE_NAME};/" "$GENERATED"
     fi
 
-    # Fix: import the production class under test. Chat2Benchmark references it
-    # by simple name only, which used to work because the benchmark was placed
-    # in the *same* package as the production class — now that benchmarks always
-    # live in net.bytebuddy.benchmark (a different package), the class needs an
-    # explicit import or the compile fails with "cannot find symbol".
+    # Fix: import every production class Chat2Benchmark references by simple
+    # name only. This used to only matter for the class under test, which
+    # worked because the benchmark was placed in the *same* package as the
+    # production class — now that benchmarks always live in
+    # net.bytebuddy.benchmark (a different package), ANY class from the SUT's
+    # source tree that the generated code references also needs its own
+    # explicit import, or the compile fails with "cannot find symbol". These
+    # classes are NOT necessarily siblings in the same directory/package as
+    # the class under test — e.g. ClassFileLocator lives in
+    # net/bytebuddy/dynamic/, a sub-package of ClassFileVersion's net/bytebuddy/
+    # — so this scans the whole SUT source root (src/main/java) recursively,
+    # not just the source file's own directory.
     PRODUCTION_PACKAGE="$(dirname "$SOURCE_FILE" | sed 's|.*/main/java/||' | tr '/' '.')"
-    PRODUCTION_IMPORT="import ${PRODUCTION_PACKAGE}.${CLASS_NAME};"
-    if [[ "$PRODUCTION_PACKAGE" != "$PACKAGE_NAME" ]] \
-       && grep -qw "$CLASS_NAME" "$GENERATED" \
-       && ! grep -qF "$PRODUCTION_IMPORT" "$GENERATED"; then
-      log "  Injecting missing import for production class: ${PRODUCTION_IMPORT}"
-      awk -v imp="$PRODUCTION_IMPORT" '
-        /^import / && !done { print imp; done=1 }
-        { print }
-      ' "$GENERATED" > "${GENERATED}.fixed" && mv "${GENERATED}.fixed" "$GENERATED"
+    JAVA_SRC_ROOT="$(echo "$SOURCE_FILE" | sed -E 's|(.*/main/java)/.*|\1|')"
+    if [[ "$PRODUCTION_PACKAGE" != "$PACKAGE_NAME" ]]; then
+      while IFS= read -r CANDIDATE_FILE; do
+        CANDIDATE_CLASS="$(basename "$CANDIDATE_FILE" .java)"
+        CANDIDATE_PACKAGE="$(dirname "$CANDIDATE_FILE" | sed "s|${JAVA_SRC_ROOT}/||" | tr '/' '.')"
+        CANDIDATE_IMPORT="import ${CANDIDATE_PACKAGE}.${CANDIDATE_CLASS};"
+        if grep -qw "$CANDIDATE_CLASS" "$GENERATED"; then
+          # Chat2Benchmark sometimes guesses its own import for this class,
+          # and guesses the wrong package (e.g. "net.bytebuddy.ClassFileLocator"
+          # when the class actually lives in "net.bytebuddy.dynamic"). An
+          # import naming a nonexistent class fails the build even if the
+          # correct import is also present elsewhere in the file, so strip any
+          # existing import of this class name that isn't the correct one.
+          CANDIDATE_IMPORT_ESCAPED="${CANDIDATE_IMPORT//./\\.}"
+          sed -i -E "\|^import [a-zA-Z0-9_.]+\.${CANDIDATE_CLASS};\$|{ \|^${CANDIDATE_IMPORT_ESCAPED}\$| !d }" "$GENERATED"
+
+          if ! grep -qF "$CANDIDATE_IMPORT" "$GENERATED"; then
+            log "  Injecting missing import for referenced class: ${CANDIDATE_IMPORT}"
+            awk -v imp="$CANDIDATE_IMPORT" '
+              /^import / && !done { print imp; done=1 }
+              { print }
+            ' "$GENERATED" > "${GENERATED}.fixed" && mv "${GENERATED}.fixed" "$GENERATED"
+          fi
+        fi
+      done < <(find "$JAVA_SRC_ROOT" -name "*.java")
     fi
 
     # Fix: inject JMH runner imports required by the main() method
@@ -171,8 +194,15 @@ for attempt in $(seq 1 $MAX_ATTEMPTS); do
         MISSING_RUNNER_IMPORTS="${MISSING_RUNNER_IMPORTS}${imp}\n"
       fi
     done
+
+    # Fix: inject missing @Setup import. Chat2Benchmark sometimes emits an
+    # @Setup-annotated method without importing the annotation itself.
+    if grep -q '@Setup' "$GENERATED" && ! grep -qF "import org.openjdk.jmh.annotations.Setup;" "$GENERATED"; then
+      MISSING_RUNNER_IMPORTS="${MISSING_RUNNER_IMPORTS}import org.openjdk.jmh.annotations.Setup;\n"
+    fi
+
     if [[ -n "$MISSING_RUNNER_IMPORTS" ]]; then
-      log "  Injecting missing JMH runner imports"
+      log "  Injecting missing JMH imports"
       # Append missing imports after the last import line in the file
       awk -v imports="$MISSING_RUNNER_IMPORTS" '
         /^import / { last_import = NR }
