@@ -135,9 +135,6 @@ public interface NamingStrategy {
          */
         public Suffixing(String suffix) {
             this(suffix, BaseNameResolver.ForUnnamedType.INSTANCE);
-            if (suffix == null || suffix.isEmpty()) {
-                throw new IllegalArgumentException("Suffix must not be null or empty");
-            }
         }
 
         /**
