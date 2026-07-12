@@ -15,6 +15,12 @@ OUTPUT_FILE="pipeline-output/applicability-targets.json"
 
 log() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] [collect_applicability_targets] $*"; }
 
+# Prevent Git-Bash/MSYS from rewriting leading "/" in env var values (e.g. the
+# "/byte-buddy-dep/..." entries below) into a Windows path like "C:/Program Files/Git/..."
+# when python.exe (a native, non-MSYS binary) is spawned below.
+export MSYS_NO_PATHCONV=1
+export MSYS2_ARG_CONV_EXCL='*'
+
 # --- Collect all unique entries from all three input files ---
 declare -A seen_entries
 entries=()
@@ -178,12 +184,15 @@ for entry in entries:
         print(f"  [WARN] Cannot parse entry (no dot separator): {entry} — skipping", flush=True)
         continue
 
-    # com/pipeline/demo/StringUtils.joinWithSeparator
-    class_part = entry.rsplit(".", 1)[0]   # com/pipeline/demo/StringUtils
-    method     = entry.rsplit(".", 1)[1]   # joinWithSeparator
-    sut_src_root = os.environ.get("SUT_SRC_ROOT", "sut/byte-buddy/byte-buddy-dep/src/main/java")
+    # /byte-buddy-dep/src/main/java/net/bytebuddy/NamingStrategy.name(TypeDescription)
+    class_part = entry.rsplit(".", 1)[0]   # /byte-buddy-dep/src/main/java/net/bytebuddy/NamingStrategy
+    method     = entry.rsplit(".", 1)[1]   # name(TypeDescription)
+    method_name = method.split("(", 1)[0]  # name — bare identifier for AST/regex matching
+    # detect_changed_methods.sh only strips the "sut/byte-buddy" prefix, so entries
+    # still carry the module + "src/main/java" segment (e.g. "byte-buddy-dep/src/main/java/...")
+    sut_src_root = os.environ.get("SUT_SRC_ROOT", "sut/byte-buddy")
     # Strip inner-class suffix ($Inner) — the source always lives in the outer class file
-    file_class_part = class_part.split("$")[0]
+    file_class_part = class_part.split("$")[0].lstrip("/")
     java_file    = f"{sut_src_root}/{file_class_part}.java"
 
     if not os.path.isfile(java_file):
@@ -191,7 +200,7 @@ for entry in entries:
         continue
 
     all_lines = open(java_file, "r", encoding="utf-8").read().splitlines()
-    windows = extract_method_windows(all_lines, method)
+    windows = extract_method_windows(all_lines, method_name)
     if not windows:
         print(f"  [WARN] Method '{method}' not found in {java_file} — using full source", flush=True)
         snippet = "\n".join(all_lines)
