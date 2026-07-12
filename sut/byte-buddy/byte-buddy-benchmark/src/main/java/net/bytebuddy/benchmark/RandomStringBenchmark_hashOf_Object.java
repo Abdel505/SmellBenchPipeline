@@ -1,7 +1,6 @@
 package net.bytebuddy.benchmark;
 
-import net.bytebuddy.ClassFileVersion;
-import net.bytebuddy.dynamic.ClassFileLocator;
+import net.bytebuddy.utility.RandomString;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
 import org.openjdk.jmh.annotations.Fork;
@@ -14,7 +13,6 @@ import org.openjdk.jmh.annotations.Setup;
 import org.openjdk.jmh.annotations.State;
 import org.openjdk.jmh.annotations.Warmup;
 
-import java.io.IOException;
 import java.util.concurrent.TimeUnit;
 import org.openjdk.jmh.runner.Runner;
 import org.openjdk.jmh.runner.RunnerException;
@@ -26,22 +24,20 @@ import org.openjdk.jmh.runner.options.OptionsBuilder;
 @Warmup(iterations = 5, time = 1, timeUnit = TimeUnit.SECONDS)
 @Measurement(iterations = 5, time = 1, timeUnit = TimeUnit.SECONDS)
 @Fork(1)
-public class ClassFileVersionBenchmark_of_Class_ClassFileLocator {
+public class RandomStringBenchmark_hashOf_Object {
 
     @State(Scope.Thread)
     public static class BenchmarkState {
-        ClassFileLocator classFileLocator;
-        Class<?> type;
+        Object value;
 
         @Setup(Level.Trial)
         public void setup() {
-            type = ClassFileVersion.class;
-            classFileLocator = ClassFileLocator.ForClassLoader.of(type.getClassLoader());
+            value = new Object();
         }
     }
 
     @Benchmark
-    public ClassFileVersion ofClassAndClassFileLocator(BenchmarkState state) throws IOException {
-        return ClassFileVersion.of(state.type, state.classFileLocator);
+    public String hashOfObject(BenchmarkState state) {
+        return RandomString.hashOf(state.value);
     }
 }

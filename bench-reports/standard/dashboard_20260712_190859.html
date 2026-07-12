@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>AMBER Report - ClassFileVersionBenchmark_getJavaVersion</title>
+  <title>AMBER Report - RandomStringBenchmark_hashOf_int</title>
   <style>
     :root{
       --bg:#ffffff; --card:#ffffff; --border:#eaeaea; --muted:#6b7280; --text:#111827;
@@ -53,10 +53,10 @@
     </div>
     <div class="meta">
       <div class="pill">kind: <b>modified</b></div>
-      <div class="pill">sha: <b>645f907</b></div>
-      <div class="pill">ts: <b>20260708_170558</b></div>
-      <div class="pill">prod: <b>ClassFileVersion</b></div>
-      <div class="pill">test: <b>ClassFileVersionBenchmark_getJavaVersion</b></div>
+      <div class="pill">sha: <b>09f647d</b></div>
+      <div class="pill">ts: <b>20260712_190859</b></div>
+      <div class="pill">prod: <b></b></div>
+      <div class="pill">test: <b>RandomStringBenchmark_hashOf_int</b></div>
     </div>
   </div>
 
@@ -83,10 +83,10 @@
     <!-- payload embed (NO fetch) -->
     <script id="payload" type="text/plain">[
   {
-    "commit_id": "645f907",
+    "commit_id": "3217dd3",
     "jmhVersion": "1.37",
-    "benchmark": "net.bytebuddy.benchmark.ClassFileVersionBenchmark_getJavaVersion.getJavaVersion",
-    "mode": "avgt",
+    "benchmark": "net.bytebuddy.benchmark.RandomStringBenchmark_hashOf_int.hashOfInt",
+    "mode": "thrpt",
     "threads": 1,
     "forks": 5,
     "jvm": "C:\\Program Files\\Java\\jdk-21\\bin\\java.exe",
@@ -106,60 +106,60 @@
     "measurementTime": "1 s",
     "measurementBatchSize": 1,
     "primaryMetric": {
-      "score": 1.2082427864507839,
-      "scoreError": 0.15782934496201317,
+      "score": 0.03779627626407446,
+      "scoreError": 0.0046316164349165445,
       "scoreConfidence": [
-        1.0504134414887707,
-        1.366072131412797
+        0.033164659829157915,
+        0.042427892698991006
       ],
       "scorePercentiles": {
-        "0.0": 1.006626197437534,
-        "50.0": 1.1287463929293853,
-        "90.0": 1.652903160161188,
-        "95.0": 1.6950113055045846,
-        "99.0": 1.6976978471077788,
-        "99.9": 1.6976978471077788,
-        "99.99": 1.6976978471077788,
-        "99.999": 1.6976978471077788,
-        "99.9999": 1.6976978471077788,
-        "100.0": 1.6976978471077788
+        "0.0": 0.025891335108831657,
+        "50.0": 0.03696800082828887,
+        "90.0": 0.04748354002073743,
+        "95.0": 0.04901273511559041,
+        "99.0": 0.04963555761913861,
+        "99.9": 0.04963555761913861,
+        "99.99": 0.04963555761913861,
+        "99.999": 0.04963555761913861,
+        "99.9999": 0.04963555761913861,
+        "100.0": 0.04963555761913861
       },
-      "scoreUnit": "ns/op",
+      "scoreUnit": "ops/ns",
       "rawData": [
         [
-          1.6976978471077788,
-          1.0370731330553307,
-          1.0391472583745551,
-          1.0539482565779446,
-          1.0582789380934574
+          0.02727747879694986,
+          0.04277789465797051,
+          0.04963555761913861,
+          0.042463781947662524,
+          0.030786254884892776
         ],
         [
-          1.0956379119668818,
-          1.0612099050096313,
-          1.0206207249743362,
-          1.1784090302758137,
-          1.1287463929293853
+          0.025891335108831657,
+          0.031838774377540555,
+          0.042533661925728404,
+          0.047432911629688206,
+          0.03830205390917855
         ],
         [
-          1.3341053796084852,
-          1.211512162548624,
-          1.3164209504647997,
-          1.1393889412138833,
-          1.0807732156859207
+          0.03069375880099927,
+          0.03483427957634321,
+          0.038874372734108056,
+          0.047559482607311264,
+          0.03666502738510392
         ],
         [
-          1.1497273529277134,
-          1.0919406598783927,
-          1.0516205202815163,
-          1.0386009460751295,
-          1.006626197437534
+          0.0316486123833029,
+          0.03480667012940714,
+          0.0391331479666659,
+          0.0435632195507133,
+          0.03582333866641753
         ],
         [
-          1.6290101279816704,
-          1.319905217590452,
-          1.3978032637419238,
-          1.379122619037979,
-          1.6887427084304645
+          0.03558330143813099,
+          0.036669412056281665,
+          0.04186483438012802,
+          0.04127974324107784,
+          0.03696800082828887
         ]
       ]
     },
@@ -168,13 +168,13 @@
 ]</script>
     <script id="payload_bootstrap" type="text/plain">[
   {
-    "benchmark": "net.bytebuddy.benchmark.ClassFileVersionBenchmark_getJavaVersion.getJavaVersion",
-    "unit": "ns/op",
+    "benchmark": "net.bytebuddy.benchmark.RandomStringBenchmark_hashOf_int.hashOfInt",
+    "unit": "ops/ns",
     "n_prev": 25,
     "n_curr": 25,
-    "mean_prev": 1.6924663579823085,
-    "mean_curr": 1.208242786450784,
-    "delta_pct": -28.61052860801302,
+    "mean_prev": 0.02498527028709594,
+    "mean_curr": 0.03779627626407446,
+    "delta_pct": 51.27423409781954,
     "p_value": 0.0,
     "verdict": "SIGNIFICANT",
     "note": null

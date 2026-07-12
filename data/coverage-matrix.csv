@@ -1,3 +1,2 @@
-sut/byte-buddy/byte-buddy-dep/src/main/java/net/bytebuddy/ClassFileVersion.java|getJavaVersion|ClassFileVersionBenchmark_getJavaVersion|
-sut/byte-buddy/byte-buddy-dep/src/main/java/net/bytebuddy/ClassFileVersion.java|toString|ClassFileVersionBenchmark_toString|
-C:/Users/ww/Desktop/Filter/SmellBenchPipeline/sut/byte-buddy/byte-buddy-dep/src/main/java/net/bytebuddy/ClassFileVersion.java|of(Class,ClassFileLocator)|ClassFileVersionBenchmark_of(Class,ClassFileLocator)|
+sut/byte-buddy/byte-buddy-dep/src/main/java/net/bytebuddy/utility/RandomString.java|hashOf(Object)|RandomStringBenchmark_hashOf(Object)|
+sut/byte-buddy/byte-buddy-dep/src/main/java/net/bytebuddy/utility/RandomString.java|hashOf(int)|RandomStringBenchmark_hashOf(int)

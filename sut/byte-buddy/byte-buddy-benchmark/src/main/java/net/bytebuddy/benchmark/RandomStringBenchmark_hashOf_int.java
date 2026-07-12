@@ -1,33 +1,40 @@
 package net.bytebuddy.benchmark;
 
-import net.bytebuddy.ClassFileVersion;
+import net.bytebuddy.utility.RandomString;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
+import org.openjdk.jmh.annotations.Fork;
+import org.openjdk.jmh.annotations.Level;
 import org.openjdk.jmh.annotations.Mode;
 import org.openjdk.jmh.annotations.OutputTimeUnit;
 import org.openjdk.jmh.annotations.Scope;
+import org.openjdk.jmh.annotations.Setup;
 import org.openjdk.jmh.annotations.State;
-import org.openjdk.jmh.annotations.TearDown;
-import org.openjdk.jmh.infra.Blackhole;
+
 import java.util.concurrent.TimeUnit;
 import org.openjdk.jmh.runner.Runner;
 import org.openjdk.jmh.runner.RunnerException;
 import org.openjdk.jmh.runner.options.Options;
 import org.openjdk.jmh.runner.options.OptionsBuilder;
 
-@State(Scope.Benchmark)
-@BenchmarkMode(Mode.AverageTime)
+@BenchmarkMode(Mode.Throughput)
 @OutputTimeUnit(TimeUnit.NANOSECONDS)
-public class ClassFileVersionBenchmark_toString {
+@Fork(1)
+public class RandomStringBenchmark_hashOf_int {
 
-    private ClassFileVersion classFileVersion;
+    @State(Scope.Thread)
+    public static class BenchmarkState {
 
-    public ClassFileVersionBenchmark_toString() {
-        classFileVersion = ClassFileVersion.JAVA_V1;
+        public int value = 1;
+    }
+
+    private static final class Holder {
+        private Holder() {
+        }
     }
 
     @Benchmark
-    public void toStringBenchmark(Blackhole blackhole) {
-        blackhole.consume(classFileVersion.toString());
+    public String hashOfInt(BenchmarkState state) {
+        return RandomString.hashOf(state.value);
     }
 }

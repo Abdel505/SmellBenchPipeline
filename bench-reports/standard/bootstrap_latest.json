@@ -1,12 +1,12 @@
 [
   {
-    "benchmark": "net.bytebuddy.benchmark.ClassFileVersionBenchmark_getJavaVersion.getJavaVersion",
-    "unit": "ns/op",
+    "benchmark": "net.bytebuddy.benchmark.RandomStringBenchmark_hashOf_int.hashOfInt",
+    "unit": "ops/ns",
     "n_prev": 25,
     "n_curr": 25,
-    "mean_prev": 1.6924663579823085,
-    "mean_curr": 1.208242786450784,
-    "delta_pct": -28.61052860801302,
+    "mean_prev": 0.02498527028709594,
+    "mean_curr": 0.03779627626407446,
+    "delta_pct": 51.27423409781954,
     "p_value": 0.0,
     "verdict": "SIGNIFICANT",
     "note": null

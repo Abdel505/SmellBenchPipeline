@@ -1,4 +1,87 @@
-[
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>AMBER Report - RandomStringBenchmark_hashOf_int</title>
+  <style>
+    :root{
+      --bg:#ffffff; --card:#ffffff; --border:#eaeaea; --muted:#6b7280; --text:#111827;
+      --pill:#fafafa; --pill-border:#e7e7e7;
+      --good:#0a7; --bad:#d33; --mid:#777;
+      --shadow:0 6px 22px rgba(0,0,0,.06); --radius:14px;
+    }
+    body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;margin:24px;background:var(--bg);color:var(--text);}
+    .wrap{max-width:1100px;margin:0 auto;}
+    .topbar{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:14px;}
+    h1{font-size:22px;margin:0;letter-spacing:.2px;}
+    .subtitle{color:var(--muted);font-size:12px;margin-top:4px;}
+    .meta{display:flex;gap:10px;flex-wrap:wrap;margin:14px 0;}
+    .pill{padding:6px 10px;border:1px solid var(--pill-border);border-radius:999px;font-size:12px;background:var(--pill);}
+    .grid{display:grid;grid-template-columns:1fr;gap:14px;}
+    .card{border:1px solid var(--border);border-radius:var(--radius);padding:14px;background:var(--card);box-shadow:var(--shadow);}
+    .muted{color:var(--muted);}
+    .mono{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;font-size:12px;}
+    .title-row{display:flex;align-items:baseline;justify-content:space-between;gap:12px;flex-wrap:wrap;}
+    h2{font-size:16px;margin:0;}
+    .kpi{display:flex;gap:10px;flex-wrap:wrap;margin-top:10px;}
+    .kpi .pill{background:#fcfcfc;}
+    .sticky{border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;}
+    table{border-collapse:collapse;width:100%;}
+    th,td{border-bottom:1px solid #f0f0f0;padding:10px;text-align:left;vertical-align:top;}
+    th{background:#fafafa;font-weight:650;}
+    .right{text-align:right;}
+    .sticky thead th{position:sticky;top:0;z-index:1;}
+
+    .delta{font-weight:800;}
+    .delta.pos{color:var(--good);}
+    .delta.neg{color:var(--bad);}
+    .delta.zero{color:var(--mid);}
+
+    .rowhint{color:var(--muted);font-size:12px;margin-top:8px;}
+    .empty{padding:14px;border:1px dashed var(--border);border-radius:var(--radius);background:#fcfcfc;color:var(--muted);}
+    pre.debug{margin:0;padding:12px;border:1px solid var(--border);border-radius:var(--radius);background:#fcfcfc;overflow:auto;max-height:520px;}
+  </style>
+</head>
+
+<body>
+<div class="wrap">
+  <div class="topbar">
+    <div>
+      <h1>AMBER Benchmark report</h1>
+      <div class="subtitle">Report locale (file:// OK) • JSON embeddato (niente fetch)</div>
+    </div>
+    <div class="meta">
+      <div class="pill">kind: <b>modified</b></div>
+      <div class="pill">sha: <b>09f647d</b></div>
+      <div class="pill">ts: <b>20260712_192402</b></div>
+      <div class="pill">prod: <b></b></div>
+      <div class="pill">test: <b>RandomStringBenchmark_hashOf_int</b></div>
+    </div>
+  </div>
+
+  <div class="grid">
+    <div class="card">
+      <div class="muted">Source JSON</div>
+      <div class="mono" style="margin-top:6px;">/c/Users/ww/Desktop/Filter/SmellBenchPipeline/data/jmh-result.json</div>
+
+      <div class="kpi">
+        <div class="pill">Formato: <b id="kpi-format">-</b></div>
+        <div class="pill">Righe: <b id="kpi-rows">-</b></div>
+        <div class="pill">Summary: <b id="kpi-summary">-</b></div>
+      </div>
+
+      <div class="rowhint">
+        In modified, se il compare è presente: mostro prev/curr/delta% (verde migliora, rosso peggiora).
+      </div>
+
+    </div>
+    <div class="rowhint" id="kpi-bootstrap-path" style="display:none;">
+      <span class="muted">Bootstrap JSON:</span> <span class="mono" id="boot-path"></span>
+    </div>
+
+    <!-- payload embed (NO fetch) -->
+    <script id="payload" type="text/plain">[
   {
     "commit_id": "3217dd3",
     "jmhVersion": "1.37",
@@ -576,4 +659,270 @@
     },
     "secondaryMetrics": {}
   }
+]</script>
+    <script id="payload_bootstrap" type="text/plain">[
+  {
+    "benchmark": "net.bytebuddy.benchmark.RandomStringBenchmark_hashOf_int.hashOfInt",
+    "unit": "ops/ns",
+    "n_prev": 25,
+    "n_curr": 500,
+    "mean_prev": 0.02498527028709594,
+    "mean_curr": 0.02800923559534853,
+    "delta_pct": 12.10299217701226,
+    "p_value": 0.0028,
+    "verdict": "SIGNIFICANT",
+    "note": null
+  }
 ]
+</script>
+
+    <div id="content" class="card"></div>
+
+    <noscript>
+      <div class="card"><b>Errore:</b> JavaScript è disabilitato nel browser.</div>
+    </noscript>
+  </div>
+</div>
+
+<script>
+  function fmt(n) {
+    if (n === null || n === undefined) return "-";
+    const num = Number(n);
+    if (Number.isNaN(num)) return "-";
+    const abs = Math.abs(num);
+    if (abs >= 1000) return num.toFixed(2);
+    if (abs >= 10) return num.toFixed(3);
+    return num.toFixed(6);
+  }
+  function fmtPct(n) {
+    if (n === null || n === undefined || Number.isNaN(n)) return "-";
+    const sign = (n > 0) ? "+" : "";
+    return sign + n.toFixed(3);
+  }
+  function classifyDelta(d) {
+    if (d === null || d === undefined || Number.isNaN(d)) return "zero";
+    if (d > 0) return "pos";
+    if (d < 0) return "neg";
+    return "zero";
+  }
+  function fmt2(n) {
+    if (n === null || n === undefined || Number.isNaN(n)) return "-";
+    return Number(n).toFixed(2);
+  }
+
+  function formatBootstrapResult(bootEntry) {
+    // Flat schema: { verdict, delta_pct, mean_prev, mean_curr, note, ... }
+    if (!bootEntry) return { text: 'no data', cls: 'zero' };
+    var verdict = bootEntry.verdict || 'INSUFFICIENT_DATA';
+    var delta = (typeof bootEntry.delta_pct === 'number') ? bootEntry.delta_pct : null;
+    if (verdict === 'INSUFFICIENT_DATA') {
+      return { text: 'insufficient data', cls: 'zero' };
+    }
+    if (verdict === 'NOT_SIGNIFICANT') {
+      return { text: 'no significant change (' + fmtPct(delta) + '%)', cls: 'zero' };
+    }
+    // SIGNIFICANT — avgt mode: delta_pct < 0 = curr faster = improvement
+    if (delta !== null) {
+      if (delta < 0) return { text: 'improvement: ' + fmtPct(delta) + '%', cls: 'pos' };
+      if (delta > 0) return { text: 'regression: +' + fmtPct(delta) + '%', cls: 'neg' };
+    }
+    return { text: verdict, cls: 'zero' };
+  }
+  function readJsonFromScript(id) {
+    const el = document.getElementById(id);
+    if (!el) return null;
+    const raw = (el.textContent || "").trim();
+    if (!raw) return null;
+    try { return JSON.parse(raw); } catch (_) { return null; }
+  }
+
+  function buildBootstrapMap(bootArr) {
+    // bootArr: [{ benchmark, bootstrap:{ok,ci95,...}, verdict }, ...]
+    const m = new Map();
+    if (!Array.isArray(bootArr)) return m;
+    for (const e of bootArr) {
+      const name = e && e.benchmark;
+      if (!name) continue;
+      m.set(name, e);
+    }
+    return m;
+  }
+  function renderAddedOrModified(jmhArr, bootstrapMap /* optional */) {
+    const rows = jmhArr.map(x => {
+      const benchmark = x?.benchmark || "";
+      const score = x?.primaryMetric?.score;
+      const err   = x?.primaryMetric?.scoreError;
+      const unit  = x?.primaryMetric?.scoreUnit || "";
+      const bootE = bootstrapMap && benchmark ? bootstrapMap.get(benchmark) : null;
+      return {
+        benchmark,
+        score, err, unit,
+        prev: bootE ? bootE.mean_prev : null,
+        curr: bootE ? bootE.mean_curr : score,
+        delta_pct: bootE ? bootE.delta_pct : null,
+        boot: bootE,
+        hasCmp: !!bootE
+      };
+    }).sort((a,b) => (b.score ?? -Infinity) - (a.score ?? -Infinity));
+
+    const hasCompareCols = !!(bootstrapMap && bootstrapMap.size > 0);
+
+    return `
+      <div class="title-row">
+        <h2>Risultati</h2>
+        <div class="subtitle"> ${hasCompareCols ? "Mostro prev/curr dal compare. Il campo result usa il bootstrap (CI95)." : "Nessun compare agganciato."}</div>
+      </div>
+
+      ${rows.length ? `
+        <div class="sticky" style="margin-top:12px;">
+          <table>
+            <thead>
+                <tr>
+                  <th>benchmark</th>
+                  <th class="right">prev</th>
+                  <th class="right">curr</th>
+                  <th class="right">error</th>
+                  <th>unit</th>
+                  <th>result</th>
+                </tr>
+            </thead>
+            <tbody>
+  ${rows.map(r => {
+      // se il benchmark è nel compare => risultato bootstrap
+      if (r.hasCmp) {
+        const res = formatBootstrapResult(r.boot);
+        const cls = res.cls;
+        return `
+      <tr>
+        <td class="mono">${r.benchmark}</td>
+        <td class="right">${fmt(r.prev)}</td>
+        <td class="right">${fmt(r.curr)}</td>
+        <td class="right">${fmt(r.err)}</td>
+        <td>${r.unit}</td>
+        <td class="delta ${cls}">${res.text}</td>
+      </tr>
+    `;
+      }
+
+      // benchmark nuovo (non presente nel compare): solo error/unit, il resto "-"
+      return `
+  <tr>
+    <td class="mono">${r.benchmark}</td>
+    <td class="right">-</td>
+    <td class="right">${fmt(r.score)}</td>
+    <td class="right">${fmt(r.err)}</td>
+    <td>${r.unit}</td>
+    <td>-</td>
+  </tr>
+`;
+    }).join("")}
+</tbody>
+          </table>
+        </div>
+
+        <div class="rowhint">
+          <b>error</b> è l’incertezza stimata da JMH sullo score (es. intervallo/confidenza), non è “errore del programma”.
+        </div>
+      ` : `<div class="empty" style="margin-top:12px;">Nessun risultato nel JSON (array vuoto).</div>`}
+    `;
+  }
+
+  function renderCompareOnly(compareObj) {
+    const comps = (compareObj.comparisons || []).slice().sort((a,b) => (b.delta_pct ?? -Infinity) - (a.delta_pct ?? -Infinity));
+    return `
+      <div class="title-row">
+        <h2>Confronto (prev → curr)</h2>
+        <div class="subtitle">Delta%: verde = miglioramento, rosso = peggioramento</div>
+      </div>
+
+      <div class="sticky" style="margin-top:12px;">
+        <table>
+          <thead>
+            <tr>
+              <th>benchmark</th>
+              <th class="right">prev</th>
+              <th class="right">curr</th>
+              <th class="right">delta %</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${comps.map(c => {
+      const d = c?.delta_pct;
+      const cls = classifyDelta(d);
+      return `
+                <tr>
+                  <td class="mono">${c?.benchmark || ""}</td>
+                  <td class="right">${fmt(c?.prev)}</td>
+                  <td class="right">${fmt(c?.curr)}</td>
+                  <td class="right delta ${cls}">${fmtPct(d)}</td>
+                </tr>
+              `;
+    }).join("")}
+          </tbody>
+        </table>
+      </div>
+    `;
+  }
+
+  (function main() {
+    const content = document.getElementById("content");
+    const kpiFormat = document.getElementById("kpi-format");
+    const kpiRows = document.getElementById("kpi-rows");
+    const kpiSummary = document.getElementById("kpi-summary");
+
+    if (!content) { document.body.innerHTML = "<pre>ERRORE: #content non trovato</pre>"; return; }
+    content.innerHTML = `<div class="muted">Loading report...</div>`;
+
+    const kind = "modified";
+    const data = readJsonFromScript("payload");
+    const boot = readJsonFromScript("payload_bootstrap");
+
+    const bootPath = "/c/Users/ww/Desktop/Filter/SmellBenchPipeline/bench-reports/amber/bootstrap_latest.json";
+    if (bootPath && bootPath.trim().length > 0) {
+      const box = document.getElementById("kpi-bootstrap-path");
+      const span = document.getElementById("boot-path");
+      if (box && span) { box.style.display = "block"; span.textContent = bootPath; }
+    }
+
+    if (!data) {
+      kpiFormat.textContent = "empty/invalid";
+      kpiRows.textContent = "0";
+      kpiSummary.textContent = "-";
+      content.innerHTML = `<div class="empty"><b>Errore:</b> payload JSON vuoto o non parsabile</div>`;
+      return;
+    }
+
+    // Se il payload principale è già un compare object
+    const looksLikeCompare = (data && typeof data === "object" && !Array.isArray(data) && Array.isArray(data.comparisons));
+    if (looksLikeCompare || kind === "compare") {
+      kpiFormat.textContent = "compare object";
+      kpiRows.textContent = String((data.comparisons || []).length);
+      kpiSummary.textContent = `common=${data.common_count ?? "-"}`;
+      content.innerHTML = renderCompareOnly(data);
+      return;
+    }
+
+    // JMH array (added/modified)
+    if (Array.isArray(data)) {
+      const bootLooksOk = Array.isArray(boot);
+      const bootstrapMap = ((kind === "modified" || kind === "added") && bootLooksOk) ? buildBootstrapMap(boot) : null;
+
+      content.innerHTML = renderAddedOrModified(data, bootstrapMap);
+      return;
+    }
+
+    // fallback debug
+    kpiFormat.textContent = "object/other";
+    kpiRows.textContent = (data && typeof data === "object") ? String(Object.keys(data).length) : "-";
+    kpiSummary.textContent = "debug";
+    content.innerHTML = `
+      <div class="title-row">
+        <h2>Payload (debug)</h2>
+        <div class="subtitle">Formato non previsto: lo mostro in chiaro</div>
+      </div>
+      <pre class="debug" style="margin-top:12px;">${JSON.stringify(data, null, 2)}</pre>
+    `;
+  })();
+</script>
+</body>
+</html>

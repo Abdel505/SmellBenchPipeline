@@ -1,1 +1,1 @@
-net/bytebuddy/ClassFileVersion
+/byte-buddy-dep/src/main/java/net/bytebuddy/utility/RandomString

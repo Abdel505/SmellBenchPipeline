@@ -1,37 +1,13 @@
 [
   {
-    "benchmark": "com.pipeline.demo.SortUtilsBenchmark_findFirstRowContaining.findFirstRowContaining",
-    "unit": "ns/op",
+    "benchmark": "net.bytebuddy.benchmark.RandomStringBenchmark_hashOf_int.hashOfInt",
+    "unit": "ops/ns",
     "n_prev": 25,
     "n_curr": 500,
-    "mean_prev": 305842.89136287133,
-    "mean_curr": 442026.3165686641,
-    "delta_pct": 44.527248810310304,
-    "p_value": 0.0,
-    "verdict": "SIGNIFICANT",
-    "note": null
-  },
-  {
-    "benchmark": "net.bytebuddy.ClassFileVersionBenchmark_getJavaVersion.getJavaVersion",
-    "unit": "ns/op",
-    "n_prev": 25,
-    "n_curr": 500,
-    "mean_prev": 3.5873297807607343,
-    "mean_curr": 3.4423346689996897,
-    "delta_pct": -4.041867367161788,
-    "p_value": 0.0244,
-    "verdict": "SIGNIFICANT",
-    "note": null
-  },
-  {
-    "benchmark": "net.bytebuddy.matcher.FilterableListBenchmark_filter.filterEven",
-    "unit": "ops/s",
-    "n_prev": 500,
-    "n_curr": 500,
-    "mean_prev": 77126.37122474796,
-    "mean_curr": 123132.80859957484,
-    "delta_pct": 59.65072211262618,
-    "p_value": 0.0,
+    "mean_prev": 0.02498527028709594,
+    "mean_curr": 0.02800923559534853,
+    "delta_pct": 12.10299217701226,
+    "p_value": 0.0028,
     "verdict": "SIGNIFICANT",
     "note": null
   }
