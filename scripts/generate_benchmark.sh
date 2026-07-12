@@ -38,7 +38,6 @@ METHOD_ID="$2"
 METHOD="${METHOD_ID%%(*}"
 CLASS_NAME="$(basename "$SOURCE_FILE" .java)"
 
-
 # Sanitize the (possibly parameter-qualified) method identifier into a valid
 # Java identifier suffix for BENCH_CLASS — parens/commas aren't legal in a
 # Java identifier. Zero-arg methods ("getJavaVersion()") reduce to their bare
@@ -58,16 +57,26 @@ TARGET="${TARGET_DIR}/${BENCH_CLASS}.java"
 JAR="$(realpath "libs/chat2benchmark.jar")"
 BENCH_MODEL="${BENCH_MODEL:-llama-3.3-70b-versatile}"
 MAX_ATTEMPTS=10
+PACKAGE_NAME="net.bytebuddy.benchmark"
+
+# JMH runner imports required by the generated main() method; Chat2Benchmark
+# may omit these even when it generates a main() block.
+RUNNER_IMPORTS=(
+  "import org.openjdk.jmh.runner.Runner;"
+  "import org.openjdk.jmh.runner.RunnerException;"
+  "import org.openjdk.jmh.runner.options.Options;"
+  "import org.openjdk.jmh.runner.options.OptionsBuilder;"
+)
 
 # --- Convert WSL path to Windows path for Java on Windows ---
 # WSL mounts drives as /c/, /d/, etc. Windows JRE turns /c/... into \c\... (no drive letter).
 # We convert /c/foo -> C:/foo so Files.readString() resolves correctly.
 to_win_path() {
-  local p="$1"
-  if [[ "$p" =~ ^/([a-zA-Z])/(.*) ]]; then
+  local path="$1"
+  if [[ "$path" =~ ^/([a-zA-Z])/(.*) ]]; then
     echo "${BASH_REMATCH[1]^^}:/${BASH_REMATCH[2]}"
   else
-    echo "$p"
+    echo "$path"
   fi
 }
 SOURCE_FILE_WIN="$(to_win_path "$SOURCE_FILE")"
@@ -80,6 +89,11 @@ OUTPUT_DIR_WIN="$(to_win_path "$(realpath "$TARGET_DIR")")"
 GENERATED="${TARGET_DIR}/${CLASS_NAME}Benchmark.java"
 
 # --- Input JSON (single method) ---
+# NOTE: deliberately a bare relative filename (created in $PWD), NOT an
+# absolute POSIX path — unlike SOURCE_FILE/TARGET_DIR above, this path is
+# handed to Java as-is, with no to_win_path conversion. A relative name
+# resolves correctly for both the WSL shell and Windows java.exe; an
+# absolute /tmp/... path would not.
 INPUT_JSON="$(mktemp c2b_input_XXXXXX.json)"
 trap 'rm -f "$INPUT_JSON"' EXIT
 printf '{ "%s": ["%s"] }\n' "$SOURCE_FILE_WIN" "$METHOD_ID" > "$INPUT_JSON"
@@ -116,12 +130,12 @@ log "Target  : $TARGET"
 log "BenchClass: $BENCH_CLASS"
 log "Expected Chat2Benchmark output: $GENERATED"
 
-# --- Retry loop ---
-for attempt in $(seq 1 $MAX_ATTEMPTS); do
-  log "Attempt $attempt/$MAX_ATTEMPTS — ${BENCH_CLASS}"
+# LLMClient reads OPENAI_API_KEY from env
+export OPENAI_API_KEY="$BENCH_API_KEY"
 
-  # LLMClient reads OPENAI_API_KEY from env
-  export OPENAI_API_KEY="$BENCH_API_KEY"
+# --- Retry loop ---
+for ((attempt = 1; attempt <= MAX_ATTEMPTS; attempt++)); do
+  log "Attempt $attempt/$MAX_ATTEMPTS — ${BENCH_CLASS}"
 
   # Run Chat2Benchmark (allow failure so we can retry)
   java -jar "$JAR" "$INPUT_JSON" -host "$BENCH_ENDPOINT" -mdl "$BENCH_MODEL" -out "$OUTPUT_DIR_WIN" || true
@@ -133,7 +147,6 @@ for attempt in $(seq 1 $MAX_ATTEMPTS); do
     # where the file will be moved to — never copy the package from the
     # production source file (Chat2Benchmark usually omits the line, but may
     # also copy the source's own package if it does add one).
-    PACKAGE_NAME="net.bytebuddy.benchmark"
     if ! grep -q "^package " "$GENERATED"; then
       log "  Injecting missing package declaration: package ${PACKAGE_NAME};"
       { echo "package ${PACKAGE_NAME};"; echo ""; cat "$GENERATED"; } > "${GENERATED}.fixed"
@@ -183,14 +196,7 @@ for attempt in $(seq 1 $MAX_ATTEMPTS); do
       done < <(find "$JAVA_SRC_ROOT" -name "*.java")
     fi
 
-    # Fix: inject JMH runner imports required by the main() method
-    # Chat2Benchmark may omit these even when it generates a main() block.
-    RUNNER_IMPORTS=(
-      "import org.openjdk.jmh.runner.Runner;"
-      "import org.openjdk.jmh.runner.RunnerException;"
-      "import org.openjdk.jmh.runner.options.Options;"
-      "import org.openjdk.jmh.runner.options.OptionsBuilder;"
-    )
+    # Fix: inject any of the JMH runner imports (declared above) that are missing.
     MISSING_RUNNER_IMPORTS=""
     for imp in "${RUNNER_IMPORTS[@]}"; do
       if ! grep -qF "$imp" "$GENERATED"; then
