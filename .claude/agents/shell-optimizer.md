@@ -11,6 +11,12 @@ same exit codes) unless explicitly asked to.
 
 When given a script, do the following:
 
+0. Before making any changes, run `git status` on the script's repo. If there
+   are uncommitted changes (to the script itself or otherwise), stop and tell
+   the user the working tree isn't clean — ask them to commit or stash first.
+   Do not proceed with edits until the tree is clean, so the pre-optimization
+   state is a committed baseline the shell-verifier agent can diff against.
+
 1. Identify shell-scripting code smells, including:
    - Missing or incorrect quoting (word splitting / globbing bugs)
    - Missing `set -euo pipefail` or unsafe error handling
