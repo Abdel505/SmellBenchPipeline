@@ -108,11 +108,11 @@ tasks.register<JavaExec>("jmhRun") {
     val jmhArgs = mutableListOf(
         "-rf", "json", "-rff", "../data/jmh-result.json",
 
-        "-f",  System.getenv("AMBER_FORKS")   ?: "5",
+        "-f",  System.getenv("JMH_FORKS")   ?: "5",
 
-        "-wi", if (runAmber) "500"   else (System.getenv("AMBER_WI")    ?: "3"),
+        "-wi", if (runAmber) "500"   else (System.getenv("JMH_WARMUP_ITER") ?: "3"),
         "-w",  if (runAmber) "100ms" else (System.getenv("AMBER_WTIME") ?: "1s"),
-        "-i",  if (runAmber) "100"   else (System.getenv("AMBER_MI")    ?: "5"),
+        "-i",  if (runAmber) "100"   else (System.getenv("JMH_MEASURE_ITER") ?: "5"),
         "-r",  if (runAmber) "100ms" else (System.getenv("AMBER_MTIME") ?: "1s"),
         "-to", System.getenv("AMBER_TIMEOUT") ?: "1m",
         "-t",  "1",

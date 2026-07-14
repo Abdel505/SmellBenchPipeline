@@ -4,7 +4,7 @@
 Compares `forks`/`measurementIterations` between the current JMH run and the
 stored best-result baseline, per (benchmark, params) slot -- the same slot key
 used by run-benchmarks.sh's best-result merge logic. Config is read from the
-JMH output itself (ground truth), never from AMBER_FORKS/AMBER_MI/AMBER_WI.
+JMH output itself (ground truth), never from JMH_FORKS/JMH_MEASURE_ITER/JMH_WARMUP_ITER.
 
 Verdicts:
   NEW              - no baseline for this slot yet, nothing to compare.

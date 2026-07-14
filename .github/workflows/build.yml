@@ -228,10 +228,10 @@ jobs:
         run: bash scripts/run-benchmarks.sh "net.bytebuddy.benchmark.ClassFileVersionBenchmark.getJavaVersion"
         env:
           AMBER_MODEL: oscnn
-          AMBER_FORKS: "5"
-          AMBER_WI: "1"
+          JMH_FORKS: "5"
+          JMH_WARMUP_ITER: "1"
           AMBER_WTIME: "1s"
-          AMBER_MI: "2"
+          JMH_MEASURE_ITER: "2"
           AMBER_MTIME: "1s"
           AMBER_TIMEOUT: "1m"
           RUN_AMBER: "1"
