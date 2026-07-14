@@ -15,6 +15,11 @@ Verdicts:
                      still skipped (it would be misleading), but this slot's
                      baseline should be replaced unconditionally.
 
+--pre-check mode: run before the JMH benchmarks execute, using the forks/
+measurementIterations this run is *about* to use (uniform across every
+benchmark in a single `gradlew jmhRun` invocation) instead of a produced
+jmh-result.json, so a mismatch can abort before paying for the run.
+
 See Docs/SmellBenchPipline_docs/Update-3-tasks.md, task 5.
 """
 import json
@@ -73,10 +78,42 @@ def compute_verdicts(best, curr, override):
     return verdicts
 
 
+def precheck_verdicts(best, intended_forks, intended_measurement_iterations, override):
+    synthetic_curr = [
+        {
+            "benchmark": e.get("benchmark", ""),
+            "params": e.get("params"),
+            "forks": intended_forks,
+            "measurementIterations": intended_measurement_iterations,
+        }
+        for e in best
+        if isinstance(e, dict) and e.get("benchmark")
+    ]
+    return compute_verdicts(best, synthetic_curr, override)
+
+
 def main():
+    if len(sys.argv) == 6 and sys.argv[1] == "--pre-check":
+        _, _, best_path, forks_arg, measurement_iter_arg, override_arg = sys.argv
+        override = override_arg == "1"
+
+        try:
+            best = load_json(best_path)
+        except FileNotFoundError:
+            best = []
+
+        verdicts = precheck_verdicts(
+            best, int(forks_arg), int(measurement_iter_arg), override
+        )
+        json.dump(verdicts, sys.stdout, indent=2)
+        sys.stdout.write("\n")
+        return
+
     if len(sys.argv) != 4:
         raise SystemExit(
-            "Usage: config_guard.py <best-result.json> <jmh-result.json> <override:0|1>"
+            "Usage: config_guard.py <best-result.json> <jmh-result.json> <override:0|1>\n"
+            "       config_guard.py --pre-check <best-result.json> <forks> "
+            "<measurementIterations> <override:0|1>"
         )
     best_path, curr_path, override_arg = sys.argv[1], sys.argv[2], sys.argv[3]
     override = override_arg == "1"

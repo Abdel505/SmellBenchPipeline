@@ -4,6 +4,7 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 BENCH_REPORTS="${ROOT_DIR}/bench-reports"
 OUTFILE="${ROOT_DIR}/data/jmh-result.json"
+BEST_FILE="${ROOT_DIR}/data/best-result.json"
 export RUN_AMBER="${RUN_AMBER:-1}"
 
 if [[ "${RUN_AMBER}" == "1" ]]; then
@@ -83,6 +84,43 @@ echo "[run-benchmarks] Running JMH benchmarks via Gradle jmhRun..."
 echo "[run-benchmarks] RUN_AMBER=${RUN_AMBER} (set RUN_AMBER=1 to enable AMBER server flags)"
 echo "[run-benchmarks] AMBER_INCLUDE=${AMBER_INCLUDE_LABEL:-${AMBER_INCLUDE:-<all benchmarks>}}"
 
+# --- Pre-run Configuration Consistency guard ---
+# forks/measurementIterations are global CLI flags in app/build.gradle.kts's jmhRun task --
+# uniform across every benchmark in this run, not per-benchmark. Mirror those same defaults
+# here and compare the intended config against best-result.json BEFORE paying for the JMH
+# run, so a mismatch aborts early instead of only being caught afterward. See
+# Docs/SmellBenchPipline_docs/Update-3-tasks.md task 5 and the pre-run-config-check-tasks.md follow-up.
+INTENDED_FORKS="${JMH_FORKS:-5}"
+if [[ "${RUN_AMBER}" == "1" ]]; then
+  INTENDED_MEASURE_ITER="100"
+else
+  INTENDED_MEASURE_ITER="${JMH_MEASURE_ITER:-5}"
+fi
+
+PRECHECK_VERDICTS="${RUN_DIR}/config_precheck.json"
+python "${ROOT_DIR}/tools/bootstrap/config_guard.py" \
+  --pre-check "${BEST_FILE}" "${INTENDED_FORKS}" "${INTENDED_MEASURE_ITER}" "${CONFIG_OVERRIDE}" \
+  > "${PRECHECK_VERDICTS}"
+
+PRECHECK_MISMATCHES="$(python - "${PRECHECK_VERDICTS}" <<'PYEOF'
+import json, sys
+
+with open(sys.argv[1], encoding="utf-8-sig") as f:
+    verdicts = json.load(f)
+
+for v in verdicts:
+    if v["verdict"] == "CONFIG_MISMATCH":
+        print(v["benchmark"])
+PYEOF
+)"
+
+if [[ -n "${PRECHECK_MISMATCHES}" ]]; then
+  echo "[run-benchmarks] ERROR: config mismatch vs best-result.json for:" >&2
+  echo "${PRECHECK_MISMATCHES}" | sed 's/^/[run-benchmarks]   /' >&2
+  echo "[run-benchmarks] Refusing to run: config no longer matches the saved baseline. Set CONFIG_OVERRIDE=1 to rebaseline." >&2
+  exit 1
+fi
+
 # Gradle jmhRun handles classpath + BenchmarkList correctly.
 # AMBER flags (-hmodel/-hhost/-hport) are passed through env vars and added
 # by the jmhRun task only when RUN_AMBER=1.
@@ -94,8 +132,6 @@ if [[ ! -f "${OUTFILE}" ]]; then
 fi
 
 echo "[run-benchmarks] JMH run complete. Results -> ${OUTFILE}"
-
-BEST_FILE="${ROOT_DIR}/data/best-result.json"
 
 TIMESTAMP="$(date +%Y%m%d_%H%M%S)"
 SHA="$(git -C "${ROOT_DIR}" rev-parse --short HEAD 2>/dev/null || echo "unknown")"
