@@ -15,11 +15,43 @@ fi
 # --- Parse args ---
 # Optional first arg: JMH regex filter (AMBER_INCLUDE).
 FILTER_ARG="${1:-}"
+ENV_INCLUDE="${AMBER_INCLUDE:-}"
 
 # Optional: filter to a specific benchmark. Pass as first arg or via env var AMBER_INCLUDE.
 # JMH treats this as a regex matched against "ClassName.methodName".
 # Example: RUN_AMBER=1 bash scripts/run-benchmarks.sh CalculatorBenchmark_buildMultiples
-export AMBER_INCLUDE="${FILTER_ARG:-${AMBER_INCLUDE:-}}"
+#
+# No-arg case: instead of leaving the filter empty (which JMH treats as "run everything"),
+# default to only the benchmarks tracked in data/coverage-matrix.csv. See
+# Docs/SmellBenchPipline_docs/coverage-matrix-default-filter-tasks.md.
+AMBER_INCLUDE_LABEL=""
+if [[ -n "${FILTER_ARG}" || -n "${ENV_INCLUDE}" ]]; then
+  export AMBER_INCLUDE="${FILTER_ARG:-${ENV_INCLUDE}}"
+else
+  MATRIX_FOR_FILTER="${ROOT_DIR}/data/coverage-matrix.csv"
+  DERIVED_INCLUDE=""
+  if [[ -f "${MATRIX_FOR_FILTER}" && -s "${MATRIX_FOR_FILTER}" ]]; then
+    DERIVED_INCLUDE="$(awk -F'|' '
+      {
+        cls = $3
+        gsub(/^[ \t]+|[ \t]+$/, "", cls)
+        gsub(/\(/, "_", cls)
+        gsub(/,/, "_", cls)
+        gsub(/\)/, "", cls)
+        if (cls != "" && !(cls in seen)) { seen[cls] = 1; list = (list == "" ? cls : list "|" cls) }
+      }
+      END { print list }
+    ' "${MATRIX_FOR_FILTER}")"
+  fi
+  if [[ -n "${DERIVED_INCLUDE}" ]]; then
+    export AMBER_INCLUDE="${DERIVED_INCLUDE}"
+    MATRIX_COUNT="$(awk -F'|' '{print NF}' <<< "${DERIVED_INCLUDE}")"
+    AMBER_INCLUDE_LABEL="coverage-matrix (${MATRIX_COUNT} benchmarks)"
+  else
+    # Matrix missing/empty -- fall back to running all benchmarks (pre-existing default).
+    export AMBER_INCLUDE=""
+  fi
+fi
 
 # Optional: extra ad-hoc JMH flags appended at the end of the JMH args list.
 # Example: AMBER_JMH_EXTRA="-p count=10" to override @Param values at runtime.
@@ -49,7 +81,7 @@ cd "${ROOT_DIR}"
 
 echo "[run-benchmarks] Running JMH benchmarks via Gradle jmhRun..."
 echo "[run-benchmarks] RUN_AMBER=${RUN_AMBER} (set RUN_AMBER=1 to enable AMBER server flags)"
-echo "[run-benchmarks] AMBER_INCLUDE=${AMBER_INCLUDE:-<all benchmarks>}"
+echo "[run-benchmarks] AMBER_INCLUDE=${AMBER_INCLUDE_LABEL:-${AMBER_INCLUDE:-<all benchmarks>}}"
 
 # Gradle jmhRun handles classpath + BenchmarkList correctly.
 # AMBER flags (-hmodel/-hhost/-hport) are passed through env vars and added
@@ -108,9 +140,14 @@ DASHBOARD_OK=0
 # Derive prod/test metadata for dashboard header pills.
 # TEST = benchmark class extracted from AMBER_INCLUDE (part before the first dot).
 # PROD = production class looked up from coverage matrix by benchmark class name.
+# When AMBER_INCLUDE was derived from the coverage matrix (multi-class regex, no single
+# class name to slice), show the short label instead -- see task 6 in
+# Docs/SmellBenchPipline_docs/coverage-matrix-default-filter-tasks.md.
 DASHBOARD_TEST=""
 DASHBOARD_PROD=""
-if [[ -n "${AMBER_INCLUDE:-}" ]]; then
+if [[ -n "${AMBER_INCLUDE_LABEL:-}" ]]; then
+  DASHBOARD_TEST="${AMBER_INCLUDE_LABEL}"
+elif [[ -n "${AMBER_INCLUDE:-}" ]]; then
   DASHBOARD_TEST="${AMBER_INCLUDE%%.*}"
   MATRIX="${ROOT_DIR}/data/coverage-matrix.csv"
   if [[ -f "${MATRIX}" ]]; then
