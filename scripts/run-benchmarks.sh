@@ -174,7 +174,13 @@ PYEOF
 
 # Hierarchical bootstrap comparison: current vs all-time best
 # Snapshots are kept as historical archives but are no longer the comparison reference.
-if [[ -f "${BEST_FILE}" ]]; then
+COMPARABLE_COUNT="$(python -c "
+import json, sys
+with open(sys.argv[1], encoding='utf-8-sig') as f:
+    print(len(json.load(f)))
+" "${COMPARABLE}")"
+
+if [[ -f "${BEST_FILE}" && "${COMPARABLE_COUNT}" -gt 0 ]]; then
   echo "[run-benchmarks] Running bootstrap comparison: current vs best-result.json"
   BOOTSTRAP_OUT="${RUN_DIR}/bootstrap_latest.json"
   python "${ROOT_DIR}/tools/bootstrap/hierarchical_bootstrap_compare.py" \
@@ -191,7 +197,27 @@ if [[ -f "${BEST_FILE}" ]]; then
     --ts "${TIMESTAMP}" \
     --prod "${DASHBOARD_PROD}" \
     --test "${DASHBOARD_TEST}" \
+    --verdicts-json "${CONFIG_VERDICTS}" \
     ${BOOTSTRAP_OUT:+--bootstrap-json "${BOOTSTRAP_OUT}"}; then
+    DASHBOARD_OK=1
+  else
+    echo "[run-benchmarks] WARN: dashboard generation failed (non-fatal) — previous dashboard kept"
+  fi
+elif [[ -f "${BEST_FILE}" ]]; then
+  echo "[run-benchmarks] Skipping bootstrap comparison — every benchmark this run was CONFIG_MISMATCH, nothing comparable"
+  BOOTSTRAP_OUT=""
+
+  # Dashboard without comparison (best-result exists, but nothing comparable this run)
+  if bash "${ROOT_DIR}/tools/dashboard/generate_dashboard.sh" \
+    --kind "modified" \
+    --bench-dir "${RUN_DIR}" \
+    --json "${ARCH}" \
+    --out "${NEW_DASHBOARD}" \
+    --sha "${SHA}" \
+    --ts "${TIMESTAMP}" \
+    --prod "${DASHBOARD_PROD}" \
+    --test "${DASHBOARD_TEST}" \
+    --verdicts-json "${CONFIG_VERDICTS}"; then
     DASHBOARD_OK=1
   else
     echo "[run-benchmarks] WARN: dashboard generation failed (non-fatal) — previous dashboard kept"
@@ -208,7 +234,8 @@ else
     --sha "${SHA}" \
     --ts "${TIMESTAMP}" \
     --prod "${DASHBOARD_PROD}" \
-    --test "${DASHBOARD_TEST}"; then
+    --test "${DASHBOARD_TEST}" \
+    --verdicts-json "${CONFIG_VERDICTS}"; then
     DASHBOARD_OK=1
   else
     echo "[run-benchmarks] WARN: dashboard generation failed (non-fatal) — previous dashboard kept"
@@ -268,6 +295,8 @@ verdict_map = {(v["benchmark"], v["params"]): v["verdict"] for v in verdicts}
 
 best_map = {slot(e): e for e in best if isinstance(e, dict)}
 
+added = updated = kept = refused = rebaselined = 0
+
 for entry in curr:
     if not entry.get("benchmark"):
         continue
@@ -275,19 +304,44 @@ for entry in curr:
     verdict = verdict_map.get(k, "MATCH")
 
     if verdict == "CONFIG_MISMATCH":
+        refused += 1
         continue  # refused: leave this slot's baseline untouched
 
     if verdict == "REBASELINED":
         best_map[k] = {"commit_id": sut_sha, **entry}  # unconditional: old score isn't comparable
+        rebaselined += 1
         continue
 
     # MATCH or NEW: normal score-based replace
-    if k not in best_map or score(entry) < score(best_map[k]):
+    if k not in best_map:
         best_map[k] = {"commit_id": sut_sha, **entry}
+        added += 1
+    elif score(entry) < score(best_map[k]):
+        best_map[k] = {"commit_id": sut_sha, **entry}
+        updated += 1
+    else:
+        kept += 1
 
 with open(best_path, "w", encoding="utf-8") as f:
     json.dump(list(best_map.values()), f, indent=2)
+
+parts = []
+if added:
+    parts.append(f"{added} new")
+if updated:
+    parts.append(f"{updated} improved")
+if rebaselined:
+    parts.append(f"{rebaselined} rebaselined")
+if kept:
+    parts.append(f"{kept} kept (no improvement)")
+if refused:
+    parts.append(f"{refused} refused (CONFIG_MISMATCH)")
+detail = f" ({', '.join(parts)})" if parts else ""
+
+if added or updated or rebaselined:
+    print(f"[run-benchmarks] best-result.json updated -> {best_path}{detail}")
+else:
+    print(f"[run-benchmarks] best-result.json unchanged -> {best_path}{detail}")
 PYEOF
-echo "[run-benchmarks] best-result.json updated -> ${BEST_FILE}"
 
 echo "[run-benchmarks] Done."

@@ -10,6 +10,7 @@ TS=""
 PROD=""
 TEST=""
 BOOTSTRAP_JSON_FILE=""
+VERDICTS_JSON_FILE=""
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -22,6 +23,7 @@ while [[ $# -gt 0 ]]; do
     --prod) PROD="$2"; shift 2 ;;
     --test) TEST="$2"; shift 2 ;;
     --bootstrap-json) BOOTSTRAP_JSON_FILE="$2"; shift 2 ;;
+    --verdicts-json) VERDICTS_JSON_FILE="$2"; shift 2 ;;
     *) echo "Unknown arg: $1" >&2; exit 2 ;;
   esac
 done
@@ -45,7 +47,7 @@ fi
 mkdir -p "$(dirname "$OUT_HTML")"
 
 # Nota: COMPARE_JSON_FILE è opzionale. Se manca o è vuoto -> placeholder diventa "{}"
-KIND="$KIND" SHA="$SHA" TS="$TS" PROD="$PROD" TEST="$TEST" JSON_FILE="$JSON_FILE" BOOTSTRAP_JSON_FILE="$BOOTSTRAP_JSON_FILE" \
+KIND="$KIND" SHA="$SHA" TS="$TS" PROD="$PROD" TEST="$TEST" JSON_FILE="$JSON_FILE" BOOTSTRAP_JSON_FILE="$BOOTSTRAP_JSON_FILE" VERDICTS_JSON_FILE="$VERDICTS_JSON_FILE" \
 perl -0777 -pe '
   use strict;
   use warnings;
@@ -57,6 +59,7 @@ perl -0777 -pe '
   my $test = $ENV{TEST} // "";
   my $json_file = $ENV{JSON_FILE} // "";
   my $boot_file = $ENV{BOOTSTRAP_JSON_FILE} // "";
+  my $verdicts_file = $ENV{VERDICTS_JSON_FILE} // "";
 
   open my $fh, "<", $json_file or die "[DASH][FATAL] cannot open json: $json_file ($!)";
   local $/;
@@ -74,9 +77,19 @@ perl -0777 -pe '
     $boot_path = $boot_file;
   }
 
+  # config verdicts optional (NEW/MATCH/CONFIG_MISMATCH/REBASELINED per benchmark)
+  my $verdicts_json = "[]";
+  if ($verdicts_file ne "" && -f $verdicts_file && -s $verdicts_file) {
+    open my $vh, "<", $verdicts_file or die "[DASH][FATAL] cannot open verdicts json: $verdicts_file ($!)";
+    local $/;
+    $verdicts_json = <$vh>;
+    close $vh;
+  }
+
   # evita rotture del tag script
-  $json      =~ s{</script>}{<\\/script>}gi;
-  $boot_json =~ s{</script>}{<\\/script>}gi;
+  $json          =~ s{</script>}{<\\/script>}gi;
+  $boot_json     =~ s{</script>}{<\\/script>}gi;
+  $verdicts_json =~ s{</script>}{<\\/script>}gi;
 
   s/\@\@KIND\@\@/$kind/g;
   s/\@\@SHA\@\@/$sha/g;
@@ -88,6 +101,9 @@ perl -0777 -pe '
   # bootstrap placeholders
   s/\@\@BOOTSTRAP_JSON_PATH\@\@/$boot_path/g;
   s/\@\@BOOTSTRAP_JSON_DATA\@\@/$boot_json/g;
+
+  # config verdicts placeholder
+  s/\@\@VERDICTS_JSON_DATA\@\@/$verdicts_json/g;
 
   # payload principale multi-line
   s/\@\@JSON_DATA\@\@/$json/g;
