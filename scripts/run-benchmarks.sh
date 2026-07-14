@@ -26,6 +26,10 @@ export AMBER_INCLUDE="${FILTER_ARG:-${AMBER_INCLUDE:-}}"
 # Example: AMBER_JMH_EXTRA="-p count=10 -p base=5" for multiple params.
 export AMBER_JMH_EXTRA="${AMBER_JMH_EXTRA:-}"
 
+# Optional: force a config-mismatched slot to rebaseline instead of being refused.
+# One-time transition flag -- see Docs/SmellBenchPipline_docs/Update-3-tasks.md task 5.
+export CONFIG_OVERRIDE="${CONFIG_OVERRIDE:-0}"
+
 mkdir -p "${ROOT_DIR}/data" "${RUN_DIR}"
 
 # Pre-flight: verify AMBER server is reachable when RUN_AMBER=1
@@ -117,13 +121,64 @@ if [[ -n "${AMBER_INCLUDE:-}" ]]; then
   fi
 fi
 
+# --- Task 5: Configuration Consistency guard ---
+# Per (benchmark, params) slot, compares forks/measurementIterations for this run against the
+# stored best-result baseline. CONFIG_OVERRIDE=1 turns a mismatch into a one-time rebaseline
+# instead of refusing it. See Docs/SmellBenchPipline_docs/Update-3-tasks.md task 5.
+CONFIG_VERDICTS="${RUN_DIR}/config_verdicts.json"
+python "${ROOT_DIR}/tools/bootstrap/config_guard.py" "${BEST_FILE}" "${ARCH}" "${CONFIG_OVERRIDE}" \
+  > "${CONFIG_VERDICTS}"
+
+# Slots flagged CONFIG_MISMATCH/REBASELINED are excluded from the comparable copy so the
+# bootstrap comparison never runs on mismatched configs (misleading either way).
+COMPARABLE="${RUN_DIR}/jmh-result-comparable.json"
+python - "${ARCH}" "${CONFIG_VERDICTS}" "${COMPARABLE}" <<'PYEOF'
+import json, sys
+
+curr_path, verdicts_path, out_path = sys.argv[1], sys.argv[2], sys.argv[3]
+
+with open(curr_path, encoding="utf-8-sig") as f:
+    curr = json.load(f)
+with open(verdicts_path, encoding="utf-8-sig") as f:
+    verdicts = json.load(f)
+
+def param_key(entry):
+    return json.dumps(entry.get("params") or {}, sort_keys=True)
+
+flagged = {
+    (v["benchmark"], v["params"])
+    for v in verdicts
+    if v["verdict"] in ("CONFIG_MISMATCH", "REBASELINED")
+}
+
+comparable = [
+    e for e in curr
+    if not (isinstance(e, dict) and (e.get("benchmark", ""), param_key(e)) in flagged)
+]
+
+with open(out_path, "w", encoding="utf-8") as f:
+    json.dump(comparable, f, indent=2)
+
+for v in verdicts:
+    if v["verdict"] == "CONFIG_MISMATCH":
+        print(f"[run-benchmarks] CONFIG_MISMATCH: {v['benchmark']} "
+              f"(forks {v['best_forks']}->{v['curr_forks']}, "
+              f"measurementIterations {v['best_measurementIterations']}->{v['curr_measurementIterations']}) "
+              "-- comparison refused, best-result left untouched", file=sys.stderr)
+    elif v["verdict"] == "REBASELINED":
+        print(f"[run-benchmarks] REBASELINED: {v['benchmark']} "
+              f"(forks {v['best_forks']}->{v['curr_forks']}, "
+              f"measurementIterations {v['best_measurementIterations']}->{v['curr_measurementIterations']}) "
+              "-- comparison skipped, best-result adopts the new config", file=sys.stderr)
+PYEOF
+
 # Hierarchical bootstrap comparison: current vs all-time best
 # Snapshots are kept as historical archives but are no longer the comparison reference.
 if [[ -f "${BEST_FILE}" ]]; then
   echo "[run-benchmarks] Running bootstrap comparison: current vs best-result.json"
   BOOTSTRAP_OUT="${RUN_DIR}/bootstrap_latest.json"
   python "${ROOT_DIR}/tools/bootstrap/hierarchical_bootstrap_compare.py" \
-    "${BEST_FILE}" "${ARCH}" > "${BOOTSTRAP_OUT}" \
+    "${BEST_FILE}" "${COMPARABLE}" > "${BOOTSTRAP_OUT}" \
     || { echo "[run-benchmarks] WARN: bootstrap comparison failed (non-fatal)"; BOOTSTRAP_OUT=""; }
 
   # HTML dashboard with comparison
@@ -172,9 +227,11 @@ fi
 # --- Update best-result.json (per-benchmark) ---
 # Runs LAST so bootstrap and compare both read the old best as a stable reference.
 # New method    → no history → current becomes best automatically
-# Existing      → keep whichever has the lower score (faster)
+# Existing, MATCH        → keep whichever has the lower score (faster)
+# Existing, CONFIG_MISMATCH → refused: baseline left untouched (see task 5 guard above)
+# Existing, REBASELINED    → unconditional replace: score comparison would itself be unsound
 # Deleted       → already removed from best by handle_deleted before this run
-python - "${OUTFILE}" "${BEST_FILE}" "${SUT_SHA}" <<'PYEOF'
+python - "${OUTFILE}" "${BEST_FILE}" "${SUT_SHA}" "${CONFIG_VERDICTS}" <<'PYEOF'
 import json, sys
 
 def score(entry):
@@ -183,7 +240,7 @@ def score(entry):
     except Exception:
         return float("inf")
 
-curr_path, best_path, sut_sha = sys.argv[1], sys.argv[2], sys.argv[3]
+curr_path, best_path, sut_sha, verdicts_path = sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4]
 
 with open(curr_path, encoding="utf-8-sig") as f:
     curr = json.load(f)
@@ -194,6 +251,12 @@ try:
 except FileNotFoundError:
     best = []
 
+try:
+    with open(verdicts_path, encoding="utf-8-sig") as f:
+        verdicts = json.load(f)
+except FileNotFoundError:
+    verdicts = []
+
 def param_key(entry):
     params = entry.get("params") or {}
     return json.dumps(params, sort_keys=True)
@@ -201,12 +264,24 @@ def param_key(entry):
 def slot(entry):
     return (entry.get("benchmark", ""), param_key(entry))
 
+verdict_map = {(v["benchmark"], v["params"]): v["verdict"] for v in verdicts}
+
 best_map = {slot(e): e for e in best if isinstance(e, dict)}
 
 for entry in curr:
     if not entry.get("benchmark"):
         continue
     k = slot(entry)
+    verdict = verdict_map.get(k, "MATCH")
+
+    if verdict == "CONFIG_MISMATCH":
+        continue  # refused: leave this slot's baseline untouched
+
+    if verdict == "REBASELINED":
+        best_map[k] = {"commit_id": sut_sha, **entry}  # unconditional: old score isn't comparable
+        continue
+
+    # MATCH or NEW: normal score-based replace
     if k not in best_map or score(entry) < score(best_map[k]):
         best_map[k] = {"commit_id": sut_sha, **entry}
 
