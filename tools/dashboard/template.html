@@ -83,6 +83,7 @@
     <!-- payload embed (NO fetch) -->
     <script id="payload" type="text/plain">@@JSON_DATA@@</script>
     <script id="payload_bootstrap" type="text/plain">@@BOOTSTRAP_JSON_DATA@@</script>
+    <script id="payload_verdicts" type="text/plain">@@VERDICTS_JSON_DATA@@</script>
 
     <div id="content" class="card"></div>
 
@@ -155,13 +156,35 @@
     }
     return m;
   }
-  function renderAddedOrModified(jmhArr, bootstrapMap /* optional */) {
+  function buildVerdictMap(verdictArr) {
+    // verdictArr: [{ benchmark, verdict: NEW|MATCH|CONFIG_MISMATCH|REBASELINED, curr_forks, best_forks, ... }, ...]
+    const m = new Map();
+    if (!Array.isArray(verdictArr)) return m;
+    for (const e of verdictArr) {
+      const name = e && e.benchmark;
+      if (!name) continue;
+      m.set(name, e);
+    }
+    return m;
+  }
+  function formatConfigVerdict(v) {
+    if (!v) return null;
+    if (v.verdict === 'CONFIG_MISMATCH') {
+      return { text: 'config mismatch — comparison refused', cls: 'zero' };
+    }
+    if (v.verdict === 'REBASELINED') {
+      return { text: 'config overridden — comparison skipped', cls: 'zero' };
+    }
+    return null;
+  }
+  function renderAddedOrModified(jmhArr, bootstrapMap /* optional */, verdictMap /* optional */) {
     const rows = jmhArr.map(x => {
       const benchmark = x?.benchmark || "";
       const score = x?.primaryMetric?.score;
       const err   = x?.primaryMetric?.scoreError;
       const unit  = x?.primaryMetric?.scoreUnit || "";
       const bootE = bootstrapMap && benchmark ? bootstrapMap.get(benchmark) : null;
+      const verdictE = verdictMap && benchmark ? verdictMap.get(benchmark) : null;
       return {
         benchmark,
         score, err, unit,
@@ -169,7 +192,8 @@
         curr: bootE ? bootE.mean_curr : score,
         delta_pct: bootE ? bootE.delta_pct : null,
         boot: bootE,
-        hasCmp: !!bootE
+        hasCmp: !!bootE,
+        configVerdict: formatConfigVerdict(verdictE)
       };
     }).sort((a,b) => (b.score ?? -Infinity) - (a.score ?? -Infinity));
 
@@ -212,7 +236,9 @@
     `;
       }
 
-      // benchmark nuovo (non presente nel compare): solo error/unit, il resto "-"
+      // benchmark non presente nel compare: se config_guard ha un verdetto (CONFIG_MISMATCH/REBASELINED)
+      // lo mostro invece di un "-" muto; altrimenti è davvero un benchmark nuovo, nessuna baseline.
+      const cv = r.configVerdict;
       return `
   <tr>
     <td class="mono">${r.benchmark}</td>
@@ -220,7 +246,7 @@
     <td class="right">${fmt(r.score)}</td>
     <td class="right">${fmt(r.err)}</td>
     <td>${r.unit}</td>
-    <td>-</td>
+    <td class="${cv ? 'delta ' + cv.cls : ''}">${cv ? cv.text : '-'}</td>
   </tr>
 `;
     }).join("")}
@@ -284,6 +310,7 @@
     const kind = "@@KIND@@";
     const data = readJsonFromScript("payload");
     const boot = readJsonFromScript("payload_bootstrap");
+    const verdicts = readJsonFromScript("payload_verdicts");
 
     const bootPath = "@@BOOTSTRAP_JSON_PATH@@";
     if (bootPath && bootPath.trim().length > 0) {
@@ -314,8 +341,9 @@
     if (Array.isArray(data)) {
       const bootLooksOk = Array.isArray(boot);
       const bootstrapMap = ((kind === "modified" || kind === "added") && bootLooksOk) ? buildBootstrapMap(boot) : null;
+      const verdictMap = Array.isArray(verdicts) ? buildVerdictMap(verdicts) : null;
 
-      content.innerHTML = renderAddedOrModified(data, bootstrapMap);
+      content.innerHTML = renderAddedOrModified(data, bootstrapMap, verdictMap);
       return;
     }
 
