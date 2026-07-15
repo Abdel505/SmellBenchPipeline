@@ -18,11 +18,15 @@ Verdicts:
 --pre-check mode: run before the JMH benchmarks execute, using the forks/
 measurementIterations this run is *about* to use (uniform across every
 benchmark in a single `gradlew jmhRun` invocation) instead of a produced
-jmh-result.json, so a mismatch can abort before paying for the run.
+jmh-result.json, so a mismatch can abort before paying for the run. Only
+baseline entries matching the run's AMBER_INCLUDE regex are checked --
+unrelated benchmarks with a different stored config must not block a run
+that doesn't even include them.
 
 See Docs/SmellBenchPipline_docs/Update-3-tasks.md, task 5.
 """
 import json
+import re
 import sys
 
 
@@ -78,7 +82,8 @@ def compute_verdicts(best, curr, override):
     return verdicts
 
 
-def precheck_verdicts(best, intended_forks, intended_measurement_iterations, override):
+def precheck_verdicts(best, intended_forks, intended_measurement_iterations, override, include_regex=""):
+    pattern = re.compile(include_regex) if include_regex else None
     synthetic_curr = [
         {
             "benchmark": e.get("benchmark", ""),
@@ -88,13 +93,28 @@ def precheck_verdicts(best, intended_forks, intended_measurement_iterations, ove
         }
         for e in best
         if isinstance(e, dict) and e.get("benchmark")
+        and (pattern is None or pattern.search(e["benchmark"]))
     ]
     return compute_verdicts(best, synthetic_curr, override)
 
 
+def narrow_include(candidates, blocked):
+    """Drop candidate filter terms that resolve to a blocked (mismatched) benchmark.
+
+    `candidates` are the original AMBER_INCLUDE terms (e.g. class names) the run was
+    already scoped to; `blocked` are full benchmark ids (ClassName.methodName) flagged
+    CONFIG_MISMATCH by precheck_verdicts. A candidate is dropped if it's a substring of
+    any blocked id -- the same relationship JMH/precheck use (candidate matched *within*
+    the full benchmark id), just checked in the opposite direction. Order is preserved so
+    the result is a stable, deterministic replacement for AMBER_INCLUDE.
+    """
+    return [c for c in candidates if not any(c in b for b in blocked)]
+
+
 def main():
-    if len(sys.argv) == 6 and sys.argv[1] == "--pre-check":
-        _, _, best_path, forks_arg, measurement_iter_arg, override_arg = sys.argv
+    if len(sys.argv) in (6, 7) and sys.argv[1] == "--pre-check":
+        best_path, forks_arg, measurement_iter_arg, override_arg = sys.argv[2:6]
+        include_regex = sys.argv[6] if len(sys.argv) == 7 else ""
         override = override_arg == "1"
 
         try:
@@ -103,17 +123,25 @@ def main():
             best = []
 
         verdicts = precheck_verdicts(
-            best, int(forks_arg), int(measurement_iter_arg), override
+            best, int(forks_arg), int(measurement_iter_arg), override, include_regex
         )
         json.dump(verdicts, sys.stdout, indent=2)
         sys.stdout.write("\n")
+        return
+
+    if len(sys.argv) == 4 and sys.argv[1] == "--narrow":
+        candidates_arg, blocked_arg = sys.argv[2], sys.argv[3]
+        candidates = [c for c in candidates_arg.split("|") if c]
+        blocked = [b for b in blocked_arg.split("|") if b]
+        sys.stdout.write("|".join(narrow_include(candidates, blocked)))
         return
 
     if len(sys.argv) != 4:
         raise SystemExit(
             "Usage: config_guard.py <best-result.json> <jmh-result.json> <override:0|1>\n"
             "       config_guard.py --pre-check <best-result.json> <forks> "
-            "<measurementIterations> <override:0|1>"
+            "<measurementIterations> <override:0|1> [amber_include_regex]\n"
+            "       config_guard.py --narrow <pipe_joined_candidates> <pipe_joined_blocked>"
         )
     best_path, curr_path, override_arg = sys.argv[1], sys.argv[2], sys.argv[3]
     override = override_arg == "1"

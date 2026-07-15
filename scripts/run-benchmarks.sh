@@ -7,6 +7,31 @@ OUTFILE="${ROOT_DIR}/data/jmh-result.json"
 BEST_FILE="${ROOT_DIR}/data/best-result.json"
 export RUN_AMBER="${RUN_AMBER:-1}"
 
+# --- Reject conflicting iteration/time overrides when RUN_AMBER=1 ---
+# app/build.gradle.kts hardcodes -wi 500 -w 100ms -i 100 -r 100ms whenever RUN_AMBER=1
+# (AMBER's steady-state detector decides the real iteration counts at runtime), so these
+# vars are silently ignored in that mode. Fail fast instead of letting the caller believe
+# they took effect.
+if [[ "${RUN_AMBER}" == "1" ]]; then
+  AMBER_FIXED_VARS=(JMH_WARMUP_ITER JMH_WARMUP_TIME JMH_MEASURE_ITER JMH_MEASURE_TIME)
+  CONFLICTING_VARS=()
+  for v in "${AMBER_FIXED_VARS[@]}"; do
+    if [[ -v "${v}" ]]; then
+      CONFLICTING_VARS+=("${v}=${!v}")
+    fi
+  done
+  if [[ ${#CONFLICTING_VARS[@]} -gt 0 ]]; then
+    echo "[run-benchmarks] ERROR: RUN_AMBER=1 hardcodes warmup/measurement iterations and time" >&2
+    echo "[run-benchmarks]   (-wi 500 -w 100ms -i 100 -r 100ms in app/build.gradle.kts) -- these" >&2
+    echo "[run-benchmarks]   env vars have no effect in AMBER mode and were unexpectedly set:" >&2
+    for cv in "${CONFLICTING_VARS[@]}"; do
+      echo "[run-benchmarks]     ${cv}" >&2
+    done
+    echo "[run-benchmarks]   Unset them, run with RUN_AMBER=0, or use AMBER_JMH_EXTRA to override JMH flags directly." >&2
+    exit 1
+  fi
+fi
+
 if [[ "${RUN_AMBER}" == "1" ]]; then
   RUN_DIR="${BENCH_REPORTS}/amber"
 else
@@ -97,28 +122,47 @@ else
   INTENDED_MEASURE_ITER="${JMH_MEASURE_ITER:-5}"
 fi
 
-PRECHECK_VERDICTS="${RUN_DIR}/config_precheck.json"
-python "${ROOT_DIR}/tools/bootstrap/config_guard.py" \
-  --pre-check "${BEST_FILE}" "${INTENDED_FORKS}" "${INTENDED_MEASURE_ITER}" "${CONFIG_OVERRIDE}" \
-  > "${PRECHECK_VERDICTS}"
+ORIGINAL_INCLUDE="${AMBER_INCLUDE:-}"
 
-PRECHECK_MISMATCHES="$(python - "${PRECHECK_VERDICTS}" <<'PYEOF'
+PRECHECK_JSON="$(python "${ROOT_DIR}/tools/bootstrap/config_guard.py" \
+  --pre-check "${BEST_FILE}" "${INTENDED_FORKS}" "${INTENDED_MEASURE_ITER}" "${CONFIG_OVERRIDE}" "${ORIGINAL_INCLUDE}")"
+
+# One line per blocked benchmark: "<full benchmark id>\t<best forks>\t<curr forks>\t<best mi>\t<curr mi>"
+BLOCKED_INFO="$(python - "${PRECHECK_JSON}" <<'PYEOF'
 import json, sys
 
-with open(sys.argv[1], encoding="utf-8-sig") as f:
-    verdicts = json.load(f)
-
-for v in verdicts:
+for v in json.loads(sys.argv[1]):
     if v["verdict"] == "CONFIG_MISMATCH":
-        print(v["benchmark"])
+        b, bf, cf = v["benchmark"], v["best_forks"], v["curr_forks"]
+        bmi, cmi = v["best_measurementIterations"], v["curr_measurementIterations"]
+        print(f"{b}\t{bf}\t{cf}\t{bmi}\t{cmi}")
 PYEOF
 )"
 
-if [[ -n "${PRECHECK_MISMATCHES}" ]]; then
-  echo "[run-benchmarks] ERROR: config mismatch vs best-result.json for:" >&2
-  echo "${PRECHECK_MISMATCHES}" | sed 's/^/[run-benchmarks]   /' >&2
-  echo "[run-benchmarks] Refusing to run: config no longer matches the saved baseline. Set CONFIG_OVERRIDE=1 to rebaseline." >&2
-  exit 1
+if [[ -n "${BLOCKED_INFO}" ]]; then
+  BLOCKED_NAMES=()
+  while IFS=$'\t' read -r name bf cf bmi cmi; do
+    [[ -z "${name}" ]] && continue
+    BLOCKED_NAMES+=("${name}")
+    echo "[run-benchmarks] WARN: skipping ${name} due to config mismatch (forks ${bf}->${cf}, measurementIterations ${bmi}->${cmi}). Set CONFIG_OVERRIDE=1 to rebaseline." >&2
+  done <<< "${BLOCKED_INFO}"
+
+  if [[ -z "${ORIGINAL_INCLUDE}" ]]; then
+    echo "[run-benchmarks] ERROR: config mismatch on an unfiltered run -- no explicit benchmark list to narrow. Set CONFIG_OVERRIDE=1 to rebaseline, or pass an explicit AMBER_INCLUDE filter." >&2
+    exit 1
+  fi
+
+  BLOCKED_JOINED="$(IFS='|'; echo "${BLOCKED_NAMES[*]}")"
+  NARROWED="$(python "${ROOT_DIR}/tools/bootstrap/config_guard.py" --narrow "${ORIGINAL_INCLUDE}" "${BLOCKED_JOINED}")"
+
+  if [[ -z "${NARROWED}" ]]; then
+    echo "[run-benchmarks] ERROR: every benchmark in scope has a config mismatch -- nothing left to run." >&2
+    exit 1
+  fi
+
+  export AMBER_INCLUDE="${NARROWED}"
+  AMBER_INCLUDE_LABEL="${NARROWED} (skipped ${#BLOCKED_NAMES[@]} mismatched)"
+  echo "[run-benchmarks] Proceeding, AMBER_INCLUDE=${AMBER_INCLUDE_LABEL}"
 fi
 
 # Gradle jmhRun handles classpath + BenchmarkList correctly.
