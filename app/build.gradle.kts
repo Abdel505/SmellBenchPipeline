@@ -111,9 +111,9 @@ tasks.register<JavaExec>("jmhRun") {
         "-f",  System.getenv("JMH_FORKS")   ?: "5",
 
         "-wi", if (runAmber) "500"   else (System.getenv("JMH_WARMUP_ITER") ?: "3"),
-        "-w",  if (runAmber) "100ms" else (System.getenv("AMBER_WTIME") ?: "1s"),
+        "-w",  if (runAmber) "100ms" else (System.getenv("JMH_WARMUP_TIME") ?: "1s"),
         "-i",  if (runAmber) "100"   else (System.getenv("JMH_MEASURE_ITER") ?: "5"),
-        "-r",  if (runAmber) "100ms" else (System.getenv("AMBER_MTIME") ?: "1s"),
+        "-r",  if (runAmber) "100ms" else (System.getenv("JMH_MEASURE_TIME") ?: "1s"),
         "-to", System.getenv("AMBER_TIMEOUT") ?: "1m",
         "-t",  "1",
         "-v",  System.getenv("AMBER_VERBOSE") ?: "NORMAL"

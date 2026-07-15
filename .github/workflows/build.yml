@@ -230,9 +230,9 @@ jobs:
           AMBER_MODEL: oscnn
           JMH_FORKS: "5"
           JMH_WARMUP_ITER: "1"
-          AMBER_WTIME: "1s"
+          JMH_WARMUP_TIME: "1s"
           JMH_MEASURE_ITER: "2"
-          AMBER_MTIME: "1s"
+          JMH_MEASURE_TIME: "1s"
           AMBER_TIMEOUT: "1m"
           RUN_AMBER: "1"
           AMBER_HOST: "localhost"
