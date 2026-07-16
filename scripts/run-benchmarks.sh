@@ -179,26 +179,25 @@ echo "[run-benchmarks] JMH run complete. Results -> ${OUTFILE}"
 
 TIMESTAMP="$(date +%Y%m%d_%H%M%S)"
 SHA="$(git -C "${ROOT_DIR}" rev-parse --short HEAD 2>/dev/null || echo "unknown")"
-SUT_SHA="$(git -C "${ROOT_DIR}/sut/byte-buddy" rev-parse --short HEAD 2>/dev/null || echo "unknown")"
 
-echo "[run-benchmarks] Stamping commit_id=${SUT_SHA} on jmh-result.json..."
-python - "${OUTFILE}" "${SUT_SHA}" <<'PYEOF'
+echo "[run-benchmarks] Stamping commit_id=${SHA} on jmh-result.json..."
+python - "${OUTFILE}" "${SHA}" <<'PYEOF'
 import json, sys
 
-curr_path, sut_sha = sys.argv[1], sys.argv[2]
+curr_path, pipeline_sha = sys.argv[1], sys.argv[2]
 
 with open(curr_path, encoding="utf-8-sig") as f:
     data = json.load(f)
 
 data = [
-    {"commit_id": sut_sha, **entry} if isinstance(entry, dict) else entry
+    {"commit_id": pipeline_sha, **entry} if isinstance(entry, dict) else entry
     for entry in data
 ]
 
 with open(curr_path, "w", encoding="utf-8") as f:
     json.dump(data, f, indent=2)
 PYEOF
-echo "[run-benchmarks] Stamped commit_id=${SUT_SHA} on jmh-result.json"
+echo "[run-benchmarks] Stamped commit_id=${SHA} on jmh-result.json"
 
 # Snapshot archiving disabled — bootstrap and dashboard read directly from jmh-result.json
 # To re-enable, uncomment the three lines below:
@@ -375,7 +374,7 @@ fi
 # Existing, CONFIG_MISMATCH → refused: baseline left untouched (see task 5 guard above)
 # Existing, REBASELINED    → unconditional replace: score comparison would itself be unsound
 # Deleted       → already removed from best by handle_deleted before this run
-python - "${OUTFILE}" "${BEST_FILE}" "${SUT_SHA}" "${CONFIG_VERDICTS}" <<'PYEOF'
+python - "${OUTFILE}" "${BEST_FILE}" "${SHA}" "${CONFIG_VERDICTS}" <<'PYEOF'
 import json, sys
 
 def score(entry):
@@ -384,7 +383,7 @@ def score(entry):
     except Exception:
         return float("inf")
 
-curr_path, best_path, sut_sha, verdicts_path = sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4]
+curr_path, best_path, pipeline_sha, verdicts_path = sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4]
 
 with open(curr_path, encoding="utf-8-sig") as f:
     curr = json.load(f)
@@ -425,16 +424,16 @@ for entry in curr:
         continue  # refused: leave this slot's baseline untouched
 
     if verdict == "REBASELINED":
-        best_map[k] = {"commit_id": sut_sha, **entry}  # unconditional: old score isn't comparable
+        best_map[k] = {"commit_id": pipeline_sha, **entry}  # unconditional: old score isn't comparable
         rebaselined += 1
         continue
 
     # MATCH or NEW: normal score-based replace
     if k not in best_map:
-        best_map[k] = {"commit_id": sut_sha, **entry}
+        best_map[k] = {"commit_id": pipeline_sha, **entry}
         added += 1
     elif score(entry) < score(best_map[k]):
-        best_map[k] = {"commit_id": sut_sha, **entry}
+        best_map[k] = {"commit_id": pipeline_sha, **entry}
         updated += 1
     else:
         kept += 1
