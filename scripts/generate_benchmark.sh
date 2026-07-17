@@ -100,29 +100,11 @@ printf '{ "%s": ["%s"] }\n' "$SOURCE_FILE_WIN" "$METHOD_ID" > "$INPUT_JSON"
 
 log() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*"; }
 
-# --- Validation: does the @Benchmark method actually call the target method? ---
-# Extracts the STATEMENTS inside the @Benchmark-annotated method (strictly after its
-# opening brace, up to its matching closing brace) and checks they reference
-# ${method}(...). Deliberately excludes the signature line itself — Chat2Benchmark
-# names the wrapper method after the target (e.g. "public void getJavaVersion(...)"),
-# and that declaration would otherwise false-positive-match even when the body never
-# actually calls the target.
-benchmark_calls_target() {
-  local file="$1"
-  local method="$2"
-  local body
-  body="$(awk '
-    /@Benchmark/ { armed=1; next }
-    armed && /\{/ { armed=0; capture=1; depth=1; next }
-    capture {
-      depth += gsub(/\{/, "{")
-      depth -= gsub(/\}/, "}")
-      if (depth <= 0) { capture=0; next }
-      print
-    }
-  ' "$file")"
-  [[ -n "$body" ]] && grep -qE "\<${method}\(" <<< "$body"
-}
+# --- Method-target validation (benchmark_calls_target() and its helpers) ---
+# Lives in scripts/lib/benchmark_validation.sh so it can also be driven
+# standalone via scripts/validate_benchmark.sh, independent of a full
+# generation attempt.
+source "${ROOT_DIR}/scripts/lib/benchmark_validation.sh"
 
 log "Starting benchmark generation for ${CLASS_NAME}.${METHOD}"
 log "Source  : $SOURCE_FILE"
@@ -256,7 +238,7 @@ for ((attempt = 1; attempt <= MAX_ATTEMPTS; attempt++)); do
 
     log "Validating with Maven compile (byte-buddy-benchmark module)..."
     if (cd sut/byte-buddy && mvn -q -pl byte-buddy-benchmark -am compile 2>&1); then
-      if benchmark_calls_target "$TARGET" "$METHOD"; then
+      if benchmark_calls_target "$TARGET" "$METHOD" "$METHOD_ID"; then
         log "  Method-target check: PASS — @Benchmark method calls ${METHOD}()"
         log "SUCCESS — benchmark written to $TARGET"
         exit 0
