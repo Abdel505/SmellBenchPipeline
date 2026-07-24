@@ -238,7 +238,7 @@ for ((attempt = 1; attempt <= MAX_ATTEMPTS; attempt++)); do
 
     log "Validating with Maven compile (byte-buddy-benchmark module)..."
     if (cd sut/byte-buddy && mvn -q -pl byte-buddy-benchmark -am compile 2>&1); then
-      if benchmark_calls_target "$TARGET" "$METHOD" "$METHOD_ID"; then
+      if benchmark_calls_target "$TARGET" "$METHOD" "$METHOD_ID" "$SOURCE_FILE"; then
         log "  Method-target check: PASS — @Benchmark method calls ${METHOD}()"
         log "SUCCESS — benchmark written to $TARGET"
         exit 0
