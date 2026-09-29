@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>AMBER Report - RandomStringBenchmark_hashOf_int</title>
+  <title>AMBER Report - coverage-matrix (2 benchmarks)</title>
   <style>
     :root{
       --bg:#ffffff; --card:#ffffff; --border:#eaeaea; --muted:#6b7280; --text:#111827;
@@ -53,10 +53,10 @@
     </div>
     <div class="meta">
       <div class="pill">kind: <b>modified</b></div>
-      <div class="pill">sha: <b>09f647d</b></div>
-      <div class="pill">ts: <b>20260712_190859</b></div>
+      <div class="pill">sha: <b>99e6d9a</b></div>
+      <div class="pill">ts: <b>20260716_103024</b></div>
       <div class="pill">prod: <b></b></div>
-      <div class="pill">test: <b>RandomStringBenchmark_hashOf_int</b></div>
+      <div class="pill">test: <b>coverage-matrix (2 benchmarks)</b></div>
     </div>
   </div>
 
@@ -83,12 +83,15 @@
     <!-- payload embed (NO fetch) -->
     <script id="payload" type="text/plain">[
   {
-    "commit_id": "3217dd3",
+    "commit_id": "99e6d9a",
     "jmhVersion": "1.37",
-    "benchmark": "net.bytebuddy.benchmark.RandomStringBenchmark_hashOf_int.hashOfInt",
+    "benchmark": "net.bytebuddy.benchmark.RandomStringBenchmark_hashOf_Object.hashOfObject",
     "mode": "thrpt",
     "threads": 1,
-    "forks": 5,
+    "dynamicHaltHost": "localhost",
+    "dynamicHaltPort": "5001",
+    "dynamicHaltModel": "oscnn",
+    "forks": 1,
     "jvm": "C:\\Program Files\\Java\\jdk-21\\bin\\java.exe",
     "jvmArgs": [
       "-Dfile.encoding=UTF-8",
@@ -99,67 +102,295 @@
     "jdkVersion": "21.0.7",
     "vmName": "Java HotSpot(TM) 64-Bit Server VM",
     "vmVersion": "21.0.7+8-LTS-245",
-    "warmupIterations": 3,
-    "warmupTime": "1 s",
+    "warmupIterations": [
+      [
+        18
+      ]
+    ],
+    "warmupTime": "100 ms",
     "warmupBatchSize": 1,
-    "measurementIterations": 5,
-    "measurementTime": "1 s",
+    "measurementIterations": 100,
+    "measurementTime": "100 ms",
     "measurementBatchSize": 1,
     "primaryMetric": {
-      "score": 0.03779627626407446,
-      "scoreError": 0.0046316164349165445,
+      "score": 0.01863965001013719,
+      "scoreError": 0.0013186878665907454,
       "scoreConfidence": [
-        0.033164659829157915,
-        0.042427892698991006
+        0.017320962143546444,
+        0.019958337876727936
       ],
       "scorePercentiles": {
-        "0.0": 0.025891335108831657,
-        "50.0": 0.03696800082828887,
-        "90.0": 0.04748354002073743,
-        "95.0": 0.04901273511559041,
-        "99.0": 0.04963555761913861,
-        "99.9": 0.04963555761913861,
-        "99.99": 0.04963555761913861,
-        "99.999": 0.04963555761913861,
-        "99.9999": 0.04963555761913861,
-        "100.0": 0.04963555761913861
+        "0.0": 0.007689957272113954,
+        "50.0": 0.01959091137734733,
+        "90.0": 0.022268987223471568,
+        "95.0": 0.023249858103444782,
+        "99.0": 0.026459383215627297,
+        "99.9": 0.02647383373667318,
+        "99.99": 0.02647383373667318,
+        "99.999": 0.02647383373667318,
+        "99.9999": 0.02647383373667318,
+        "100.0": 0.02647383373667318
       },
       "scoreUnit": "ops/ns",
       "rawData": [
         [
-          0.02727747879694986,
-          0.04277789465797051,
-          0.04963555761913861,
-          0.042463781947662524,
-          0.030786254884892776
-        ],
+          0.02043388893393702,
+          0.017594706954611863,
+          0.01568517254437527,
+          0.018450307471048442,
+          0.012055142438206955,
+          0.0156547090838831,
+          0.016606091723422672,
+          0.014237765340700497,
+          0.016975288702588378,
+          0.011397915795618595,
+          0.016400551304305306,
+          0.019941599811807518,
+          0.011782059437274226,
+          0.017823164858363626,
+          0.012755804639668892,
+          0.009806060093906633,
+          0.009351077106101073,
+          0.01118193598949543,
+          0.012358481439827426,
+          0.015361844187076767,
+          0.019419015051698844,
+          0.015912100903230197,
+          0.008453928363782424,
+          0.01089922823385166,
+          0.01581518023476641,
+          0.013819808937971209,
+          0.01878946566808882,
+          0.015951208833406453,
+          0.014420908195641693,
+          0.012083929104931024,
+          0.02212420153595489,
+          0.02647383373667318,
+          0.021050543513941908,
+          0.021600262657837294,
+          0.021991447461068552,
+          0.02387767591242975,
+          0.022534628553522302,
+          0.023880369580514014,
+          0.021847147907488283,
+          0.02171108892510007,
+          0.01954638017696023,
+          0.020906978948030147,
+          0.022027006567205812,
+          0.020126370884148294,
+          0.022015220130869068,
+          0.018020816505920693,
+          0.022398617094209983,
+          0.021385034659576488,
+          0.022939772358615145,
+          0.017218808155311287,
+          0.021178852311159124,
+          0.020318617545934285,
+          0.02134724797033817,
+          0.021076887831323447,
+          0.02132778047721065,
+          0.025028781632085707,
+          0.02223505794104919,
+          0.021434812712980436,
+          0.02172223692214527,
+          0.02137854360537749,
+          0.01944527512100498,
+          0.021454612905941552,
+          0.02213814035482268,
+          0.019517490809805187,
+          0.018052439592000202,
+          0.019432049448028288,
+          0.018713296308283466,
+          0.021522081918293166,
+          0.022043915971901442,
+          0.01998171294043498,
+          0.02265074897261631,
+          0.02190047348259535,
+          0.020394222702096735,
+          0.013991489214103222,
+          0.02089517959825883,
+          0.02094256045907911,
+          0.02071958403498914,
+          0.019635442577734426,
+          0.018573031986768372,
+          0.019336090398842976,
+          0.021128216002133157,
+          0.02110384297903022,
+          0.01712243655470116,
+          0.017101782201186563,
+          0.020620587117863687,
+          0.02227275714374072,
+          0.021696140484590926,
+          0.020594494423929747,
+          0.02326617840580424,
+          0.02085989515582672,
+          0.016966254568879537,
+          0.017318644628880848,
+          0.019343939628591943,
+          0.014203411985638938,
+          0.007689957272113954,
+          0.014735207088191656,
+          0.01969560836261984,
+          0.018890867667821845,
+          0.019353415283352212,
+          0.016518159662651386
+        ]
+      ]
+    },
+    "secondaryMetrics": {}
+  },
+  {
+    "commit_id": "99e6d9a",
+    "jmhVersion": "1.37",
+    "benchmark": "net.bytebuddy.benchmark.RandomStringBenchmark_hashOf_int.hashOfInt",
+    "mode": "thrpt",
+    "threads": 1,
+    "dynamicHaltHost": "localhost",
+    "dynamicHaltPort": "5001",
+    "dynamicHaltModel": "oscnn",
+    "forks": 1,
+    "jvm": "C:\\Program Files\\Java\\jdk-21\\bin\\java.exe",
+    "jvmArgs": [
+      "-Dfile.encoding=UTF-8",
+      "-Duser.country=US",
+      "-Duser.language=en",
+      "-Duser.variant"
+    ],
+    "jdkVersion": "21.0.7",
+    "vmName": "Java HotSpot(TM) 64-Bit Server VM",
+    "vmVersion": "21.0.7+8-LTS-245",
+    "warmupIterations": [
+      [
+        4
+      ]
+    ],
+    "warmupTime": "100 ms",
+    "warmupBatchSize": 1,
+    "measurementIterations": 100,
+    "measurementTime": "100 ms",
+    "measurementBatchSize": 1,
+    "primaryMetric": {
+      "score": 0.021626229916770524,
+      "scoreError": 0.0015763427122594633,
+      "scoreConfidence": [
+        0.02004988720451106,
+        0.02320257262902999
+      ],
+      "scorePercentiles": {
+        "0.0": 0.011077751148362685,
+        "50.0": 0.02248844131309901,
+        "90.0": 0.02676367458912269,
+        "95.0": 0.027736980488005183,
+        "99.0": 0.028286095296678998,
+        "99.9": 0.02828700290037423,
+        "99.99": 0.02828700290037423,
+        "99.999": 0.02828700290037423,
+        "99.9999": 0.02828700290037423,
+        "100.0": 0.02828700290037423
+      },
+      "scoreUnit": "ops/ns",
+      "rawData": [
         [
-          0.025891335108831657,
-          0.031838774377540555,
-          0.042533661925728404,
-          0.047432911629688206,
-          0.03830205390917855
-        ],
-        [
-          0.03069375880099927,
-          0.03483427957634321,
-          0.038874372734108056,
-          0.047559482607311264,
-          0.03666502738510392
-        ],
-        [
-          0.0316486123833029,
-          0.03480667012940714,
-          0.0391331479666659,
-          0.0435632195507133,
-          0.03582333866641753
-        ],
-        [
-          0.03558330143813099,
-          0.036669412056281665,
-          0.04186483438012802,
-          0.04127974324107784,
-          0.03696800082828887
+          0.02180785356418997,
+          0.018477229200819848,
+          0.022623641902448612,
+          0.020088805992388558,
+          0.014476945009833476,
+          0.0125556651870132,
+          0.017150977901306142,
+          0.01827563391414817,
+          0.018706664054617635,
+          0.019626189680785278,
+          0.022353240723749404,
+          0.024786353683366645,
+          0.02343762761884381,
+          0.02659229184420132,
+          0.02676408697247569,
+          0.026118735108609663,
+          0.02607109138705939,
+          0.02558938048476666,
+          0.02505687396482077,
+          0.011863797960981052,
+          0.011307843021224543,
+          0.015803108758596945,
+          0.02664694808389706,
+          0.024321899214490482,
+          0.025228970514944573,
+          0.02644652354590281,
+          0.027356071069962146,
+          0.026008345092242105,
+          0.02605345398441371,
+          0.02506541651762388,
+          0.02637366260629216,
+          0.026634456248005648,
+          0.02585287150990597,
+          0.026080388783922243,
+          0.026491466939866776,
+          0.019489489122118907,
+          0.026759963138945696,
+          0.026823412123777486,
+          0.02774368020471715,
+          0.02828700290037423,
+          0.02760968587047788,
+          0.027984594724990458,
+          0.028083247405717295,
+          0.028196242530851325,
+          0.026234295918450216,
+          0.02479074797146487,
+          0.025337586973787254,
+          0.025209669130357593,
+          0.024427059364933272,
+          0.024437819202801855,
+          0.022316813155073317,
+          0.023788351581619776,
+          0.023229460752465892,
+          0.018502139419938623,
+          0.02157896705016627,
+          0.02166771774361628,
+          0.025192456175095468,
+          0.02576645558281446,
+          0.026822325569754668,
+          0.025245584939649224,
+          0.02389971805971806,
+          0.017572576028893894,
+          0.01450014822310146,
+          0.015021043573496049,
+          0.01495173685872387,
+          0.01789377834895151,
+          0.014615836595594662,
+          0.019096594923617278,
+          0.015730721819918584,
+          0.018843567747235963,
+          0.01722557231802058,
+          0.020606563891148184,
+          0.023476064800163364,
+          0.022727287869127935,
+          0.017771417272835755,
+          0.017528725732698532,
+          0.021956836740959048,
+          0.013500177361646968,
+          0.02381401327555372,
+          0.01681874877955372,
+          0.014374374071786244,
+          0.02050395531839794,
+          0.011077751148362685,
+          0.020997867222919905,
+          0.022027186049458806,
+          0.0205952567554277,
+          0.013301030499045755,
+          0.02458001434001552,
+          0.015445744778758735,
+          0.024531637883306843,
+          0.01928571550520209,
+          0.023513624140470483,
+          0.02407831615841424,
+          0.020451576995579875,
+          0.01906289010145732,
+          0.01592458781983231,
+          0.015382294951571783,
+          0.014885068596501677,
+          0.020022119396103523,
+          0.021411569121803482
         ]
       ]
     },
@@ -168,16 +399,49 @@
 ]</script>
     <script id="payload_bootstrap" type="text/plain">[
   {
-    "benchmark": "net.bytebuddy.benchmark.RandomStringBenchmark_hashOf_int.hashOfInt",
+    "benchmark": "net.bytebuddy.benchmark.RandomStringBenchmark_hashOf_Object.hashOfObject",
     "unit": "ops/ns",
-    "n_prev": 25,
-    "n_curr": 25,
-    "mean_prev": 0.02498527028709594,
-    "mean_curr": 0.03779627626407446,
-    "delta_pct": 51.27423409781954,
+    "n_prev": 100,
+    "n_curr": 100,
+    "mean_prev": 0.0075724974939230735,
+    "mean_curr": 0.01863965001013719,
+    "delta_pct": 146.1493057620092,
     "p_value": 0.0,
     "verdict": "SIGNIFICANT",
     "note": null
+  },
+  {
+    "benchmark": "net.bytebuddy.benchmark.RandomStringBenchmark_hashOf_int.hashOfInt",
+    "unit": "ops/ns",
+    "n_prev": 100,
+    "n_curr": 100,
+    "mean_prev": 0.011631031792846379,
+    "mean_curr": 0.021626229916770517,
+    "delta_pct": 85.93561002964196,
+    "p_value": 0.0,
+    "verdict": "SIGNIFICANT",
+    "note": null
+  }
+]
+</script>
+    <script id="payload_verdicts" type="text/plain">[
+  {
+    "benchmark": "net.bytebuddy.benchmark.RandomStringBenchmark_hashOf_Object.hashOfObject",
+    "params": "{}",
+    "verdict": "MATCH",
+    "curr_forks": 1,
+    "curr_measurementIterations": 100,
+    "best_forks": 1,
+    "best_measurementIterations": 100
+  },
+  {
+    "benchmark": "net.bytebuddy.benchmark.RandomStringBenchmark_hashOf_int.hashOfInt",
+    "params": "{}",
+    "verdict": "MATCH",
+    "curr_forks": 1,
+    "curr_measurementIterations": 100,
+    "best_forks": 1,
+    "best_measurementIterations": 100
   }
 ]
 </script>
@@ -253,13 +517,35 @@
     }
     return m;
   }
-  function renderAddedOrModified(jmhArr, bootstrapMap /* optional */) {
+  function buildVerdictMap(verdictArr) {
+    // verdictArr: [{ benchmark, verdict: NEW|MATCH|CONFIG_MISMATCH|REBASELINED, curr_forks, best_forks, ... }, ...]
+    const m = new Map();
+    if (!Array.isArray(verdictArr)) return m;
+    for (const e of verdictArr) {
+      const name = e && e.benchmark;
+      if (!name) continue;
+      m.set(name, e);
+    }
+    return m;
+  }
+  function formatConfigVerdict(v) {
+    if (!v) return null;
+    if (v.verdict === 'CONFIG_MISMATCH') {
+      return { text: 'config mismatch — comparison refused', cls: 'zero' };
+    }
+    if (v.verdict === 'REBASELINED') {
+      return { text: 'config overridden — comparison skipped', cls: 'zero' };
+    }
+    return null;
+  }
+  function renderAddedOrModified(jmhArr, bootstrapMap /* optional */, verdictMap /* optional */) {
     const rows = jmhArr.map(x => {
       const benchmark = x?.benchmark || "";
       const score = x?.primaryMetric?.score;
       const err   = x?.primaryMetric?.scoreError;
       const unit  = x?.primaryMetric?.scoreUnit || "";
       const bootE = bootstrapMap && benchmark ? bootstrapMap.get(benchmark) : null;
+      const verdictE = verdictMap && benchmark ? verdictMap.get(benchmark) : null;
       return {
         benchmark,
         score, err, unit,
@@ -267,7 +553,8 @@
         curr: bootE ? bootE.mean_curr : score,
         delta_pct: bootE ? bootE.delta_pct : null,
         boot: bootE,
-        hasCmp: !!bootE
+        hasCmp: !!bootE,
+        configVerdict: formatConfigVerdict(verdictE)
       };
     }).sort((a,b) => (b.score ?? -Infinity) - (a.score ?? -Infinity));
 
@@ -310,7 +597,9 @@
     `;
       }
 
-      // benchmark nuovo (non presente nel compare): solo error/unit, il resto "-"
+      // benchmark non presente nel compare: se config_guard ha un verdetto (CONFIG_MISMATCH/REBASELINED)
+      // lo mostro invece di un "-" muto; altrimenti è davvero un benchmark nuovo, nessuna baseline.
+      const cv = r.configVerdict;
       return `
   <tr>
     <td class="mono">${r.benchmark}</td>
@@ -318,7 +607,7 @@
     <td class="right">${fmt(r.score)}</td>
     <td class="right">${fmt(r.err)}</td>
     <td>${r.unit}</td>
-    <td>-</td>
+    <td class="${cv ? 'delta ' + cv.cls : ''}">${cv ? cv.text : '-'}</td>
   </tr>
 `;
     }).join("")}
@@ -382,8 +671,9 @@
     const kind = "modified";
     const data = readJsonFromScript("payload");
     const boot = readJsonFromScript("payload_bootstrap");
+    const verdicts = readJsonFromScript("payload_verdicts");
 
-    const bootPath = "/c/Users/ww/Desktop/Filter/SmellBenchPipeline/bench-reports/standard/bootstrap_latest.json";
+    const bootPath = "/c/Users/ww/Desktop/Filter/SmellBenchPipeline/bench-reports/amber/bootstrap_latest.json";
     if (bootPath && bootPath.trim().length > 0) {
       const box = document.getElementById("kpi-bootstrap-path");
       const span = document.getElementById("boot-path");
@@ -412,8 +702,9 @@
     if (Array.isArray(data)) {
       const bootLooksOk = Array.isArray(boot);
       const bootstrapMap = ((kind === "modified" || kind === "added") && bootLooksOk) ? buildBootstrapMap(boot) : null;
+      const verdictMap = Array.isArray(verdicts) ? buildVerdictMap(verdicts) : null;
 
-      content.innerHTML = renderAddedOrModified(data, bootstrapMap);
+      content.innerHTML = renderAddedOrModified(data, bootstrapMap, verdictMap);
       return;
     }
 

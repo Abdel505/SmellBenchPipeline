@@ -1,0 +1,9 @@
+
+public class FooBenchmark_ofPairWithFlag_HashMap_boolean {
+    private Foo target;
+
+    @Benchmark
+    public void ofPairWithFlag(Blackhole bh) {
+        bh.consume(target.ofPairWithFlag(new HashMap<String,Integer>(), true));
+    }
+}

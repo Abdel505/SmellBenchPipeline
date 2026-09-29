@@ -21,6 +21,7 @@ SUT_SRC_ROOT="${SUT_SRC_ROOT:-app/src/main/java}"
 MATRIX="data/coverage-matrix.csv"
 BENCH_DIR="sut/byte-buddy/byte-buddy-benchmark/src/main/java/net/bytebuddy/benchmark"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "${SCRIPT_DIR}/lib/bench_naming.sh"
 
 log() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*"; }
 
@@ -49,13 +50,20 @@ parse_fqn_entry() {
     echo "${java_file}|${method}"
 }
 
-# Benchmark class name derived from production class name and method name
+# Benchmark class name derived from production class name and method name.
+# $2 is sanitized via sanitize_method_id() (scripts/lib/bench_naming.sh) —
+# the same function generate_benchmark.sh uses for BENCH_CLASS — so overload
+# identifiers like "compute(int,int)" produce the same
+# "...Benchmark_compute_int_int" name here as the file actually written,
+# instead of an unsanitized "...Benchmark_compute(int,int)" that never
+# matches (Update-3 item 8).
 bench_class_for() {
     local java_file="$1"
     local method="$2"
-    local class_name
+    local class_name method_safe
     class_name="$(basename "$java_file" .java)"
-    echo "${class_name}Benchmark_${method}"
+    method_safe="$(sanitize_method_id "$method")"
+    echo "${class_name}Benchmark_${method_safe}"
 }
 
 # Physical path of the benchmark file for a given production file and method.
@@ -64,9 +72,10 @@ bench_class_for() {
 bench_file_for() {
     local java_file="$1"
     local method="$2"
-    local class_name
+    local class_name method_safe
     class_name="$(basename "$java_file" .java)"
-    echo "${BENCH_DIR}/${class_name}Benchmark_${method}.java"
+    method_safe="$(sanitize_method_id "$method")"
+    echo "${BENCH_DIR}/${class_name}Benchmark_${method_safe}.java"
 }
 
 # Look up benchmark_class from matrix; prints nothing if not found
