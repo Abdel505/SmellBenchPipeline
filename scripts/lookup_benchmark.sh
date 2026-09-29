@@ -27,6 +27,13 @@ set -euo pipefail
 
 MATRIX="data/coverage-matrix.csv"
 
+# Same env var, same default, as update_coverage_matrix.sh's parse_fqn_entry()
+# and collect_applicability_targets.sh — the FQN branch below must build the
+# same java_file path those scripts used to populate the matrix, or lookups
+# never match. Previously hardcoded to "app/src/main/java", which never
+# matched the real "sut/byte-buddy/..." SUT path convention (Update-3 item 8).
+SUT_SRC_ROOT="${SUT_SRC_ROOT:-app/src/main/java}"
+
 log() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*" >&2; }
 
 if [[ $# -eq 0 ]]; then
@@ -52,7 +59,7 @@ else
     METHOD="${FQN##*.}"
     CLASS_FQN="${FQN%.*}"
     CLASS_PATH="${CLASS_FQN//.//}"
-    JAVA_FILE="app/src/main/java/${CLASS_PATH}.java"
+    JAVA_FILE="${SUT_SRC_ROOT}/${CLASS_PATH}.java"
 fi
 
 # ---------------------------------------------------------------------------

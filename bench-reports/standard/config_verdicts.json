@@ -1,0 +1,11 @@
+[
+  {
+    "benchmark": "net.bytebuddy.benchmark.RandomStringBenchmark_hashOf_Object.hashOfObject",
+    "params": "{}",
+    "verdict": "REBASELINED",
+    "curr_forks": 1,
+    "curr_measurementIterations": 1,
+    "best_forks": 1,
+    "best_measurementIterations": 5
+  }
+]
