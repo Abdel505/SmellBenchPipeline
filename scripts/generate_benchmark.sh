@@ -40,14 +40,11 @@ CLASS_NAME="$(basename "$SOURCE_FILE" .java)"
 
 # Sanitize the (possibly parameter-qualified) method identifier into a valid
 # Java identifier suffix for BENCH_CLASS — parens/commas aren't legal in a
-# Java identifier. Zero-arg methods ("getJavaVersion()") reduce to their bare
-# name (no trailing underscore), matching the pre-existing naming convention;
-# overloads ("doWork(String,int)") become e.g. "doWork_String_int" so sibling
-# overloads never collide on the same BENCH_CLASS.
-METHOD_ID_SAFE="${METHOD_ID//,/_}"
-METHOD_ID_SAFE="${METHOD_ID_SAFE//(/_}"
-METHOD_ID_SAFE="${METHOD_ID_SAFE//)/}"
-METHOD_ID_SAFE="${METHOD_ID_SAFE%_}"
+# Java identifier. Shared with update_coverage_matrix.sh so both scripts
+# agree on the same BENCH_CLASS name for a given method_id (see Update-3
+# item 8 — they used to disagree for overloads).
+source "${ROOT_DIR}/scripts/lib/bench_naming.sh"
+METHOD_ID_SAFE="$(sanitize_method_id "$METHOD_ID")"
 
 # Per-method bench class and target file — lands in the real Byte Buddy
 # benchmark module (Maven), not the demo app's test tree.

@@ -1,0 +1,20 @@
+[
+  {
+    "benchmark": "net.bytebuddy.benchmark.RandomStringBenchmark_hashOf_Object.hashOfObject",
+    "params": "{}",
+    "verdict": "MATCH",
+    "curr_forks": 1,
+    "curr_measurementIterations": 100,
+    "best_forks": 1,
+    "best_measurementIterations": 100
+  },
+  {
+    "benchmark": "net.bytebuddy.benchmark.RandomStringBenchmark_hashOf_int.hashOfInt",
+    "params": "{}",
+    "verdict": "MATCH",
+    "curr_forks": 1,
+    "curr_measurementIterations": 100,
+    "best_forks": 1,
+    "best_measurementIterations": 100
+  }
+]

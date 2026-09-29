@@ -53,8 +53,34 @@ log "Found ${#entries[@]} unique changed method(s). Building target JSON..."
 ENTRIES="$(printf '%s\n' "${entries[@]}")" python - <<'PYEOF'
 import json, os, re
 
-def _extract_method_windows_regex(lines, method_name, context_before=15):
-    """Fallback: original regex + brace-counting extraction."""
+def _simple_type_name(type_text):
+    """Erase generics/array suffixes/package qualification down to a bare type
+    name, e.g. "java.util.List<String>" -> "List" -- mirrors the erasure
+    convention ASTGenerator.java's eraseGenerics() uses when building the
+    parameter-qualified identifiers this script receives (see Update-3 item 4)."""
+    t = re.sub(r"<.*>", "", type_text)
+    t = t.replace("[]", "").strip()
+    return t.rsplit(".", 1)[-1]
+
+
+def _count_params_regex(lines, method_idx):
+    """Best-effort top-level comma count in the matched signature line's
+    parameter list (regex-fallback path only -- no real type info available
+    here, so callers can only filter by arg count, not by type)."""
+    text = "\n".join(lines[method_idx:method_idx + 5])
+    m = re.search(re.escape("(") + r"(.*?)" + re.escape(")"), text, re.DOTALL)
+    if not m:
+        return None
+    params = m.group(1).strip()
+    if not params:
+        return 0
+    return params.count(",") + 1
+
+
+def _extract_method_windows_regex(lines, method_name, context_before=15, expected_params=None):
+    """Fallback: original regex + brace-counting extraction. When
+    expected_params is given, windows are filtered by parameter COUNT only
+    (no real type info is available in this text-only fallback path)."""
     windows = []
     search_from = 0
     while search_from < len(lines):
@@ -94,13 +120,20 @@ def _extract_method_windows_regex(lines, method_name, context_before=15):
             if started and brace_count == 0:
                 end_idx = i + 1
                 break
-        windows.append(lines[start:end_idx])
+        if expected_params is None or _count_params_regex(lines, method_idx) == len(expected_params):
+            windows.append(lines[start:end_idx])
         search_from = end_idx
     return windows
 
 
-def extract_method_windows(lines, method_name, context_before=15):
-    """Extract ALL implementations of method_name using tree-sitter AST.
+def extract_method_windows(lines, method_name, context_before=15, expected_params=None):
+    """Extract implementation(s) of method_name using tree-sitter AST. When
+    expected_params (a list of erased simple type names, e.g. ["int", "String"]
+    for an identifier like "doWork(int,String)") is given, only the overload
+    whose declared parameter types match are returned -- otherwise every
+    overload sharing the bare name would be concatenated into one snippet,
+    handing the applicability checker unrelated overloads alongside the one
+    that actually changed (see Update-3 item 8).
     Each window includes: package + imports + enclosing class line + full method body.
     Falls back to regex if tree-sitter-java is not installed or parsing fails."""
     try:
@@ -108,7 +141,7 @@ def extract_method_windows(lines, method_name, context_before=15):
         from tree_sitter import Language, Parser
     except ImportError:
         print(f"  [WARN] tree-sitter-java not installed — falling back to regex extraction", flush=True)
-        return _extract_method_windows_regex(lines, method_name, context_before)
+        return _extract_method_windows_regex(lines, method_name, context_before, expected_params)
 
     source = "\n".join(lines)
     try:
@@ -124,7 +157,7 @@ def extract_method_windows(lines, method_name, context_before=15):
 
         if root.has_error:
             print(f"  [WARN] tree-sitter parse errors — falling back to regex extraction", flush=True)
-            return _extract_method_windows_regex(lines, method_name, context_before)
+            return _extract_method_windows_regex(lines, method_name, context_before, expected_params)
 
         # Collect package + import lines from the file header (always at root level)
         header_end = 0
@@ -133,14 +166,24 @@ def extract_method_windows(lines, method_name, context_before=15):
                 header_end = max(header_end, child.end_point[0])
         header_lines = lines[:header_end + 1]
 
-        # Walk the AST and collect all concrete method declarations matching method_name
-        windows = []
+        # Walk the AST and collect all concrete method declarations matching method_name,
+        # tagging each with its own parameter type list so overloads can be told apart.
+        all_matches = []  # list of (window_lines, [simple_param_types])
 
         def visit(node):
             if node.type == "method_declaration":
                 name_node = next((c for c in node.children if c.type == "identifier"), None)
                 if name_node and name_node.text.decode("utf-8") == method_name:
                     if any(c.type == "block" for c in node.children):
+                        params_node = node.child_by_field_name("parameters")
+                        param_types = []
+                        if params_node is not None:
+                            for p in params_node.children:
+                                if p.type == "formal_parameter" or p.type == "spread_parameter":
+                                    type_node = p.child_by_field_name("type")
+                                    if type_node is not None:
+                                        param_types.append(_simple_type_name(
+                                            type_node.text.decode("utf-8")))
                         # Walk up to find the nearest enclosing class/interface
                         enc = node.parent
                         while enc and enc.type not in (
@@ -155,20 +198,30 @@ def extract_method_windows(lines, method_name, context_before=15):
                         m_start = node.start_point[0]
                         m_end   = node.end_point[0]
                         ctx.extend(lines[m_start : m_end + 1])
-                        windows.append(ctx)
+                        all_matches.append((ctx, param_types))
             for child in node.children:
                 visit(child)
 
         visit(root)
 
-        if not windows:
-            return _extract_method_windows_regex(lines, method_name, context_before)
+        if not all_matches:
+            return _extract_method_windows_regex(lines, method_name, context_before, expected_params)
 
-        return windows
+        if expected_params is None:
+            return [w for w, _ in all_matches]
+
+        exact = [w for w, params in all_matches if params == expected_params]
+        if exact:
+            return exact
+
+        print(f"  [WARN] No overload of '{method_name}' matched expected params "
+              f"{expected_params} by type — falling back to all {len(all_matches)} "
+              f"bare-name match(es)", flush=True)
+        return [w for w, _ in all_matches]
 
     except Exception as e:
         print(f"  [WARN] AST extraction failed ({e}) — falling back to regex", flush=True)
-        return _extract_method_windows_regex(lines, method_name, context_before)
+        return _extract_method_windows_regex(lines, method_name, context_before, expected_params)
 
 entries_env = os.environ.get("ENTRIES", "")
 entries = [e for e in entries_env.split("\n") if e.strip()]
@@ -188,6 +241,15 @@ for entry in entries:
     class_part = entry.rsplit(".", 1)[0]   # /byte-buddy-dep/src/main/java/net/bytebuddy/NamingStrategy
     method     = entry.rsplit(".", 1)[1]   # name(TypeDescription)
     method_name = method.split("(", 1)[0]  # name — bare identifier for AST/regex matching
+    # Parameter-qualified identifiers (Update-3 item 4 encoding, e.g. "compute(int,int)")
+    # carry an expected param list so the right overload is picked below instead of
+    # every bare-name match getting concatenated together. Bare names (no "(") keep
+    # the original name-only behavior.
+    if "(" in method:
+        params_str = method.split("(", 1)[1].rsplit(")", 1)[0].strip()
+        expected_params = [p.strip() for p in params_str.split(",")] if params_str else []
+    else:
+        expected_params = None
     # detect_changed_methods.sh only strips the "sut/byte-buddy" prefix, so entries
     # still carry the module + "src/main/java" segment (e.g. "byte-buddy-dep/src/main/java/...")
     sut_src_root = os.environ.get("SUT_SRC_ROOT", "sut/byte-buddy")
@@ -200,7 +262,7 @@ for entry in entries:
         continue
 
     all_lines = open(java_file, "r", encoding="utf-8").read().splitlines()
-    windows = extract_method_windows(all_lines, method_name)
+    windows = extract_method_windows(all_lines, method_name, expected_params=expected_params)
     if not windows:
         print(f"  [WARN] Method '{method}' not found in {java_file} — using full source", flush=True)
         snippet = "\n".join(all_lines)
