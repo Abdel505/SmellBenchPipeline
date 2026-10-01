@@ -1,14 +1,14 @@
 [
   {
-    "benchmark": "net.bytebuddy.benchmark.RandomStringBenchmark_hashOf_int.hashOfInt",
+    "benchmark": "net.bytebuddy.benchmark.RandomStringBenchmark_hashOf_Object.hashOfObject",
     "unit": "ops/ns",
-    "n_prev": 25,
-    "n_curr": 25,
-    "mean_prev": 0.02498527028709594,
-    "mean_curr": 0.03779627626407446,
-    "delta_pct": 51.27423409781954,
-    "p_value": 0.0,
-    "verdict": "SIGNIFICANT",
-    "note": null
+    "n_prev": 5,
+    "n_curr": 5,
+    "mean_prev": 0.014724732125800683,
+    "mean_curr": 0.02561215243529018,
+    "delta_pct": 73.93968336043652,
+    "p_value": null,
+    "verdict": "INSUFFICIENT_DATA",
+    "note": "missing or too few rawData samples; cannot bootstrap"
   }
 ]
