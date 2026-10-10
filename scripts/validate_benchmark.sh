@@ -39,6 +39,6 @@ if benchmark_calls_target "$FILE" "$METHOD" "$METHOD_ID" "$SUT_FILE"; then
   echo "PASS — ${FILE} calls ${METHOD_ID}"
   exit 0
 else
-  echo "FAIL — ${FILE} does not call ${METHOD_ID}"
+  echo "FAIL — ${FILE}: ${BV_FAILURE_REASON:-does not call ${METHOD_ID}}"
   exit 1
 fi

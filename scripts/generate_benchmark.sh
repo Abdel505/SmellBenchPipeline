@@ -103,6 +103,17 @@ log() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*"; }
 # generation attempt.
 source "${ROOT_DIR}/scripts/lib/benchmark_validation.sh"
 
+# Rejected attempts are kept for inspection instead of being lost: the file is
+# copied to pipeline-output/rejected-benchmarks/ (outside the Maven module, so
+# it is never compiled) before being removed from the benchmark module.
+REJECTED_DIR="${ROOT_DIR}/pipeline-output/rejected-benchmarks"
+reject_target() {
+  local reason="$1"
+  mkdir -p "$REJECTED_DIR"
+  cp -f "$TARGET" "${REJECTED_DIR}/${BENCH_CLASS}_attempt${attempt}_${reason}.java" 2>/dev/null || true
+  rm -f "$TARGET"
+}
+
 log "Starting benchmark generation for ${CLASS_NAME}.${METHOD}"
 log "Source  : $SOURCE_FILE"
 log "Target  : $TARGET"
@@ -233,19 +244,54 @@ for ((attempt = 1; attempt <= MAX_ATTEMPTS; attempt++)); do
 
     mv "$GENERATED_RENAMED" "$TARGET"
 
+    # Fix: reject @Benchmark method names that differ only in case (e.g.
+    # "foo_withHints" vs "foo_WithHints"). JMH generates one public
+    # <BenchClass>_<method>_jmhTest class per @Benchmark method, and on a
+    # case-insensitive filesystem (Windows) two such names land in the same
+    # file, so the compile fails with "class ... is public, should be declared
+    # in a file named ...". Checked before Maven so the retry is cheap.
+    # Comments/strings are blanked first; annotations (on their own line or
+    # inline before the declaration) are stripped so "@Fork(1)" etc. under
+    # each @Benchmark aren't mistaken for method names.
+    CASE_DUPS="$(strip_comments_and_strings "$(cat "$TARGET")" | awk '
+      /@Benchmark([^A-Za-z0-9_]|$)/ { armed = 1; sub(/.*@Benchmark/, "") }
+      armed {
+        gsub(/@[A-Za-z_][A-Za-z0-9_.]*[ \t]*(\([^)]*\))?/, "")
+        if ($0 ~ /^[ \t]*$/) next
+        if (match($0, /[A-Za-z_$][A-Za-z0-9_$]*[ \t]*\(/)) {
+          name = substr($0, RSTART, RLENGTH)
+          sub(/[ \t]*\($/, "", name)
+          print tolower(name)
+        }
+        armed = 0
+      }
+    ' | sort | uniq -d | paste -sd, -)"
+    if [[ -n "$CASE_DUPS" ]]; then
+      log "Case-duplicate @Benchmark method names on attempt $attempt (${CASE_DUPS}) — removing bad file"
+      reject_target "case-duplicate"
+      continue
+    fi
+
+    # Fix: drop this class's JMH-generated sources/classes left over from
+    # earlier attempts. Without a `clean`, they persist under target/, and on
+    # Windows a regenerated file keeps the OLD name's casing, producing the
+    # same "should be declared in a file named ..." compile error.
+    rm -f "sut/byte-buddy/byte-buddy-benchmark/target/generated-sources/annotations/net/bytebuddy/benchmark/jmh_generated/${BENCH_CLASS}_"* \
+          "sut/byte-buddy/byte-buddy-benchmark/target/classes/net/bytebuddy/benchmark/jmh_generated/${BENCH_CLASS}_"*
+
     log "Validating with Maven compile (byte-buddy-benchmark module)..."
-    if (cd sut/byte-buddy && mvn -q -pl byte-buddy-benchmark -am compile 2>&1); then
+    if (cd sut/byte-buddy && ./mvnw.cmd -q -pl byte-buddy-benchmark -am compile 2>&1); then
       if benchmark_calls_target "$TARGET" "$METHOD" "$METHOD_ID" "$SOURCE_FILE"; then
-        log "  Method-target check: PASS — @Benchmark method calls ${METHOD}()"
+        log "  Method-target check: PASS — every @Benchmark method calls ${METHOD}()"
         log "SUCCESS — benchmark written to $TARGET"
         exit 0
       else
-        log "Method-target check FAILED on attempt $attempt — @Benchmark method does not call ${METHOD}(); removing bad file"
-        rm -f "$TARGET"
+        log "Method-target check FAILED on attempt $attempt — ${BV_FAILURE_REASON:-@Benchmark method does not call ${METHOD}()}; removing bad file"
+        reject_target "method-target"
       fi
     else
       log "Compile failed on attempt $attempt — removing bad file"
-      rm -f "$TARGET"
+      reject_target "compile"
     fi
   else
     log "No output from Chat2Benchmark on attempt $attempt (expected: $GENERATED)"

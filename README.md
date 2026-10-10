@@ -83,7 +83,8 @@ git clone --depth=2 https://github.com/raphw/byte-buddy sut/byte-buddy
 export SUT_GIT_DIR=sut/byte-buddy
 export SUT_SRC_FILTER='byte-buddy-dep/src/main/java.*\.java$'
 export SUT_SRC_STRIP='byte-buddy-dep/src/main/java/'
-export SUT_SRC_ROOT="$PWD/sut/byte-buddy/byte-buddy-dep/src/main/java"
+export export SUT_SRC_ROOT="sut/byte-buddy/byte-buddy-dep/src/main/java"
+
 
 # Build
 ./gradlew clean build

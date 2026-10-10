@@ -1,0 +1,3 @@
+net/bytebuddy/ClassFileVersion.latest()
+net/bytebuddy/ClassFileVersion.of(Class,ClassFileLocator)
+net/bytebuddy/ClassFileVersion.resolve()

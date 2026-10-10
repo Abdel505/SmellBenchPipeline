@@ -1,2 +1,1 @@
-sut/byte-buddy/byte-buddy-dep/src/main/java/net/bytebuddy/utility/RandomString.java | hashOf(Object) | unknown
-sut/byte-buddy/byte-buddy-dep/src/main/java/net/bytebuddy/utility/RandomString.java | hashOf(int) | unknown
+sut/byte-buddy/byte-buddy-dep/src/main/java/net/bytebuddy/ClassFileVersion.java | describeCompatibility(int,boolean,boolean,boolean,String,int,boolean) | added

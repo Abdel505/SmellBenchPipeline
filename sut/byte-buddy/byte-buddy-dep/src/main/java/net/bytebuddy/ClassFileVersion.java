@@ -509,6 +509,125 @@ public class ClassFileVersion implements Comparable<ClassFileVersion>, Serializa
     }
 
     /**
+     * Produces a textual compatibility report of this class file version against a target environment.
+     *
+     * @param targetJavaVersion  The target Java version.
+     * @param allowPreview       {@code true} if preview features are allowed.
+     * @param strict             {@code true} if strict checking should be applied.
+     * @param verbose            {@code true} if a verbose report should be produced.
+     * @param vendor             The name of the target VM vendor.
+     * @param maximumMinor       The maximum accepted minor version.
+     * @param includeHints       {@code true} if hints should be included.
+     * @return A compatibility report.
+     */
+    public String describeCompatibility(int targetJavaVersion,
+                                        boolean allowPreview,
+                                        boolean strict,
+                                        boolean verbose,
+                                        String vendor,
+                                        int maximumMinor,
+                                        boolean includeHints) {
+        StringBuilder report = new StringBuilder();
+        int major = versionNumber & 0xFFFF;
+        int minor = versionNumber >>> 16;
+        int java = major - 44;
+        if (targetJavaVersion > 0) {
+            if (java <= targetJavaVersion) {
+                if (minor != 0) {
+                    if (minor == 65535) {
+                        if (allowPreview) {
+                            if (java == targetJavaVersion) {
+                                report.append("COMPATIBLE (preview)");
+                                if (verbose) {
+                                    report.append(" - major ").append(major).append(", minor ").append(minor);
+                                }
+                            } else {
+                                if (strict) {
+                                    report.append("INCOMPATIBLE (preview of older release)");
+                                } else {
+                                    report.append("COMPATIBLE (preview, lenient)");
+                                    if (verbose) {
+                                        report.append(" - major ").append(major).append(", minor ").append(minor);
+                                    }
+                                }
+                            }
+                        } else {
+                            report.append("INCOMPATIBLE (preview not allowed)");
+                        }
+                    } else if (minor > maximumMinor) {
+                        if (strict) {
+                            report.append("INCOMPATIBLE (minor ").append(minor).append(" > ").append(maximumMinor).append(")");
+                        } else {
+                            report.append("COMPATIBLE (minor ignored)");
+                            if (verbose) {
+                                report.append(" - major ").append(major).append(", minor ").append(minor);
+                            }
+                        }
+                    } else {
+                        report.append("COMPATIBLE");
+                        if (verbose) {
+                            report.append(" - major ").append(major).append(", minor ").append(minor);
+                        }
+                    }
+                } else {
+                    report.append("COMPATIBLE");
+                    if (verbose) {
+                        report.append(" - major ").append(major).append(", minor ").append(minor);
+                    }
+                }
+            } else {
+                if (java - targetJavaVersion > 10) {
+                    report.append("INCOMPATIBLE (far too new)");
+                } else if (java - targetJavaVersion > 5) {
+                    report.append("INCOMPATIBLE (too new)");
+                } else {
+                    report.append("INCOMPATIBLE (slightly too new)");
+                }
+                if (verbose) {
+                    report.append(" - major ").append(major).append(", minor ").append(minor);
+                }
+            }
+        } else {
+            report.append("UNKNOWN TARGET");
+        }
+        if (vendor != null && vendor.length() > 0) {
+            if (vendor.toLowerCase().contains("ibm") || vendor.toLowerCase().contains("j9")) {
+                if (java >= 9 && java < 11) {
+                    report.append(" [J9 module quirks]");
+                }
+            } else if (vendor.toLowerCase().contains("graal")) {
+                if (java >= 17) {
+                    report.append(" [native-image]");
+                }
+            } else if (vendor.toLowerCase().contains("android")) {
+                if (java > 8) {
+                    report.append(" [desugaring required]");
+                }
+            }
+        }
+        if (includeHints) {
+            if (java < 5) {
+                report.append(" hint: no generics or annotations");
+            } else if (java < 7) {
+                report.append(" hint: no invokedynamic");
+            } else if (java < 8) {
+                report.append(" hint: no lambdas or default methods");
+            } else if (java < 9) {
+                report.append(" hint: no modules");
+            } else if (java < 11) {
+                report.append(" hint: no nest mates");
+            } else if (java < 16) {
+                report.append(" hint: no records");
+            } else if (java < 17) {
+                report.append(" hint: no sealed classes");
+            } else {
+                report.append(" hint: modern class file");
+            }
+        }
+        return report.toString();
+    }
+
+    /**
      * A locator for the executing VM's Java version.
      */
     protected interface VersionLocator {

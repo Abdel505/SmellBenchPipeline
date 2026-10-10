@@ -399,12 +399,20 @@ types_compatible() {
   return 1
 }
 
-# --- Validation: does the @Benchmark method actually call the target method's
-#     specific overload? ---
-# Requires the file to contain EXACTLY ONE @Benchmark method (see
-# _bv_calls_target_impl below) and extracts the STATEMENTS inside it (strictly
-# after its opening brace, up to its matching closing brace), checking they
-# reference ${method}(...). Deliberately excludes the signature line itself —
+# --- Validation: does EVERY @Benchmark method actually call the target
+#     method's specific overload? ---
+# A generated file may contain several @Benchmark methods — Chat2Benchmark's
+# prompt asks for "@Benchmark methods" (plural), and for a method with many
+# flags/branches the LLM typically writes one benchmark per scenario (e.g.
+# "describeCompatibility_withVendorHints"). Each @Benchmark method's body is
+# extracted and checked on its own; the file passes only if ALL of them call
+# the target. Checking each body separately (rather than scanning all bodies
+# as one blob) keeps the original guarantee: a real call in one method can
+# never satisfy validation for a sibling method that doesn't make it.
+#
+# For each @Benchmark method only the STATEMENTS inside its body (strictly
+# after its opening brace, up to its matching closing brace) are checked for
+# ${method}(...). The signature itself is deliberately excluded —
 # Chat2Benchmark names the wrapper method after the target (e.g.
 # "public void getJavaVersion(...)"), and that declaration would otherwise
 # false-positive-match even when the body never actually calls the target.
@@ -412,25 +420,22 @@ types_compatible() {
 # strip_comments_and_strings) so neither a comment nor a string literal that
 # merely mentions the method name can be mistaken for a call.
 #
-# The @Benchmark-detection regex requires a non-identifier character (or
-# end of line) right after "@Benchmark" — found necessary because a plain
-# `/@Benchmark/` substring match also fires on the unrelated class-level
-# `@BenchmarkMode(...)` annotation. Chat2Benchmark always emits
-# `@BenchmarkMode` above the class declaration, so the old pattern armed
-# capture at the class's own opening brace instead of a method's, leaking
-# the @State/@Setup preamble (and, if the file had more than one @Benchmark
-# method, every one of their bodies too) into a single combined search text
-# — a call anywhere in that leaked text could satisfy validation for a
-# target the actual intended method never called.
+# The @Benchmark-detection regex requires a non-identifier character right
+# after "@Benchmark" so the unrelated class-level `@BenchmarkMode(...)`
+# annotation Chat2Benchmark always emits is never mistaken for a method.
 #
 # When $3 (method_id, e.g. "hashOf(Object)") carries a parameter list, a
 # name-only match isn't enough to confirm the RIGHT overload was called —
 # hashOf(Object) and hashOf(int) both satisfy a bare name check. In that
 # case every call site's argument count/types is checked against method_id's
-# parameter list; the check passes only if some call site is consistent with
-# that specific overload. Bare names (no "(" in method_id — the
-# non-overloaded, pre-existing calling convention) fall back to the original
-# name-only check unchanged.
+# parameter list; a body passes only if some call site in it is consistent
+# with that specific overload. Bare names (no "(" in method_id) fall back to
+# the original name-only check unchanged.
+#
+# On failure, BV_FAILURE_REASON is set to a one-line explanation naming the
+# offending @Benchmark method(s), for the caller's log. It is reset to "" on
+# every call.
+#
 # Thin wrapper: owns the cleaned-copy temp file's lifecycle (single
 # create/delete around one call to _bv_calls_target_impl below) so cleanup
 # doesn't depend on trap/`set -u` interactions across the many internal
@@ -441,11 +446,15 @@ types_compatible() {
 # resolve call arguments shaped like "target.someSutMethod()" against that
 # method's declared return type (see resolve_arg_type()/subtask 8b).
 # Omitting it behaves exactly as before.
+BV_FAILURE_REASON=""
+
 benchmark_calls_target() {
   local file="$1"
   local method="$2"
   local method_id="${3:-$method}"
   local sut_file="${4:-}"
+
+  BV_FAILURE_REASON=""
 
   local clean_file
   clean_file="$(mktemp bv_clean_XXXXXX.tmp)"
@@ -460,36 +469,70 @@ benchmark_calls_target() {
   return "$result"
 }
 
-_bv_calls_target_impl() {
-  local clean_file="$1"
+# Prints, NUL-separated, a (name, body) pair for every @Benchmark method in
+# the (already comment/string-stripped) file $1: the method's name, then the
+# text strictly between its opening brace and the matching closing brace.
+# Character-level rather than line-based, so a one-line method
+# ("void f() { x.target(); }") and a brace on the line after the signature
+# are both handled. The opening brace is the first "{" at paren depth 0 after
+# the annotation, so an annotation argument like `@Fork(jvmArgs = {...})`
+# between @Benchmark and the signature can't be mistaken for it. Annotations
+# are stripped from the signature text before the name is taken, so
+# "@Fork(1)" etc. aren't read as the method name.
+_bv_benchmark_bodies() {
+  awk '
+    BEGIN { RS="\0" }
+    {
+      text = $0
+      n = length(text)
+      i = 1
+      while (i <= n) {
+        rest = substr(text, i)
+        if (!match(rest, /@Benchmark([^A-Za-z0-9_]|$)/)) break
+        h = i + RSTART - 1 + length("@Benchmark")
+
+        pdepth = 0
+        b = 0
+        for (k = h; k <= n; k++) {
+          ch = substr(text, k, 1)
+          if (ch == "(") pdepth++
+          else if (ch == ")") pdepth--
+          else if (ch == "{" && pdepth == 0) { b = k; break }
+        }
+        if (b == 0) break
+
+        header = substr(text, h, b - h)
+        gsub(/@[A-Za-z_][A-Za-z0-9_.]*[ \t\r\n]*(\([^)]*\))?/, "", header)
+        name = "?"
+        if (match(header, /[A-Za-z_$][A-Za-z0-9_$]*[ \t\r\n]*\(/)) {
+          name = substr(header, RSTART, RLENGTH)
+          sub(/[ \t\r\n]*\($/, "", name)
+        }
+
+        depth = 1
+        for (k = b + 1; k <= n && depth > 0; k++) {
+          ch = substr(text, k, 1)
+          if (ch == "{") depth++
+          else if (ch == "}") depth--
+        }
+        # k is one past the matching "}" (or n+1 if unbalanced).
+        body = substr(text, b + 1, (k - 1) - (b + 1))
+        printf "%s%c%s%c", name, 0, body, 0
+        i = k
+      }
+    }
+  ' "$1"
+}
+
+# Does a single @Benchmark body $1 call ${method} (overload ${method_id})?
+_bv_body_calls_target() {
+  local body="$1"
   local method="$2"
   local method_id="$3"
-  local sut_file="${4:-}"
+  local clean_file="$4"
+  local sut_file="${5:-}"
 
-  # Exactly one @Benchmark method is required. Without this, a file with
-  # several @Benchmark methods (e.g. an unrequested sibling overload
-  # Chat2Benchmark tacked on alongside the intended one) would have ALL of
-  # their bodies scanned as a single blob below, so a real call in the WRONG
-  # method could satisfy validation for a method nobody asked to benchmark.
-  # Rejecting multi-method files outright (same outcome as a compile
-  # failure -> retry) is simpler and safer than trying to guess which
-  # method is "the" one by name/signature matching.
-  local benchmark_count
-  benchmark_count="$(grep -cE '@Benchmark([^A-Za-z0-9_]|$)' "$clean_file")"
-  [[ "$benchmark_count" -eq 1 ]] || return 1
-
-  local body
-  body="$(awk '
-    /@Benchmark([^A-Za-z0-9_]|$)/ { armed=1; next }
-    armed && /\{/ { armed=0; capture=1; depth=1; next }
-    capture {
-      depth += gsub(/\{/, "{")
-      depth -= gsub(/\}/, "}")
-      if (depth <= 0) { capture=0; next }
-      print
-    }
-  ' "$clean_file")"
-  [[ -z "$body" ]] && return 1
+  [[ -z "${body//[[:space:]]/}" ]] && return 1
 
   if [[ "$method_id" != *"("* ]]; then
     grep -qE "\<${method}\(" <<< "$body"
@@ -536,4 +579,40 @@ _bv_calls_target_impl() {
   done
 
   return 1
+}
+
+_bv_calls_target_impl() {
+  local clean_file="$1"
+  local method="$2"
+  local method_id="$3"
+  local sut_file="${4:-}"
+
+  local -a names=() bodies=()
+  local name body
+  while IFS= read -r -d '' name && IFS= read -r -d '' body; do
+    names+=("$name")
+    bodies+=("$body")
+  done < <(_bv_benchmark_bodies "$clean_file")
+
+  if [[ ${#names[@]} -eq 0 ]]; then
+    BV_FAILURE_REASON="no @Benchmark method found"
+    return 1
+  fi
+
+  local -a failed=()
+  local idx
+  for ((idx = 0; idx < ${#names[@]}; idx++)); do
+    if ! _bv_body_calls_target "${bodies[$idx]}" "$method" "$method_id" "$clean_file" "$sut_file"; then
+      failed+=("${names[$idx]}")
+    fi
+  done
+
+  if [[ ${#failed[@]} -gt 0 ]]; then
+    local joined
+    joined="$(IFS=','; echo "${failed[*]}")"
+    BV_FAILURE_REASON="${#failed[@]} of ${#names[@]} @Benchmark method(s) do not call ${method_id}: ${joined}"
+    return 1
+  fi
+
+  return 0
 }
