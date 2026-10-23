@@ -83,8 +83,12 @@ val compileSutByteBuddy = tasks.register<Exec>("compileSutByteBuddy") {
     group = "benchmark"
     description = "mvn compile the SUT's byte-buddy-dep module"
     workingDir = file("../sut/byte-buddy")
-    val mvnCmd = if (System.getProperty("os.name").lowercase().contains("windows")) "mvn.cmd" else "mvn"
-    commandLine(mvnCmd, "-q", "-pl", "byte-buddy-dep", "-am", "compile")
+    // Use byte-buddy's own Maven wrapper (pins Maven 3.9.9) so no global `mvn` install is needed.
+    val mvnCmd = if (System.getProperty("os.name").lowercase().contains("windows")) "mvnw.cmd" else "mvnw"
+    commandLine(file("../sut/byte-buddy/$mvnCmd").absolutePath, "-q", "-pl", "byte-buddy-dep", "-am", "compile")
+    // Force UTF-8 so maven-status files (which embed the non-ASCII "Università" path) are
+    // read/written identically on JDK 17 (cp1252 default) and JDK 18+ (UTF-8 default).
+    environment("MAVEN_OPTS", listOfNotNull(System.getenv("MAVEN_OPTS"), "-Dfile.encoding=UTF-8").joinToString(" "))
 }
 
 tasks.compileTestJava {
