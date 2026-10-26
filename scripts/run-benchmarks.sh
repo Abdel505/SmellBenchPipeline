@@ -7,6 +7,39 @@ OUTFILE="${ROOT_DIR}/data/jmh-result.json"
 BEST_FILE="${ROOT_DIR}/data/best-result.json"
 export RUN_AMBER="${RUN_AMBER:-1}"
 
+# --- Pin a Gradle-8.8-compatible JDK ---
+# Gradle 8.8's embedded Kotlin DSL compiler can't parse version strings from JDKs
+# newer than it was built for -- it fails with "IllegalArgumentException: <version>"
+# before any task runs, on whatever `java` happens to be first on JAVA_HOME/PATH.
+# Pin a known-compatible JDK (17-21) instead of depending on the machine's default.
+pin_compatible_jdk() {
+  local major
+  major="$(java -version 2>&1 | sed -n '1s/^[^"]*"\([0-9]*\).*/\1/p')"
+  if [[ -z "${major}" || "${major}" -le 22 ]]; then
+    return 0
+  fi
+
+  local candidates=("${JAVA_HOME_21_X64:-}" "${JAVA_HOME_17_X64:-}")
+  shopt -s nullglob
+  candidates+=(/c/Program\ Files/Java/jdk-21* /c/Program\ Files/Java/jdk-17* \
+               /c/Program\ Files/Eclipse\ Adoptium/jdk-21* /c/Program\ Files/Eclipse\ Adoptium/jdk-17*)
+  shopt -u nullglob
+
+  for candidate in "${candidates[@]}"; do
+    if [[ -n "${candidate}" && -x "${candidate}/bin/java" ]]; then
+      export JAVA_HOME="${candidate}"
+      export PATH="${JAVA_HOME}/bin:${PATH}"
+      echo "[run-benchmarks] Active JDK was ${major} (unsupported by Gradle 8.8) -- switched JAVA_HOME to ${JAVA_HOME}" >&2
+      return 0
+    fi
+  done
+
+  echo "[run-benchmarks] ERROR: active JDK is ${major}, which Gradle 8.8 cannot run on, and no compatible JDK (17 or 21) was found on this machine." >&2
+  echo "[run-benchmarks]   Install a JDK 17-21 and set JAVA_HOME to it before rerunning." >&2
+  exit 1
+}
+pin_compatible_jdk
+
 # --- Reject conflicting iteration/time overrides when RUN_AMBER=1 ---
 # app/build.gradle.kts hardcodes -wi 500 -w 100ms -i 100 -r 100ms whenever RUN_AMBER=1
 # (AMBER's steady-state detector decides the real iteration counts at runtime), so these

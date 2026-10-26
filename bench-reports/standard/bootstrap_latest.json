@@ -1,14 +1,38 @@
 [
   {
-    "benchmark": "net.bytebuddy.benchmark.RandomStringBenchmark_hashOf_Object.hashOfObject",
-    "unit": "ops/ns",
-    "n_prev": 5,
-    "n_curr": 5,
-    "mean_prev": 0.014724732125800683,
-    "mean_curr": 0.02561215243529018,
-    "delta_pct": 73.93968336043652,
-    "p_value": null,
-    "verdict": "INSUFFICIENT_DATA",
-    "note": "missing or too few rawData samples; cannot bootstrap"
+    "benchmark": "net.bytebuddy.benchmark.ClassFileVersionBenchmark_describeCompatibility_int_boolean_boolean_boolean_String_int_boolean.describeCompatibility",
+    "unit": "ns/op",
+    "n_prev": 50,
+    "n_curr": 50,
+    "mean_prev": 416.1069951056411,
+    "mean_curr": 306.0085987789313,
+    "delta_pct": -26.459155366700347,
+    "p_value": 0.0,
+    "verdict": "SIGNIFICANT",
+    "note": null
+  },
+  {
+    "benchmark": "net.bytebuddy.benchmark.ClassFileVersionBenchmark_describeCompatibility_int_boolean_boolean_boolean_String_int_boolean.describeCompatibilityCompatible",
+    "unit": "ns/op",
+    "n_prev": 50,
+    "n_curr": 50,
+    "mean_prev": 269.7051158306624,
+    "mean_curr": 213.3704985346624,
+    "delta_pct": -20.887485623880554,
+    "p_value": 0.0004,
+    "verdict": "SIGNIFICANT",
+    "note": null
+  },
+  {
+    "benchmark": "net.bytebuddy.benchmark.ClassFileVersionBenchmark_describeCompatibility_int_boolean_boolean_boolean_String_int_boolean.describeCompatibilityIncompatible",
+    "unit": "ns/op",
+    "n_prev": 50,
+    "n_curr": 50,
+    "mean_prev": 384.59813564694196,
+    "mean_curr": 329.156173001547,
+    "delta_pct": -14.415556786861345,
+    "p_value": 0.0,
+    "verdict": "SIGNIFICANT",
+    "note": null
   }
 ]
