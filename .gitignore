@@ -44,6 +44,7 @@ __pycache__/
 # Secrets
 .secrets
 *.env
+!shortcuts.env
 test_generate.sh
 
 # Local-only test scripts (not part of the pipeline)

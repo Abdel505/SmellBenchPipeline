@@ -98,9 +98,12 @@ bash scripts/detect_changed_methods.sh
 
 ### 2. Collect method source code
 ```bash
+export METHOD_SCOPE=both    # optional: added | modified | both (default: both)
 bash scripts/collect_applicability_targets.sh
 ```
 → `pipeline-output/applicability-targets.json`
+
+`METHOD_SCOPE` picks which change lists feed the rest of the pipeline. Deleted methods are always processed. In CI, set it with the `method_scope` input when running the workflow manually; `push` runs use `both`.
 
 ### 3. LLM smell check
 ```bash

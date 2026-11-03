@@ -7,13 +7,31 @@ set -euo pipefail
 #
 # Input format (per line):  com/pipeline/demo/StringUtils.joinWithSeparator
 # Output: pipeline-output/applicability-targets.json
+#
+# METHOD_SCOPE: added | modified | both (default: both) — selects which change
+# lists feed the pipeline. Deleted methods are not affected (handled by
+# update_coverage_matrix.sh regardless of scope).
 
 ADDED_FILE="${1:-pipeline-output/added_methods.txt}"
 MODIFIED_FILE="${2:-pipeline-output/modified_methods.txt}"
 DELETED_FILE="${3:-pipeline-output/deleted_methods.txt}"
 OUTPUT_FILE="pipeline-output/applicability-targets.json"
+METHOD_SCOPE="${METHOD_SCOPE:-both}"
 
 log() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] [collect_applicability_targets] $*"; }
+
+# --- Resolve METHOD_SCOPE (case-insensitive, whitespace-trimmed) ---
+METHOD_SCOPE="$(echo "$METHOD_SCOPE" | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')"
+case "$METHOD_SCOPE" in
+    added)    input_files=("$ADDED_FILE") ;;
+    modified) input_files=("$MODIFIED_FILE") ;;
+    both)     input_files=("$ADDED_FILE" "$MODIFIED_FILE") ;;
+    *)
+        log "ERROR: invalid METHOD_SCOPE '${METHOD_SCOPE}' — expected added, modified or both."
+        exit 1
+        ;;
+esac
+log "Method scope: ${METHOD_SCOPE}"
 
 # Prevent Git-Bash/MSYS from rewriting leading "/" in env var values (e.g. the
 # "/byte-buddy-dep/..." entries below) into a Windows path like "C:/Program Files/Git/..."
@@ -21,11 +39,11 @@ log() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] [collect_applicability_targets] $*"
 export MSYS_NO_PATHCONV=1
 export MSYS2_ARG_CONV_EXCL='*'
 
-# --- Collect all unique entries from all three input files ---
+# --- Collect all unique entries from the in-scope input files ---
 declare -A seen_entries
 entries=()
 
-for input_file in "$ADDED_FILE" "$MODIFIED_FILE"; do
+for input_file in "${input_files[@]}"; do
     if [[ ! -f "$input_file" ]]; then
         log "Skipping missing file: $input_file"
         continue

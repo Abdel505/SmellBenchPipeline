@@ -1,1 +1,0 @@
-net/bytebuddy/ClassFileVersion.describeCompatibility(int,boolean,boolean,boolean,String,int,boolean)

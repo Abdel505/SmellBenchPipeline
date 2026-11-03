@@ -5,6 +5,15 @@ on:
     branches:
       - main
   workflow_dispatch:
+    inputs:
+      method_scope:
+        description: "Which changed methods to process"
+        type: choice
+        options:
+          - both
+          - added
+          - modified
+        default: both
 
 jobs:
 
@@ -85,6 +94,7 @@ jobs:
         run: bash scripts/collect_applicability_targets.sh
         env:
           SUT_SRC_ROOT: "${{ github.workspace }}/sut/byte-buddy/byte-buddy-dep/src/main/java"
+          METHOD_SCOPE: ${{ inputs.method_scope || 'both' }}
 
   # ─── JOB 3 ───────────────────────────────────────────
   smell-check:

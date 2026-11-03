@@ -1,29 +1,74 @@
 [
   {
-    "benchmark": "net.bytebuddy.benchmark.ClassFileVersionBenchmark_describeCompatibility_int_boolean_boolean_boolean_String_int_boolean.describeCompatibility",
+    "benchmark": "net.bytebuddy.benchmark.ClassFileVersionBenchmark_describeCompatibility_int_boolean_boolean_boolean_String_int_boolean.describeCompatibility_AllowPreview_Lenient_Verbose_IBMVendor_WithHints",
     "params": "{}",
-    "verdict": "MATCH",
-    "curr_forks": 5,
-    "curr_measurementIterations": 10,
-    "best_forks": 5,
-    "best_measurementIterations": 10
+    "verdict": "NEW",
+    "curr_forks": 1,
+    "curr_measurementIterations": 1,
+    "best_forks": null,
+    "best_measurementIterations": null
   },
   {
-    "benchmark": "net.bytebuddy.benchmark.ClassFileVersionBenchmark_describeCompatibility_int_boolean_boolean_boolean_String_int_boolean.describeCompatibilityCompatible",
+    "benchmark": "net.bytebuddy.benchmark.ClassFileVersionBenchmark_describeCompatibility_int_boolean_boolean_boolean_String_int_boolean.describeCompatibility_AllowPreview_Strict_Verbose_AndroidVendor_WithHints",
     "params": "{}",
-    "verdict": "MATCH",
-    "curr_forks": 5,
-    "curr_measurementIterations": 10,
-    "best_forks": 5,
-    "best_measurementIterations": 10
+    "verdict": "NEW",
+    "curr_forks": 1,
+    "curr_measurementIterations": 1,
+    "best_forks": null,
+    "best_measurementIterations": null
   },
   {
-    "benchmark": "net.bytebuddy.benchmark.ClassFileVersionBenchmark_describeCompatibility_int_boolean_boolean_boolean_String_int_boolean.describeCompatibilityIncompatible",
+    "benchmark": "net.bytebuddy.benchmark.ClassFileVersionBenchmark_describeCompatibility_int_boolean_boolean_boolean_String_int_boolean.describeCompatibility_AllowPreview_Strict_Verbose_WithMaxMinor",
     "params": "{}",
-    "verdict": "MATCH",
-    "curr_forks": 5,
-    "curr_measurementIterations": 10,
-    "best_forks": 5,
-    "best_measurementIterations": 10
+    "verdict": "NEW",
+    "curr_forks": 1,
+    "curr_measurementIterations": 1,
+    "best_forks": null,
+    "best_measurementIterations": null
+  },
+  {
+    "benchmark": "net.bytebuddy.benchmark.ClassFileVersionBenchmark_describeCompatibility_int_boolean_boolean_boolean_String_int_boolean.describeCompatibility_AllowPreview_Strict_Verbose_WithVendor_WithHints",
+    "params": "{}",
+    "verdict": "NEW",
+    "curr_forks": 1,
+    "curr_measurementIterations": 1,
+    "best_forks": null,
+    "best_measurementIterations": null
+  },
+  {
+    "benchmark": "net.bytebuddy.benchmark.ClassFileVersionBenchmark_describeCompatibility_int_boolean_boolean_boolean_String_int_boolean.describeCompatibility_DisallowPreview_Lenient_NonVerbose_NoVendor_NoHints",
+    "params": "{}",
+    "verdict": "NEW",
+    "curr_forks": 1,
+    "curr_measurementIterations": 1,
+    "best_forks": null,
+    "best_measurementIterations": null
+  },
+  {
+    "benchmark": "net.bytebuddy.benchmark.ClassFileVersionBenchmark_describeCompatibility_int_boolean_boolean_boolean_String_int_boolean.describeCompatibility_DisallowPreview_Strict_NonVerbose_GraalVendor_NoHints",
+    "params": "{}",
+    "verdict": "NEW",
+    "curr_forks": 1,
+    "curr_measurementIterations": 1,
+    "best_forks": null,
+    "best_measurementIterations": null
+  },
+  {
+    "benchmark": "net.bytebuddy.benchmark.ClassFileVersionBenchmark_describeCompatibility_int_boolean_boolean_boolean_String_int_boolean.describeCompatibility_TargetVersionLower",
+    "params": "{}",
+    "verdict": "NEW",
+    "curr_forks": 1,
+    "curr_measurementIterations": 1,
+    "best_forks": null,
+    "best_measurementIterations": null
+  },
+  {
+    "benchmark": "net.bytebuddy.benchmark.ClassFileVersionBenchmark_describeCompatibility_int_boolean_boolean_boolean_String_int_boolean.describeCompatibility_TargetVersionZero",
+    "params": "{}",
+    "verdict": "NEW",
+    "curr_forks": 1,
+    "curr_measurementIterations": 1,
+    "best_forks": null,
+    "best_measurementIterations": null
   }
 ]

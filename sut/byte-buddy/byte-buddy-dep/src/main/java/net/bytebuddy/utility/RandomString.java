@@ -140,11 +140,9 @@ public class RandomString {
      * @return A string representing the supplied value as a string.
      */
     public static String hashOf(int value) {
-        final int length = (Integer.SIZE / KEY_BITS) + ((Integer.SIZE % KEY_BITS) == 0 ? 0 : 1);
-        final int mask = -1 >>> (Integer.SIZE - KEY_BITS);
-        char[] buffer = new char[length];
-        for (int index = 0; index < length; index++) {
-            buffer[index] = SYMBOL[(value >>> index * KEY_BITS) & mask];
+        char[] buffer = new char[(Integer.SIZE / KEY_BITS) + ((Integer.SIZE % KEY_BITS) == 0 ? 0 : 1)];
+        for (int index = 0; index < buffer.length; index++) {
+            buffer[index] = SYMBOL[(value >>> index * KEY_BITS) & (-1 >>> (Integer.SIZE - KEY_BITS))];
         }
         return new String(buffer);
     }

@@ -1,1 +1,1 @@
-byte-buddy-dep/src/main/java/net/bytebuddy/ClassFileVersion.java
+byte-buddy-dep/src/main/java/net/bytebuddy/dynamic/loading/ClassLoadingStrategy.java
