@@ -28,7 +28,7 @@ commit ─► detect changed methods ─► LLM smell check ─► smelly? ─�
 |---|---|---|
 | 1 | `scripts/detect_changed_methods.sh` | Runs a git diff on the latest commit and uses `libs/ast-generator.jar` to list the **added, modified and deleted methods**. |
 | 2 | `scripts/collect_applicability_targets.sh` | Extracts the **source code** of each changed method into `applicability-targets.json`. |
-| 3 | `smell-checker/smell_applicability_checker.py` | Runs a keyword pre-filter, then sends each method and the 17 smell families to the **LLM**. Writes `applicability-results.json`. |
+| 3 | `smell-checker/smell_applicability_checker.py` | Sends each method to the **LLM** once per smell family (17 by default). Writes `applicability-results.json`. |
 | 4 | `scripts/filter_methods_2.sh` | Splits the methods into `smelly_methods.txt` (at least one smell) and `clean_methods.txt` (skipped from then on). |
 | 5 | `scripts/update_coverage_matrix.sh` | Keeps `coverage-matrix.csv` in sync:<br>• **added** → generate a benchmark<br>• **modified** → keep the existing benchmark<br>• **deleted** → remove the benchmark and its baseline |
 | 6 | `scripts/generate_benchmark.sh` | Calls **Chat2Benchmark** (LLM) to write a JMH class, checks that it calls the correct method (with retries), and saves it in the byte-buddy benchmark module. |
@@ -111,6 +111,23 @@ source smell-checker/.venv/bin/activate      # or: pip install -r smell-checker/
 python smell-checker/smell_applicability_checker.py
 ```
 → `pipeline-output/applicability-results.json`
+
+Each LLM call is one method × one smell family, so a full run makes methods × 17 calls. These variables limit a run:
+
+| Variable | Values | Default |
+|---|---|---|
+| `MAX_METHODS` | `all` or an integer ≥ 1 (first N methods) | `all` |
+| `MAX_TEMPLATES` | `all` or an integer ≥ 1 (first N families) | `all` |
+| `TEMPLATES` | family IDs, e.g. `F4,F11`; applied before `MAX_TEMPLATES` | all families |
+
+```bash
+MAX_METHODS=1 MAX_TEMPLATES=1 python smell-checker/smell_applicability_checker.py   # 1 LLM call
+TEMPLATES=F4,F11 python smell-checker/smell_applicability_checker.py                # only F4 and F11
+
+LIST_TEMPLATES=1 python smell-checker/smell_applicability_checker.py                # print the families and exit
+LIST_METHODS=1 python smell-checker/smell_applicability_checker.py                  # print the methods and exit
+```
+The `LIST_*` commands make no LLM calls and need no API key. Methods skipped by `MAX_METHODS` are left out of the results, and `templates_checked` in each result shows which families were covered. In CI, set `max_methods` and `max_templates` when running the workflow manually; `push` runs check everything.
 
 ### 4. Split smelly / clean methods
 ```bash

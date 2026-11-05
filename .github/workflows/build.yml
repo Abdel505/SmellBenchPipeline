@@ -14,6 +14,14 @@ on:
           - added
           - modified
         default: both
+      max_methods:
+        description: "Methods to check with the LLM: all, or the first N"
+        type: string
+        default: all
+      max_templates:
+        description: "Smell templates to check per method: all, or the first N"
+        type: string
+        default: all
 
 jobs:
 
@@ -122,6 +130,8 @@ jobs:
           LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
           LLM_ENDPOINT: ${{ secrets.LLM_ENDPOINT }}
           LLM_MODEL: ${{ secrets.LLM_MODEL }}
+          MAX_METHODS: ${{ inputs.max_methods || 'all' }}
+          MAX_TEMPLATES: ${{ inputs.max_templates || 'all' }}
 
       - name: Set execute permission for filter script
         run: chmod +x scripts/filter_methods_2.sh

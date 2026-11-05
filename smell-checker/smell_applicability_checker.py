@@ -16,31 +16,142 @@ else:
     # If no .env file, load_dotenv still attempts to find .env in default locations
     load_dotenv()
 
+# --- CONFIGURATION ---
+TARGET_JSON_PATH      = "pipeline-output/applicability-targets.json"
+TEMPLATES_JSON_PATH   = "smell-checker/generalized_templates.json"
+OUTPUT_JSON_PATH      = "pipeline-output/applicability-results.json"
+ADDED_METHODS_PATH    = "pipeline-output/added_methods.txt"
+MODIFIED_METHODS_PATH = "pipeline-output/modified_methods.txt"
+SLEEP_BETWEEN_CALLS = 5
+MAX_RETRIES = 3
+
+def log(msg): print(msg, file=sys.stderr, flush=True)
+
+# --- ENVIRONMENT VARIABLE HELPERS ---
+def _env_flag(name):
+    return os.environ.get(name, "").strip().lower() in ("1", "true", "yes")
+
+def _env_limit(name):
+    """Returns None for 'all' (the default), otherwise an integer >= 1."""
+    raw = os.environ.get(name, "").strip().lower() or "all"
+    if raw == "all":
+        return None
+    if raw.isdecimal() and int(raw) >= 1:
+        return int(raw)
+    sys.exit(f"ERROR: invalid {name} '{raw}' — expected 'all' or an integer >= 1.")
+
+# --- INPUT HELPERS ---
+def _load_templates():
+    if not Path(TEMPLATES_JSON_PATH).is_file():
+        raise FileNotFoundError(f"Required input file not found: {TEMPLATES_JSON_PATH}")
+    templates = json.loads(Path(TEMPLATES_JSON_PATH).read_text(encoding="utf-8"))
+    if not isinstance(templates, list):
+        raise ValueError(f"Expected a JSON array in {TEMPLATES_JSON_PATH} but got {type(templates).__name__}.")
+    return templates
+
+def _build_targets(target_data):
+    """Maps applicability-targets.json to one prompt-ready entry per method."""
+    targets = []
+    for file_path, info in target_data.items():
+        if not isinstance(info, dict) or "class" not in info:
+            log(f"  [WARN] Skipping {file_path} — missing 'class' key in input JSON")
+            continue
+        methods = info.get("methods") or ([info["method"]] if "method" in info else [])
+        if not methods:
+            log(f"  [WARN] Skipping {file_path} — no methods found")
+            continue
+        for method in methods:
+            targets.append({
+                "class_id": f"C{len(targets) + 1}",
+                "file_path": file_path,
+                "source_code": info["class"],
+                "method_signature": method
+            })
+    return targets
+
+# --- LIST COMMANDS (LIST_TEMPLATES=1 / LIST_METHODS=1): print and exit, no LLM call ---
+def _load_method_set(path):
+    if not Path(path).is_file():
+        return set()
+    return {l.strip() for l in Path(path).read_text(encoding="utf-8").splitlines() if l.strip()}
+
+def _print_templates():
+    templates = _load_templates()
+    print(f"{'ID':<4} Root cause")
+    for template in templates:
+        print(f"{template['family_id']:<4} {template['root_cause']}")
+    print(f"\n{len(templates)} templates — use e.g. TEMPLATES=F4,F11")
+
+def _print_methods():
+    targets = []
+    if Path(TARGET_JSON_PATH).is_file():
+        target_data = json.loads(Path(TARGET_JSON_PATH).read_text(encoding="utf-8"))
+        targets = _build_targets(target_data)
+    if not targets:
+        print("No methods — run scripts/collect_applicability_targets.sh first")
+        return
+    added_set    = _load_method_set(ADDED_METHODS_PATH)
+    modified_set = _load_method_set(MODIFIED_METHODS_PATH)
+    rows = []
+    for target in targets:
+        # Same key format as to_slash_dot_key() in scripts/filter_methods_2.sh
+        path = target["file_path"].replace("\\", "/").split("/main/java/")[-1].removesuffix(".java")
+        key = f"{path}.{target['method_signature']}"
+        change_type = "added" if key in added_set else "modified" if key in modified_set else "unknown"
+        rows.append((path.rsplit("/", 1)[-1], target["method_signature"], change_type))
+    class_width  = max(len("Class"), *(len(row[0]) for row in rows))
+    method_width = max(len("Method"), *(len(row[1]) for row in rows))
+    print(f"{'#':<3} {'Class':<{class_width}} {'Method':<{method_width}} Change")
+    for number, (class_name, method, change_type) in enumerate(rows, 1):
+        print(f"{number:<3} {class_name:<{class_width}} {method:<{method_width}} {change_type}")
+    print(f"\n{len(rows)} methods — use e.g. MAX_METHODS=3 to check rows 1-3")
+
+_list_templates = _env_flag("LIST_TEMPLATES")
+_list_methods   = _env_flag("LIST_METHODS")
+if _list_templates or _list_methods:
+    sys.stdout.reconfigure(encoding="utf-8")
+    if _list_templates:
+        _print_templates()
+    if _list_templates and _list_methods:
+        print()
+    if _list_methods:
+        _print_methods()
+    exit(0)
+
+# --- RUN LIMITS ---
+max_methods   = _env_limit("MAX_METHODS")
+max_templates = _env_limit("MAX_TEMPLATES")
+
 # Validate required environment variables
 for _required in ("LLM_API_KEY", "LLM_ENDPOINT"):
     if not os.environ.get(_required):
         raise EnvironmentError(f"Required environment variable '{_required}' is not set. Please set it via GitHub secrets or .env file.")
 
-# --- CONFIGURATION ---
-TARGET_JSON_PATH    = "pipeline-output/applicability-targets.json"
-TEMPLATES_JSON_PATH = "smell-checker/generalized_templates.json"
-OUTPUT_JSON_PATH    = "pipeline-output/applicability-results.json"
-SLEEP_BETWEEN_CALLS = 5
-MAX_RETRIES = 3
-
 # --- LOAD FILES ---
-def log(msg): print(msg, file=sys.stderr, flush=True)
-
 log("Loading JSON files...")
-for _path in (TARGET_JSON_PATH, TEMPLATES_JSON_PATH):
-    if not Path(_path).is_file():
-        raise FileNotFoundError(f"Required input file not found: {_path}")
+if not Path(TARGET_JSON_PATH).is_file():
+    raise FileNotFoundError(f"Required input file not found: {TARGET_JSON_PATH}")
 target_data    = json.loads(Path(TARGET_JSON_PATH).read_text(encoding="utf-8"))
-templates_data = json.loads(Path(TEMPLATES_JSON_PATH).read_text(encoding="utf-8"))
-if not isinstance(templates_data, list):
-    raise ValueError(f"Expected a JSON array in {TEMPLATES_JSON_PATH} but got {type(templates_data).__name__}.")
-template_count = len(templates_data)
+templates_data = _load_templates()
+template_total = len(templates_data)
+log(f"Loaded {len(target_data)} target class(es) and {template_total} template(s).")
+
+# --- SELECT TEMPLATES: TEMPLATES (by ID) first, then MAX_TEMPLATES (by count) ---
+_raw_templates = os.environ.get("TEMPLATES", "").strip()
+if _raw_templates:
+    _selected_ids = {x.strip().upper() for x in _raw_templates.split(",") if x.strip()}
+    _unknown_ids = sorted(_selected_ids - {t["family_id"] for t in templates_data})
+    if _unknown_ids or not _selected_ids:
+        sys.exit(f"ERROR: invalid TEMPLATES '{_raw_templates}' — unknown ID(s): {', '.join(_unknown_ids) or 'none given'}. Run LIST_TEMPLATES=1 to see the valid IDs.")
+    templates_data = [t for t in templates_data if t["family_id"] in _selected_ids]
+if max_templates is not None:
+    if max_templates > len(templates_data):
+        log(f"  [NOTE] MAX_TEMPLATES={max_templates} is more than the {len(templates_data)} available — using them all.")
+    templates_data = templates_data[:max_templates]
+if not templates_data:
+    sys.exit(f"ERROR: no templates to check in {TEMPLATES_JSON_PATH}.")
 known_family_ids = {t["family_id"] for t in templates_data}
+log(f"Templates: {len(templates_data)}/{template_total} ({', '.join(t['family_id'] for t in templates_data)})")
 
 # Build a compact template summary: only family_id, root_cause, signals, and one short example.
 def _compact(t):
@@ -53,60 +164,20 @@ def _compact(t):
         "example":    short_ex,
     }
 
-# ---------------------------------------------------------------------------
-# STAGE 1 — KEYWORD PRE-FILTER (no LLM)
-# Extract discriminative tokens from each template's signals, then check
-# whether any appear in the method source. Eliminates domain-irrelevant
-# templates (e.g. image-processing F6/F7/F8) with zero API cost.
-# ---------------------------------------------------------------------------
-def _extract_filter_keywords(signals):
-    keywords = set()
-    for sig in signals:
-        for m in re.findall(r'\b([A-Za-z_]\w{3,})\s*\(', sig):
-            keywords.add(m + '(')
-        for m in re.findall(r'\b([A-Z][a-zA-Z0-9]{4,})\b', sig):
-            keywords.add(m)
-        for m in re.findall(r"'([A-Za-z_][\w.()]{2,})'", sig):
-            keywords.add(m)
-    return keywords
-
-def _keyword_filter(source_code, templates_list):
-    candidates = []
-    for template in templates_list:
-        keywords = _extract_filter_keywords(template.get('signals', []))
-        matched = [kw for kw in keywords if kw in source_code]
-        if matched:
-            candidates.append((template, matched[:3]))
-    return candidates
-
-log(f"Loaded {len(target_data)} target class(es) and {template_count} template(s).")
-
 # --- MAP TARGET DATA TO PROMPT FORMAT ---
 log("Preparing target JSON object(s)...")
-target_json_object_list = []
-entry_idx = 1
-for file_path, info in target_data.items():
-    if not isinstance(info, dict) or "class" not in info:
-        log(f"  [WARN] Skipping {file_path} — missing 'class' key in input JSON")
-        continue
-    methods = info.get("methods") or ([info["method"]] if "method" in info else [])
-    if not methods:
-        log(f"  [WARN] Skipping {file_path} — no methods found")
-        continue
-    for method in methods:
-        class_id = f"C{entry_idx}"
-        target_json_object_list.append({
-            "class_id": class_id,
-            "file_path": file_path,
-            "source_code": info["class"],
-            "method_signature": method
-        })
-        log(f"  [ADDED] {file_path} :: {method}")
-        entry_idx += 1
+_all_targets = _build_targets(target_data)
+# Skipped methods stay out of the results: filter_methods_2.sh would count them as clean.
+target_json_object_list = _all_targets if max_methods is None else _all_targets[:max_methods]
+for target in target_json_object_list:
+    log(f"  [ADDED] {target['file_path']} :: {target['method_signature']}")
+for target in _all_targets[len(target_json_object_list):]:
+    log(f"  [SKIP] {target['file_path']} :: {target['method_signature']} — over MAX_METHODS")
+log(f"Methods: {len(target_json_object_list)}/{len(_all_targets)} ({len(_all_targets) - len(target_json_object_list)} skipped)")
 
 # ---------------------------------------------------------------------------
-# STAGE 2 — FOCUSED PER-TEMPLATE PROMPT
-# One call per candidate that survived the keyword filter.
+# FOCUSED PER-TEMPLATE PROMPT
+# One call per selected template.
 # Chain-of-thought + calibration example keep the model focused.
 # ---------------------------------------------------------------------------
 SINGLE_CHECK_PROMPT = """
@@ -205,43 +276,15 @@ def llm_call(prompt):
 
 
 # ---------------------------------------------------------------------------
-# CHECK APPLICABILITY — hybrid: keyword pre-filter → focused per-template LLM
+# CHECK APPLICABILITY — one focused LLM call per selected template
+# Returns (applicable family IDs or None if every call failed, IDs actually checked).
 # ---------------------------------------------------------------------------
 def check_applicability(target):
     log(f"  [CHECK] {target['file_path']} :: {target['method_signature']}")
 
-    # Stage 1: keyword pre-filter (no LLM cost)
-    source = target.get('source_code', '')
-    method_name = target.get('method_signature', '')
-
-    # Filter on method body only — avoids false positives from import/package lines in the header
-    body_source = source
-    if method_name:
-        src_lines = source.split('\n')
-        for i, line in enumerate(src_lines):
-            stripped = line.strip()
-            if (stripped
-                    and not stripped.startswith('//')
-                    and not stripped.startswith('*')
-                    and not stripped.startswith('import')
-                    and not stripped.startswith('package')
-                    and re.search(r'(?<!\.)\b' + re.escape(method_name) + r'\s*\(', stripped)):
-                body_source = '\n'.join(src_lines[i:])
-                break
-
-    candidates = _keyword_filter(body_source, templates_data)
-    log(f"  [FILTER] {len(candidates)}/{template_count} template(s) pass keyword filter")
-    for tmpl, matched_kws in candidates:
-        log(f"    → {tmpl['family_id']}: {matched_kws}")
-
-    if not candidates:
-        log("  [FILTER] No templates matched source — returning empty")
-        return []
-
-    # Stage 2: focused per-template LLM call for each candidate
     applicable = []
-    failed_count = 0
-    for idx, (template, _) in enumerate(candidates):
+    checked = []
+    for idx, template in enumerate(templates_data):
         compact = _compact(template)
         prompt = SINGLE_CHECK_PROMPT \
             .replace("{target_json}",   json.dumps(target, indent=2)) \
@@ -250,22 +293,22 @@ def check_applicability(target):
             .replace("{example}",       json.dumps(compact.get("example") or "N/A"))
         result = llm_call(prompt)
         if result is None:
-            failed_count += 1
             log(f"  [WARN] {template['family_id']}: LLM call failed — skipping")
             continue
+        checked.append(template["family_id"])
         entry = result if isinstance(result, dict) else (result[0] if isinstance(result, list) and result else None)
         if entry and entry.get("applicable") is True and entry.get("family_id") in known_family_ids:
             applicable.append(entry["family_id"])
             log(f"  [MATCH] {entry['family_id']}: {entry.get('reason', '')[:80]}")
-        if idx < len(candidates) - 1:
+        if idx < len(templates_data) - 1:
             sleep(SLEEP_BETWEEN_CALLS)
 
-    if failed_count == len(candidates):
+    if not checked:
         log(f"  [ERROR] All template calls failed for {target['file_path']} :: {target['method_signature']}")
-        return None
+        return None, checked
 
     log(f"  [CHECK] Applicable: {applicable if applicable else 'none'}")
-    return applicable
+    return applicable, checked
 
 
 # ---------------------------------------------------------------------------
@@ -283,13 +326,14 @@ all_results = []
 for i, target in enumerate(target_json_object_list):
     log(f"\nProcessing: {target['file_path']} :: {target['method_signature']}")
 
-    applicable_families = check_applicability(target)
+    applicable_families, templates_checked = check_applicability(target)
 
     all_results.append({
         "class_id":            target["class_id"],
         "file_path":           target["file_path"],
         "method_signature":    target["method_signature"],
         "applicable_families": applicable_families if applicable_families is not None else [],
+        "templates_checked":   templates_checked,   # "clean" only covers these families
         "check_failed":        applicable_families is None   # True = LLM error, not a real verdict
     })
 
@@ -300,3 +344,4 @@ for i, target in enumerate(target_json_object_list):
 Path(OUTPUT_JSON_PATH).parent.mkdir(parents=True, exist_ok=True)
 Path(OUTPUT_JSON_PATH).write_text(json.dumps(all_results, indent=2), encoding="utf-8")
 log(f"Results written to {OUTPUT_JSON_PATH} ({len(all_results)} entries)")
+log(f"Checked {len(target_json_object_list)} method(s) × {len(templates_data)} template(s) = {len(target_json_object_list) * len(templates_data)} template checks")
