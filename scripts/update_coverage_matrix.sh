@@ -10,11 +10,15 @@ set -euo pipefail
 #   smelly_file  : lines in "java_file | method" format  (default: pipeline-output/smelly_methods.txt)
 #   deleted_file : lines in FQN format                   (default: pipeline-output/deleted_methods.txt)
 #
+# METHOD: optional exact method signature from smelly_file, e.g. "load(ClassLoader,Map)".
+#         Only that method is processed, and deleted methods are skipped.
+#
 # MODIFIED uses atomic backup-then-swap to preserve old state on generation failure.
 # Each method gets its own benchmark file: ${CLASS_NAME}Benchmark_${method}.java
 
 SMELLY_FILE="${1:-pipeline-output/smelly_methods.txt}"
 DELETED_FILE="${2:-pipeline-output/deleted_methods.txt}"
+METHOD="$(echo "${METHOD:-}" | xargs)"
 
 SUT_SRC_ROOT="${SUT_SRC_ROOT:-app/src/main/java}"
 
@@ -184,6 +188,26 @@ log "Smelly file : ${SMELLY_FILE}"
 log "Deleted file: ${DELETED_FILE}"
 log "Matrix      : ${MATRIX}"
 
+# Fail before touching anything if METHOD is not in the smelly file
+if [[ -n "$METHOD" ]]; then
+    log "Method      : ${METHOD}"
+    method_found=0
+    if [[ -f "$SMELLY_FILE" ]]; then
+        while IFS= read -r line <&3 || [[ -n "$line" ]]; do
+            [[ -z "$line" ]] && continue
+            parsed="$(parse_filter_entry "$line")"
+            if [[ "$(echo "$parsed" | cut -d'|' -f2)" == "$METHOD" ]]; then
+                method_found=1
+                break
+            fi
+        done 3< "$SMELLY_FILE"
+    fi
+    if [[ $method_found -eq 0 ]]; then
+        log "ERROR: METHOD '${METHOD}' not found in ${SMELLY_FILE} — use the exact signature from that file."
+        exit 1
+    fi
+fi
+
 ERRORS=0
 
 # --- Step 1: build a set of deleted java_file|method keys ---
@@ -191,7 +215,9 @@ ERRORS=0
 # We process them first so they cannot be re-added by the smelly loop.
 declare -A DELETED_SET
 
-if [[ -f "$DELETED_FILE" && -s "$DELETED_FILE" ]]; then
+if [[ -n "$METHOD" ]]; then
+    log "METHOD is set — skipping deleted methods."
+elif [[ -f "$DELETED_FILE" && -s "$DELETED_FILE" ]]; then
     log "--- Processing DELETED methods ---"
     while IFS= read -r line <&3 || [[ -n "$line" ]]; do
         [[ -z "$line" ]] && continue
@@ -217,6 +243,8 @@ if [[ -f "$SMELLY_FILE" && -s "$SMELLY_FILE" ]]; then
         java_file="$(echo "$parsed" | cut -d'|' -f1)"
         method="$(echo "$parsed"   | cut -d'|' -f2)"
         key="${java_file}|${method}"
+
+        [[ -n "$METHOD" && "$method" != "$METHOD" ]] && continue
 
         if [[ -n "${DELETED_SET[$key]+_}" ]]; then
             log "  [SKIP] ${method} was deleted — not re-adding"

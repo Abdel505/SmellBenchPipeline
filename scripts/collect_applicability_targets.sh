@@ -296,12 +296,14 @@ for entry in entries:
     if java_file not in result:
         result[java_file] = {
             "class": snippet,
-            "methods": [method]
+            "methods": [method],
+            "method_sources": {method: snippet}  # one method's code only, keyed by signature
         }
         print(f"  [ADDED] {java_file} :: {method}", flush=True)
     else:
         if method not in result[java_file]["methods"]:
             result[java_file]["methods"].append(method)
+            result[java_file]["method_sources"][method] = snippet
             # Append this method's window to the existing snippet
             result[java_file]["class"] += f"\n\n// --- method: {method} ---\n{snippet}"
             print(f"  [ADDED method] {java_file} :: {method}", flush=True)

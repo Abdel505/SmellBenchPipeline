@@ -60,11 +60,16 @@ def _build_targets(target_data):
         if not methods:
             log(f"  [WARN] Skipping {file_path} — no methods found")
             continue
+        method_sources = info.get("method_sources", {})
         for method in methods:
+            source_code = method_sources.get(method)
+            if source_code is None:
+                log(f"  [WARN] No method_sources entry for {method} — using the shared code of {file_path}")
+                source_code = info["class"]
             targets.append({
                 "class_id": f"C{len(targets) + 1}",
                 "file_path": file_path,
-                "source_code": info["class"],
+                "source_code": source_code,
                 "method_signature": method
             })
     return targets
@@ -153,15 +158,19 @@ if not templates_data:
 known_family_ids = {t["family_id"] for t in templates_data}
 log(f"Templates: {len(templates_data)}/{template_total} ({', '.join(t['family_id'] for t in templates_data)})")
 
-# Build a compact template summary: only family_id, root_cause, signals, and one short example.
+# Build the template sent to the LLM: all its rules, plus one short example instead of the full list.
 def _compact(t):
     ex = t.get("canonical_examples", [])
     short_ex = ex[0][:600] if ex else ""
     return {
-        "family_id":  t["family_id"],
-        "root_cause": t["root_cause"],
-        "signals":    t.get("signals", []),
-        "example":    short_ex,
+        "family_id":                 t["family_id"],
+        "root_cause":                t["root_cause"],
+        "generalized_template":      t.get("generalized_template", ""),
+        "type_and_flow_constraints": t.get("type_and_flow_constraints", []),
+        "matching_rules":            t.get("matching_rules", []),
+        "negative_constraints":      t.get("negative_constraints", []),
+        "signals":                   t.get("signals", []),
+        "example":                   short_ex,
     }
 
 # --- MAP TARGET DATA TO PROMPT FORMAT ---
@@ -194,9 +203,10 @@ CONFIRMED MATCH EXAMPLE (same family — use this to calibrate your verdict):
 {example}
 
 Think step by step:
-1. Identify the signals listed in the template.
-2. Search each signal in the target method line by line.
-3. Conclude.
+1. Compare the target method with generalized_template.
+2. Check signals, matching_rules and type_and_flow_constraints against the target method line by line.
+3. Check negative_constraints. If one applies, reply "applicable": false.
+4. Conclude.
 
 Reply with VALID JSON only — no markdown, no explanation:
 {{
@@ -245,7 +255,8 @@ SYSTEM_MSG = (
     "You receive a Java method and a single smell template. "
     "Carefully examine the method source and decide if the smell pattern is present. "
     "Cite exact line content when you match or reject the template. "
-    "Be thorough — err on the side of marking applicable=true when the signal is present even partially."
+    "Be thorough — err on the side of marking applicable=true when the signal is present even partially, "
+    "but a matching negative constraint always means applicable=false."
 )
 
 def llm_call(prompt):

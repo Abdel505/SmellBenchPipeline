@@ -138,6 +138,9 @@ bash scripts/filter_methods_2.sh
 ### 5. Update coverage matrix (generates benchmarks)
 ```bash
 bash scripts/update_coverage_matrix.sh
+
+# One method only: exact signature from smelly_methods.txt (skips deleted methods)
+METHOD="load(ClassLoader,Map)" bash scripts/update_coverage_matrix.sh
 ```
 → `data/coverage-matrix.csv` plus new `*Benchmark_<method>.java` files in the byte-buddy benchmark module
 
