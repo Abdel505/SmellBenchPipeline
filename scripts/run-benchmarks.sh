@@ -294,25 +294,28 @@ echo "[run-benchmarks] JMH run complete. Results -> ${OUTFILE}"
 
 TIMESTAMP="$(date +%Y%m%d_%H%M%S)"
 SHA="$(git -C "${ROOT_DIR}" rev-parse --short HEAD 2>/dev/null || echo "unknown")"
+# SUT version that was measured (Task 5); scores are only comparable per SUT commit.
+SUT_SHA="$(git -C "${SUT_GIT_DIR:-${SUT_DIR}}" rev-parse --short HEAD 2>/dev/null || echo "unknown")"
 
-echo "[run-benchmarks] Stamping commit_id=${SHA} on jmh-result.json..."
-python - "${OUTFILE}" "${SHA}" <<'PYEOF'
+echo "[run-benchmarks] Stamping sut_commit_id=${SUT_SHA} on jmh-result.json..."
+python - "${OUTFILE}" "${SUT_SHA}" <<'PYEOF'
 import json, sys
 
-curr_path, pipeline_sha = sys.argv[1], sys.argv[2]
+curr_path, sut_sha = sys.argv[1], sys.argv[2]
 
 with open(curr_path, encoding="utf-8-sig") as f:
     data = json.load(f)
 
+# Only the SUT commit is stamped; it reaches best-result.json via the merge step's **entry.
 data = [
-    {"commit_id": pipeline_sha, **entry} if isinstance(entry, dict) else entry
+    {"sut_commit_id": sut_sha, **entry} if isinstance(entry, dict) else entry
     for entry in data
 ]
 
 with open(curr_path, "w", encoding="utf-8") as f:
     json.dump(data, f, indent=2)
 PYEOF
-echo "[run-benchmarks] Stamped commit_id=${SHA} on jmh-result.json"
+echo "[run-benchmarks] Stamped sut_commit_id=${SUT_SHA} on jmh-result.json"
 
 # Snapshot archiving disabled — bootstrap and dashboard read directly from jmh-result.json
 # To re-enable, uncomment the three lines below:
@@ -539,16 +542,16 @@ for entry in curr:
         continue  # refused: leave this slot's baseline untouched
 
     if verdict == "REBASELINED":
-        best_map[k] = {"commit_id": pipeline_sha, **entry}  # unconditional: old score isn't comparable
+        best_map[k] = dict(entry)  # unconditional: old score isn't comparable
         rebaselined += 1
         continue
 
     # MATCH or NEW: normal score-based replace
     if k not in best_map:
-        best_map[k] = {"commit_id": pipeline_sha, **entry}
+        best_map[k] = dict(entry)
         added += 1
     elif score(entry) < score(best_map[k]):
-        best_map[k] = {"commit_id": pipeline_sha, **entry}
+        best_map[k] = dict(entry)
         updated += 1
     else:
         kept += 1
