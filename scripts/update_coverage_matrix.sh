@@ -23,7 +23,6 @@ METHOD="$(echo "${METHOD:-}" | xargs)"
 SUT_SRC_ROOT="${SUT_SRC_ROOT:-app/src/main/java}"
 
 MATRIX="data/coverage-matrix.csv"
-BENCH_DIR="sut/byte-buddy/byte-buddy-benchmark/src/main/java/net/bytebuddy/benchmark"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${SCRIPT_DIR}/lib/bench_naming.sh"
 
@@ -71,15 +70,16 @@ bench_class_for() {
 }
 
 # Physical path of the benchmark file for a given production file and method.
-# Benchmarks all live flat under net.bytebuddy.benchmark, not under the
-# production class's own package — must match generate_benchmark.sh's TARGET.
+# Benchmarks live in the benchmark module but in the production class's own
+# package (bench_dir_for in scripts/lib/bench_naming.sh) — the same helper
+# generate_benchmark.sh uses for TARGET, so the two can't disagree.
 bench_file_for() {
     local java_file="$1"
     local method="$2"
     local class_name method_safe
     class_name="$(basename "$java_file" .java)"
     method_safe="$(sanitize_method_id "$method")"
-    echo "${BENCH_DIR}/${class_name}Benchmark_${method_safe}.java"
+    echo "$(bench_dir_for "$java_file")/${class_name}Benchmark_${method_safe}.java"
 }
 
 # Look up benchmark_class from matrix; prints nothing if not found
@@ -169,8 +169,10 @@ handle_deleted() {
     # Remove from best-result.json (persistent — not overwritten by next run)
     local best_file="data/best-result.json"
     if [[ -f "$best_file" ]]; then
+        # JMH names results "<benchmark package>.<class>.<method>", and the
+        # benchmark package is the production package (bench_package_for).
         local package_path
-        package_path="$(dirname "$java_file" | sed 's|.*/main/java/||' | tr '/' '.')"
+        package_path="$(bench_package_for "$java_file")"
         jq --arg bench "${package_path}.${old_bench_class}." \
            '[.[] | select(.benchmark | startswith($bench) | not)]' \
            "$best_file" > "${best_file}.tmp" \

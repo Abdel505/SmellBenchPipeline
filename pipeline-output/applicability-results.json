@@ -3,7 +3,9 @@
     "class_id": "C1",
     "file_path": "C:/Users/Pc/OneDrive - Universit\u00e0 di Salerno/Desktop/Filter_project/EvoBench_3/SmellBenchPipeline/sut/byte-buddy/byte-buddy-dep/src/main/java/net/bytebuddy/dynamic/loading/ClassLoadingStrategy.java",
     "method_signature": "allowExistingTypes()",
-    "applicable_families": [],
+    "applicable_families": [
+      "F3"
+    ],
     "templates_checked": [
       "F1",
       "F2",
@@ -21,7 +23,12 @@
       "F14",
       "F15",
       "F16",
-      "F17"
+      "F17",
+      "F18",
+      "F19",
+      "F20",
+      "F21",
+      "F22"
     ],
     "check_failed": false
   },
@@ -29,7 +36,9 @@
     "class_id": "C2",
     "file_path": "C:/Users/Pc/OneDrive - Universit\u00e0 di Salerno/Desktop/Filter_project/EvoBench_3/SmellBenchPipeline/sut/byte-buddy/byte-buddy-dep/src/main/java/net/bytebuddy/dynamic/loading/ClassLoadingStrategy.java",
     "method_signature": "load(ClassLoader,Map)",
-    "applicable_families": [],
+    "applicable_families": [
+      "F3"
+    ],
     "templates_checked": [
       "F1",
       "F2",
@@ -47,7 +56,12 @@
       "F14",
       "F15",
       "F16",
-      "F17"
+      "F17",
+      "F18",
+      "F19",
+      "F20",
+      "F21",
+      "F22"
     ],
     "check_failed": false
   },
@@ -55,7 +69,9 @@
     "class_id": "C3",
     "file_path": "C:/Users/Pc/OneDrive - Universit\u00e0 di Salerno/Desktop/Filter_project/EvoBench_3/SmellBenchPipeline/sut/byte-buddy/byte-buddy-dep/src/main/java/net/bytebuddy/dynamic/loading/ClassLoadingStrategy.java",
     "method_signature": "opened()",
-    "applicable_families": [],
+    "applicable_families": [
+      "F3"
+    ],
     "templates_checked": [
       "F1",
       "F2",
@@ -73,7 +89,12 @@
       "F14",
       "F15",
       "F16",
-      "F17"
+      "F17",
+      "F18",
+      "F19",
+      "F20",
+      "F21",
+      "F22"
     ],
     "check_failed": false
   },
@@ -81,7 +102,9 @@
     "class_id": "C4",
     "file_path": "C:/Users/Pc/OneDrive - Universit\u00e0 di Salerno/Desktop/Filter_project/EvoBench_3/SmellBenchPipeline/sut/byte-buddy/byte-buddy-dep/src/main/java/net/bytebuddy/dynamic/loading/ClassLoadingStrategy.java",
     "method_signature": "with(Factory)",
-    "applicable_families": [],
+    "applicable_families": [
+      "F3"
+    ],
     "templates_checked": [
       "F1",
       "F2",
@@ -99,7 +122,12 @@
       "F14",
       "F15",
       "F16",
-      "F17"
+      "F17",
+      "F18",
+      "F19",
+      "F20",
+      "F21",
+      "F22"
     ],
     "check_failed": false
   },
@@ -107,7 +135,9 @@
     "class_id": "C5",
     "file_path": "C:/Users/Pc/OneDrive - Universit\u00e0 di Salerno/Desktop/Filter_project/EvoBench_3/SmellBenchPipeline/sut/byte-buddy/byte-buddy-dep/src/main/java/net/bytebuddy/dynamic/loading/ClassLoadingStrategy.java",
     "method_signature": "with(PackageDefinitionStrategy)",
-    "applicable_families": [],
+    "applicable_families": [
+      "F3"
+    ],
     "templates_checked": [
       "F1",
       "F2",
@@ -125,7 +155,12 @@
       "F14",
       "F15",
       "F16",
-      "F17"
+      "F17",
+      "F18",
+      "F19",
+      "F20",
+      "F21",
+      "F22"
     ],
     "check_failed": false
   },
@@ -133,7 +168,9 @@
     "class_id": "C6",
     "file_path": "C:/Users/Pc/OneDrive - Universit\u00e0 di Salerno/Desktop/Filter_project/EvoBench_3/SmellBenchPipeline/sut/byte-buddy/byte-buddy-dep/src/main/java/net/bytebuddy/dynamic/loading/ClassLoadingStrategy.java",
     "method_signature": "with(ProtectionDomain)",
-    "applicable_families": [],
+    "applicable_families": [
+      "F3"
+    ],
     "templates_checked": [
       "F1",
       "F2",
@@ -151,7 +188,12 @@
       "F14",
       "F15",
       "F16",
-      "F17"
+      "F17",
+      "F18",
+      "F19",
+      "F20",
+      "F21",
+      "F22"
     ],
     "check_failed": false
   }

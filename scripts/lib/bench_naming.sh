@@ -21,3 +21,30 @@ sanitize_method_id() {
   safe="${safe%_}"
   echo "$safe"
 }
+
+# Source root of the benchmark Maven module. Benchmarks keep their own module
+# (byte-buddy-benchmark) but are placed in the SAME PACKAGE as the production
+# class they measure, so they can reach protected and package-private types
+# (e.g. ClassLoadingStrategy.Default.WrappingDispatcher). Java merges a package
+# across source roots/jars on the classpath, so only the package name has to
+# match — the folder under this root mirrors it by convention.
+BENCH_SRC_ROOT="${BENCH_SRC_ROOT:-sut/byte-buddy/byte-buddy-benchmark/src/main/java}"
+
+# Prints the Java package of production file $1, derived from its path below
+# the nearest ".../main/java/" (absolute or relative path both work), e.g.
+#   .../byte-buddy-dep/src/main/java/net/bytebuddy/dynamic/loading/ClassLoadingStrategy.java
+#   → net.bytebuddy.dynamic.loading
+bench_package_for() {
+  local java_file="$1"
+  dirname "$java_file" | sed 's|.*/main/java/||' | tr '/' '.'
+}
+
+# Prints the benchmark directory for production file $1: BENCH_SRC_ROOT plus
+# the production package as a path, e.g.
+#   sut/byte-buddy/byte-buddy-benchmark/src/main/java/net/bytebuddy/dynamic/loading
+bench_dir_for() {
+  local java_file="$1"
+  local package
+  package="$(bench_package_for "$java_file")"
+  echo "${BENCH_SRC_ROOT}/${package//.//}"
+}
