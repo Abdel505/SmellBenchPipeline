@@ -1,74 +1,47 @@
 [
   {
-    "benchmark": "net.bytebuddy.benchmark.ClassFileVersionBenchmark_describeCompatibility_int_boolean_boolean_boolean_String_int_boolean.describeCompatibility_AllowPreview_Lenient_Verbose_IBMVendor_WithHints",
+    "benchmark": "net.bytebuddy.dynamic.loading.ClassLoadingStrategyBenchmark_opened.openedChildFirst",
     "params": "{}",
-    "verdict": "NEW",
-    "curr_forks": 1,
-    "curr_measurementIterations": 1,
-    "best_forks": null,
-    "best_measurementIterations": null
+    "verdict": "MATCH",
+    "curr_forks": 3,
+    "curr_measurementIterations": 10,
+    "best_forks": 3,
+    "best_measurementIterations": 10
   },
   {
-    "benchmark": "net.bytebuddy.benchmark.ClassFileVersionBenchmark_describeCompatibility_int_boolean_boolean_boolean_String_int_boolean.describeCompatibility_AllowPreview_Strict_Verbose_AndroidVendor_WithHints",
+    "benchmark": "net.bytebuddy.dynamic.loading.ClassLoadingStrategyBenchmark_opened.openedChildFirstPersistent",
     "params": "{}",
-    "verdict": "NEW",
-    "curr_forks": 1,
-    "curr_measurementIterations": 1,
-    "best_forks": null,
-    "best_measurementIterations": null
+    "verdict": "MATCH",
+    "curr_forks": 3,
+    "curr_measurementIterations": 10,
+    "best_forks": 3,
+    "best_measurementIterations": 10
   },
   {
-    "benchmark": "net.bytebuddy.benchmark.ClassFileVersionBenchmark_describeCompatibility_int_boolean_boolean_boolean_String_int_boolean.describeCompatibility_AllowPreview_Strict_Verbose_WithMaxMinor",
+    "benchmark": "net.bytebuddy.dynamic.loading.ClassLoadingStrategyBenchmark_opened.openedInjection",
     "params": "{}",
-    "verdict": "NEW",
-    "curr_forks": 1,
-    "curr_measurementIterations": 1,
-    "best_forks": null,
-    "best_measurementIterations": null
+    "verdict": "MATCH",
+    "curr_forks": 3,
+    "curr_measurementIterations": 10,
+    "best_forks": 3,
+    "best_measurementIterations": 10
   },
   {
-    "benchmark": "net.bytebuddy.benchmark.ClassFileVersionBenchmark_describeCompatibility_int_boolean_boolean_boolean_String_int_boolean.describeCompatibility_AllowPreview_Strict_Verbose_WithVendor_WithHints",
+    "benchmark": "net.bytebuddy.dynamic.loading.ClassLoadingStrategyBenchmark_opened.openedWrapper",
     "params": "{}",
-    "verdict": "NEW",
-    "curr_forks": 1,
-    "curr_measurementIterations": 1,
-    "best_forks": null,
-    "best_measurementIterations": null
+    "verdict": "MATCH",
+    "curr_forks": 3,
+    "curr_measurementIterations": 10,
+    "best_forks": 3,
+    "best_measurementIterations": 10
   },
   {
-    "benchmark": "net.bytebuddy.benchmark.ClassFileVersionBenchmark_describeCompatibility_int_boolean_boolean_boolean_String_int_boolean.describeCompatibility_DisallowPreview_Lenient_NonVerbose_NoVendor_NoHints",
+    "benchmark": "net.bytebuddy.dynamic.loading.ClassLoadingStrategyBenchmark_opened.openedWrapperPersistent",
     "params": "{}",
-    "verdict": "NEW",
-    "curr_forks": 1,
-    "curr_measurementIterations": 1,
-    "best_forks": null,
-    "best_measurementIterations": null
-  },
-  {
-    "benchmark": "net.bytebuddy.benchmark.ClassFileVersionBenchmark_describeCompatibility_int_boolean_boolean_boolean_String_int_boolean.describeCompatibility_DisallowPreview_Strict_NonVerbose_GraalVendor_NoHints",
-    "params": "{}",
-    "verdict": "NEW",
-    "curr_forks": 1,
-    "curr_measurementIterations": 1,
-    "best_forks": null,
-    "best_measurementIterations": null
-  },
-  {
-    "benchmark": "net.bytebuddy.benchmark.ClassFileVersionBenchmark_describeCompatibility_int_boolean_boolean_boolean_String_int_boolean.describeCompatibility_TargetVersionLower",
-    "params": "{}",
-    "verdict": "NEW",
-    "curr_forks": 1,
-    "curr_measurementIterations": 1,
-    "best_forks": null,
-    "best_measurementIterations": null
-  },
-  {
-    "benchmark": "net.bytebuddy.benchmark.ClassFileVersionBenchmark_describeCompatibility_int_boolean_boolean_boolean_String_int_boolean.describeCompatibility_TargetVersionZero",
-    "params": "{}",
-    "verdict": "NEW",
-    "curr_forks": 1,
-    "curr_measurementIterations": 1,
-    "best_forks": null,
-    "best_measurementIterations": null
+    "verdict": "MATCH",
+    "curr_forks": 3,
+    "curr_measurementIterations": 10,
+    "best_forks": 3,
+    "best_measurementIterations": 10
   }
 ]

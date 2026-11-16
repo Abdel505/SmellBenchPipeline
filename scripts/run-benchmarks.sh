@@ -138,7 +138,7 @@ fi
 
 cd "${ROOT_DIR}"
 
-echo "[run-benchmarks] Running JMH benchmarks via Gradle jmhRun..."
+echo "[run-benchmarks] Running JMH benchmarks (mvnw + javac + org.openjdk.jmh.Main)..."
 echo "[run-benchmarks] RUN_AMBER=${RUN_AMBER} (set RUN_AMBER=1 to enable AMBER server flags)"
 echo "[run-benchmarks] AMBER_INCLUDE=${AMBER_INCLUDE_LABEL:-${AMBER_INCLUDE:-<all benchmarks>}}"
 
@@ -198,10 +198,59 @@ if [[ -n "${BLOCKED_INFO}" ]]; then
   echo "[run-benchmarks] Proceeding, AMBER_INCLUDE=${AMBER_INCLUDE_LABEL}"
 fi
 
-# Gradle jmhRun handles classpath + BenchmarkList correctly.
-# AMBER flags (-hmodel/-hhost/-hport) are passed through env vars and added
-# by the jmhRun task only when RUN_AMBER=1.
-./gradlew :app:jmhRun
+# --- Build + run JMH directly (replaces the deleted app/ Gradle jmhRun task) ---
+SUT_DIR="${ROOT_DIR}/sut/byte-buddy"
+BENCH_SRC="${SUT_DIR}/byte-buddy-benchmark/src/main/java"
+JMH_OUT="${ROOT_DIR}/build/jmh-classes"
+M2="${HOME}/.m2/repository"
+
+# Windows java/javac need C:/... paths and ';' as classpath separator.
+case "$(uname -s)" in
+  MINGW*|MSYS*|CYGWIN*) winpath() { cygpath -m "$1"; }; SEP=";"; MVNW="./mvnw.cmd" ;;
+  *)                    winpath() { echo "$1"; };       SEP=":"; MVNW="./mvnw" ;;
+esac
+
+# 1) Compile the checked-out SUT. Stale maven-status caches break on the non-ASCII path, so drop them.
+echo "[run-benchmarks] Compiling byte-buddy-dep..."
+rm -rf "${SUT_DIR}"/byte-buddy-*/target/maven-status
+(cd "${SUT_DIR}" && MAVEN_OPTS="${MAVEN_OPTS:-} -Dfile.encoding=UTF-8" "${MVNW}" -q -pl byte-buddy-dep -am compile)
+
+# Third-party jars used by handwritten benchmarks; versions taken from the SUT's root pom.
+pom_prop() { sed -n "s|.*<$1>\([^<]*\)</$1>.*|\1|p" "${SUT_DIR}/pom.xml" | head -1; }
+CGLIB_V="$(pom_prop version.cglib)"
+JAVASSIST_V="$(pom_prop version.javassist)"
+
+AMBER_CORE="$(winpath "${ROOT_DIR}/libs/jmh-core-1.37-all.jar")"
+AMBER_PROC="$(winpath "${ROOT_DIR}/libs/jmh-generator-annprocess-1.37-amber.jar")"
+CP="${AMBER_CORE}${SEP}$(winpath "${SUT_DIR}/byte-buddy-dep/target/classes")"
+CP+="${SEP}$(winpath "${M2}/cglib/cglib-nodep/${CGLIB_V}/cglib-nodep-${CGLIB_V}.jar")"
+CP+="${SEP}$(winpath "${M2}/org/javassist/javassist/${JAVASSIST_V}/javassist-${JAVASSIST_V}.jar")"
+
+# 2) Compile benchmarks with the AMBER annotation processor (stock one -> "unexpected tag = I").
+#    Fresh output dir each run so no stale BenchmarkList entries survive.
+echo "[run-benchmarks] Compiling benchmarks..."
+rm -rf "${JMH_OUT}" && mkdir -p "${JMH_OUT}"
+find "${BENCH_SRC}" -name '*.java' | while read -r f; do echo "\"$(winpath "$f")\""; done > "${JMH_OUT}/sources.txt"
+javac -nowarn --release 17 -encoding UTF-8 \
+  -cp "${CP}" -processorpath "${AMBER_PROC}${SEP}${AMBER_CORE}" \
+  -d "$(winpath "${JMH_OUT}")" "@$(winpath "${JMH_OUT}/sources.txt")"
+
+# 3) Run JMH. Same flags/defaults as the old jmhRun task; AMBER flags only when RUN_AMBER=1.
+JMH_ARGS=(-rf json -rff "$(winpath "${OUTFILE}")" -f "${JMH_FORKS:-5}" -t 1
+          -to "${AMBER_TIMEOUT:-1m}" -v "${AMBER_VERBOSE:-NORMAL}")
+if [[ "${RUN_AMBER}" == "1" ]]; then
+  JMH_ARGS+=(-wi 500 -w 100ms -i 100 -r 100ms
+             -hmodel "${AMBER_MODEL:-oscnn}" -hhost "${AMBER_HOST:-localhost}" -hport "${AMBER_PORT:-5001}")
+else
+  JMH_ARGS+=(-wi "${JMH_WARMUP_ITER:-3}" -w "${JMH_WARMUP_TIME:-1s}"
+             -i "${JMH_MEASURE_ITER:-5}" -r "${JMH_MEASURE_TIME:-1s}")
+fi
+# shellcheck disable=SC2206  # intentional word-split of extra flags
+[[ -n "${AMBER_JMH_EXTRA}" ]] && JMH_ARGS+=(${AMBER_JMH_EXTRA})
+
+rm -f "${OUTFILE}"  # so the existence check below can't pass on a stale result
+java -cp "$(winpath "${JMH_OUT}")${SEP}${CP}" org.openjdk.jmh.Main \
+  ${AMBER_INCLUDE:+"${AMBER_INCLUDE}"} "${JMH_ARGS[@]}"
 
 if [[ ! -f "${OUTFILE}" ]]; then
   echo "[run-benchmarks] ERROR: expected ${OUTFILE} was not produced." >&2
