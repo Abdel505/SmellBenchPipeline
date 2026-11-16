@@ -85,8 +85,8 @@ jobs:
         run: python smell-checker/smell_applicability_checker.py
         env:
           LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
-          LLM_ENDPOINT: ${{ secrets.LLM_ENDPOINT }}
-          LLM_MODEL: ${{ secrets.LLM_MODEL }}
+          LLM_ENDPOINT: ${{ vars.LLM_ENDPOINT }}
+          LLM_MODEL: ${{ vars.LLM_MODEL }}
           # Push runs use the fallback ('2'); manual runs use the inputs (type 'all' for everything).
           MAX_METHODS: ${{ inputs.max_methods || '2' }}
           MAX_TEMPLATES: ${{ inputs.max_templates || '2' }}
