@@ -1,5 +1,20 @@
 #!/bin/bash
+#: Usage: bash scripts/generate_benchmark.sh <java_source_file> <method_id>   (shortcut: genbench)
+#: Asks the Chat2Benchmark LLM for a JMH benchmark of one method (up to 10 attempts),
+#: compiles + validates it, and writes it next to the production class's package in
+#: sut/byte-buddy/byte-buddy-benchmark/src/main/java/.
+#:
+#: Needs in .env: BENCH_API_KEY, BENCH_ENDPOINT (optional BENCH_MODEL)
+#:
+#: Commands:
+#:   genbench sut/byte-buddy/byte-buddy-dep/src/main/java/net/bytebuddy/dynamic/loading/ClassLoadingStrategy.java 'opened()'
+#:   genbench <file.java> 'load(ClassLoader,Map)'   # overloads: quote the param-qualified id
+#:   genbench <file.java> getJavaVersion            # bare name also works
 set -euo pipefail
+
+# -h / --help prints the "#:" block above and exits.
+source "$(dirname "$0")/lib/help.sh"
+maybe_show_help "${1:-}"
 
 # --- Load local secrets if .env exists ---
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"

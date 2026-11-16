@@ -1,5 +1,20 @@
 #!/bin/bash
+#: Usage: bash scripts/detect_changed_methods.sh            (shortcut: detect)
+#: Diffs the SUT's HEAD~1..HEAD and lists changed methods ->
+#:   pipeline-output/{added,modified,deleted}_methods.txt
+#:
+#: Run after: source sut.env   (points SUT_GIT_DIR/SUT_SRC_* at byte-buddy)
+#:
+#: Commands:
+#:   detect                 # diff the currently checked-out SUT commit vs its parent
+#:   go <hash> && detect    # check out another SUT commit first, then diff it
+#:
+#: Env: SUT_GIT_DIR  SUT_SRC_FILTER  SUT_SRC_STRIP  SUT_SRC_ROOT   (set by sut.env)
 set -euo pipefail
+
+# -h / --help prints the "#:" block above and exits.
+source "$(dirname "$0")/lib/help.sh"
+maybe_show_help "${1:-}"
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 mkdir -p "${ROOT_DIR}/pipeline-output"

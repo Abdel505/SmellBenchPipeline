@@ -1,5 +1,21 @@
 #!/bin/bash
+#: Usage: bash scripts/update_coverage_matrix.sh [smelly.txt] [deleted.txt]   (shortcut: matrix)
+#: Generates benchmarks for smelly methods (via generate_benchmark.sh), removes them for
+#: deleted methods, and updates data/coverage-matrix.csv.
+#:
+#: Run after: source sut.env   (SUT_SRC_ROOT; default app/src/main/java no longer exists)
+#:
+#: Commands:
+#:   matrix                                   # all smelly + deleted methods
+#:   METHOD='load(ClassLoader,Map)' matrix    # only that method (deleted ones skipped)
+#:   matrix my_smelly.txt my_deleted.txt      # custom input files
+#:
+#: Defaults: pipeline-output/smelly_methods.txt, pipeline-output/deleted_methods.txt
 set -euo pipefail
+
+# -h / --help prints the "#:" block above and exits.
+source "$(dirname "$0")/lib/help.sh"
+maybe_show_help "${1:-}"
 
 # update_coverage_matrix.sh
 # Processes smelly (added/modified) and deleted methods against the coverage matrix.

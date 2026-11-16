@@ -1,5 +1,19 @@
 #!/bin/bash
+#: Usage: bash scripts/validate_benchmark.sh <Benchmark.java> <method_id> [sut_source.java]   (shortcut: validate)
+#: Checks that an existing benchmark really calls the target method/overload. Prints PASS/FAIL.
+#:
+#: Commands:
+#:   B=sut/byte-buddy/byte-buddy-benchmark/src/main/java/net/bytebuddy/dynamic/loading
+#:   validate $B/ClassLoadingStrategyBenchmark_opened.java 'opened()'
+#:   validate $B/ClassLoadingStrategyBenchmark_load_ClassLoader_Map.java 'load(ClassLoader,Map)'
+#:   validate $B/ClassLoadingStrategyBenchmark_with_Factory.java 'with(Factory)' <ClassLoadingStrategy.java>
+#:
+#: The 3rd arg (SUT source) lets it resolve return types of SUT calls used as arguments.
 set -euo pipefail
+
+# -h / --help prints the "#:" block above and exits.
+source "$(dirname "$0")/lib/help.sh"
+maybe_show_help "${1:-}"
 
 # Standalone entry point for benchmark_calls_target() (scripts/lib/benchmark_validation.sh)
 # — lets the method-target validation be run/audited against an already-generated

@@ -1,5 +1,23 @@
 #!/bin/bash
+#: Usage: bash scripts/collect_applicability_targets.sh [added.txt] [modified.txt] [deleted.txt]   (shortcut: collect)
+#: Extracts the source of each added/modified method -> pipeline-output/applicability-targets.json
+#:
+#: Run from SmellBenchPipeline/ after:  source sut.env   (else every method is skipped)
+#:
+#: Commands:
+#:   bash scripts/collect_applicability_targets.sh                               # added + modified (default)
+#:   METHOD_SCOPE=modified bash scripts/collect_applicability_targets.sh         # modified only
+#:   METHOD_SCOPE=added bash scripts/collect_applicability_targets.sh            # added only
+#:   bash scripts/collect_applicability_targets.sh <added.txt> <modified.txt>    # custom input files
+#:
+#: Defaults: inputs pipeline-output/{added,modified,deleted}_methods.txt, METHOD_SCOPE=both
+#:
+#: Shortcut (after source sut.env): collect [args]   e.g. collect -h, METHOD_SCOPE=modified collect
 set -euo pipefail
+
+# -h / --help prints the "#:" block above and exits.
+source "$(dirname "$0")/lib/help.sh"
+maybe_show_help "${1:-}"
 
 # collect_applicability_targets.sh
 # Reads added/modified_methods.txt, loads full Java source per method,

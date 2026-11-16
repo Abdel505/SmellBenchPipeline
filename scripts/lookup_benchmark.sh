@@ -1,5 +1,16 @@
 #!/bin/bash
+#: Usage: bash scripts/lookup_benchmark.sh <fqn> | <java_file> <method_id>   (shortcut: lookup)
+#: Prints the benchmark class(es) tracked in data/coverage-matrix.csv for a method.
+#: Exit 0 = found, 1 = not found.
+#:
+#: Commands:
+#:   lookup 'net.bytebuddy.dynamic.loading.ClassLoadingStrategy.opened()'
+#:   lookup <ClassLoadingStrategy.java> 'load(ClassLoader,Map)'
 set -euo pipefail
+
+# -h / --help prints the "#:" block above and exits.
+source "$(dirname "$0")/lib/help.sh"
+maybe_show_help "${1:-}"
 
 # lookup_benchmark.sh
 # Query the coverage matrix for a given production method.

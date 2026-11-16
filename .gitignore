@@ -49,7 +49,7 @@ test_generate.sh
 
 # Local-only test scripts (not part of the pipeline)
 tests/
-scripts/lookup_benchmark.sh
+
 
 # OS
 .DS_Store

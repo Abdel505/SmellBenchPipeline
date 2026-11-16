@@ -1,5 +1,26 @@
 #!/bin/bash
+#: Usage: bash scripts/run-benchmarks.sh [jmh_regex]                   (shortcut: runbench)
+#: Builds SUT + benchmarks, runs JMH, compares vs data/best-result.json, writes a dashboard.
+#: No regex = all benchmarks in data/coverage-matrix.csv.
+#:
+#: Commands:
+#:   RUN_AMBER=0 runbench                                            # all matrix benchmarks, plain JMH
+#:   RUN_AMBER=0 runbench ClassLoadingStrategyBenchmark_opened       # one benchmark class
+#:   RUN_AMBER=0 runbench 'ClassLoadingStrategyBenchmark_(opened|with_Factory)'
+#:   RUN_AMBER=0 JMH_FORKS=1 JMH_WARMUP_ITER=1 JMH_MEASURE_ITER=2 runbench <regex>   # quick smoke test
+#:   RUN_AMBER=0 JMH_FORKS=3 JMH_MEASURE_ITER=10 CONFIG_OVERRIDE=1 runbench <regex>  # new baseline
+#:   runbench <regex>                                                # AMBER mode (server on :5001)
+#:
+#: Env: RUN_AMBER=1 (default, needs AMBER server) | 0
+#:      JMH_FORKS=5  JMH_WARMUP_ITER=3  JMH_WARMUP_TIME=1s  JMH_MEASURE_ITER=5  JMH_MEASURE_TIME=1s
+#:      (the 4 warmup/measure vars are rejected when RUN_AMBER=1)
+#:      AMBER_MODEL=oscnn  AMBER_HOST=localhost  AMBER_PORT=5001  AMBER_TIMEOUT=1m  AMBER_VERBOSE=NORMAL
+#:      AMBER_JMH_EXTRA="-p x=1"  CONFIG_OVERRIDE=1 (accept a forks/iterations change as baseline)
 set -euo pipefail
+
+# -h / --help prints the "#:" block above and exits.
+source "$(dirname "$0")/lib/help.sh"
+maybe_show_help "${1:-}"
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 BENCH_REPORTS="${ROOT_DIR}/bench-reports"

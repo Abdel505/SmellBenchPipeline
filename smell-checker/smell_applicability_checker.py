@@ -1,8 +1,30 @@
+#: Usage: python smell-checker/smell_applicability_checker.py   (shortcut: smells)
+#: Asks the LLM which smell families apply to each method in
+#: pipeline-output/applicability-targets.json -> pipeline-output/applicability-results.json
+#:
+#: Needs in .env: LLM_API_KEY, LLM_ENDPOINT (optional LLM_MODEL, default gpt-5)
+#:
+#: Commands:
+#:   smells                               # all methods x all templates (run after: collect)
+#:   LIST_METHODS=1 smells                # list the methods, no LLM call
+#:   LIST_TEMPLATES=1 smells              # list the smell family IDs, no LLM call
+#:   MAX_METHODS=3 smells                 # only the first 3 methods
+#:   MAX_TEMPLATES=2 smells               # only the first 2 templates
+#:   TEMPLATES=<ID1>,<ID2> smells         # only these families (IDs from LIST_TEMPLATES)
+#:   DEBUG_LLM=1 smells                   # print raw LLM replies
 import json
 import os
 import re
 import sys
 from pathlib import Path
+
+# -h / --help prints the "#:" block above and exits (before needing openai/.env).
+if len(sys.argv) > 1 and sys.argv[1] in ("-h", "--help"):
+    for _line in Path(__file__).read_text(encoding="utf-8").splitlines():
+        if _line.startswith("#:"):
+            print(_line[3:] if _line.startswith("#: ") else _line[2:])
+    sys.exit(0)
+
 import openai
 from dotenv import load_dotenv
 from time import sleep
