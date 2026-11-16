@@ -177,7 +177,7 @@ public class ClassFileVersion implements Comparable<ClassFileVersion>, Serializa
     /**
      * The class file version of Java 27.
      */
-    public static final ClassFileVersion JAVA_V27 = new ClassFileVersion(Opcodes.V26 + 1);
+    public static final ClassFileVersion JAVA_V27 = new ClassFileVersion(Opcodes.V27);
 
     /**
      * An array of class file versions in their sorting order.
@@ -351,12 +351,10 @@ public class ClassFileVersion implements Comparable<ClassFileVersion>, Serializa
      * @return The type's class file version.
      * @throws IOException If an error occurs while reading the class file.
      */
-
     public static ClassFileVersion of(Class<?> type, ClassFileLocator classFileLocator) throws IOException {
-        // Task 4 manual test marker — trivial, behavior-preserving change
-        ClassFileLocator locator = classFileLocator;
-        return of(TypeDescription.ForLoadedType.of(type), locator);
+        return of(TypeDescription.ForLoadedType.of(type), classFileLocator);
     }
+
     /**
      * Extracts a class' class version.
      *

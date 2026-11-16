@@ -758,5 +758,158 @@
       "// Redundant buffering (single bulk write)\nPath p = Paths.get(\"out.txt\");\nOutputStream os = new BufferedOutputStream(Files.newOutputStream(p));\nos.write(data); // single bulk write\nos.flush();\nos.close();",
       "// Missing buffering (sequential processing)\nInputStream in = new FileInputStream(src);\nOutputStream out = new FileOutputStream(dst);\nint b;\nwhile ((b = in.read()) != -1) { // many small ops\n  out.write(b);\n}\nout.close();\nin.close();"
     ]
+  },
+  {
+    "family_id": "F18",
+    "root_cause": "Redundant computation: repeated reflective lookups of the same class member instead of reusing a cached handle",
+    "generalized_template": "HOT_PATH_METHOD(...) {\n  [ LOOP (...) { ]\n    Class<?> C = Class.forName(NAME);            // optional\n    Member M = C.LOOKUP(MEMBER_NAME, PARAM_TYPES...); // repeated on every call/iteration\n    R r = M.USE(TARGET, ARGS...);\n  [ } ]\n}",
+    "type_and_flow_constraints": [
+      "LOOKUP is a reflective resolution such as getMethod, getDeclaredMethod, getField, getDeclaredField, getConstructor, getDeclaredConstructor, getMethods, getDeclaredMethods or Class.forName.",
+      "The lookup arguments (class, member name, parameter types) are constant or do not change between calls/iterations, so the result could be reused.",
+      "The site is inside a loop or a frequently invoked method/handler."
+    ],
+    "matching_rules": [
+      "Match a MethodInvocation to a reflective LOOKUP inside a loop body or a per-call code path.",
+      "Verify the resolved Method/Field/Constructor/Class is stored in a local variable or used inline, not read from a field or cache.",
+      "Verify the lookup inputs are constant or stable for the reuse scope."
+    ],
+    "negative_constraints": [
+      "Exclude lookups guarded by a cache (static final field, ClassValue, ConcurrentHashMap.computeIfAbsent, lazily initialized field).",
+      "Exclude one-time code: static initializers, constructors of singletons, startup or configuration paths.",
+      "Exclude lookups whose inputs differ on each call, such as scanning the members of a type received as an argument, when each type is processed only once."
+    ],
+    "signals": [
+      "Calls to getMethod(, getDeclaredMethod(, getField(, getDeclaredField(, getConstructor( or getDeclaredConstructor( inside a loop or per-call method body.",
+      "Class.forName( with a constant or stable name executed on every call.",
+      "getMethods() or getDeclaredMethods() re-read on every call, often followed by a name comparison loop.",
+      "The resolved Method/Field/Constructor is a local variable, with no static final field or cache holding it.",
+      "Reject when: the handle is read from a cache or static final field, or the lookup runs only once at startup or initialization."
+    ],
+    "canonical_examples": [
+      "Object readValue(Object target) throws Exception {\n  // Resolved again on every call\n  Method getter = target.getClass().getMethod(\"getValue\");\n  return getter.invoke(target);\n}"
+    ]
+  },
+  {
+    "family_id": "F19",
+    "root_cause": "Inefficient or bad API usage: expensive reusable helper object rebuilt per call or per iteration",
+    "generalized_template": "HOT_PATH_METHOD(ARGS) {\n  [ LOOP (...) { ]\n    HELPER h = CREATE_EXPENSIVE_HELPER(CONSTANT_CONFIG); // rebuilt each time\n    R r = h.USE(ARGS);\n  [ } ]\n}",
+    "type_and_flow_constraints": [
+      "CREATE_EXPENSIVE_HELPER is a costly factory or constructor such as Pattern.compile, DateTimeFormatter.ofPattern, new SimpleDateFormat, new DecimalFormat, MessageDigest.getInstance, Cipher.getInstance or DocumentBuilderFactory.newInstance.",
+      "The configuration passed to the factory is constant or stable across calls/iterations.",
+      "The helper is not retained after the call, and the site is inside a loop or a frequently invoked method."
+    ],
+    "matching_rules": [
+      "Match creation of an expensive helper inside a loop body or a per-call code path.",
+      "Verify its configuration arguments are literals, constants or otherwise stable values.",
+      "Verify the helper is used locally and could be shared, reused or stored per thread safely."
+    ],
+    "negative_constraints": [
+      "Exclude helpers read from a static final field, cache or ThreadLocal.",
+      "Exclude patterns or formats built from input that really changes on each call.",
+      "Exclude one-time initialization and rarely executed paths.",
+      "Exclude String.split with a single literal non-regex character, which the JDK fast path handles without compiling a Pattern."
+    ],
+    "signals": [
+      "Pattern.compile( with a literal or constant inside a method body or loop, instead of a static final Pattern.",
+      "String.matches(, replaceAll( or replaceFirst( on a hot path, or split( with a regex that is more than one literal character: these compile a Pattern on each call.",
+      "new SimpleDateFormat(, new DecimalFormat( or DateTimeFormatter.ofPattern( created per call or per iteration.",
+      "MessageDigest.getInstance(, Cipher.getInstance( or DocumentBuilderFactory.newInstance( created per call or per iteration.",
+      "Reject when: the helper comes from a static final field, cache or ThreadLocal, or its configuration changes on each call."
+    ],
+    "canonical_examples": [
+      "boolean isValid(String id) {\n  // Compiled again on every call\n  Pattern p = Pattern.compile(\"[a-z]+-[0-9]+\");\n  return p.matcher(id).matches();\n}"
+    ]
+  },
+  {
+    "family_id": "F20",
+    "root_cause": "Inefficient data structures: collection grown from default capacity although the final size is known",
+    "generalized_template": "METHOD(SOURCE) {\n  COLLECTION out = new COLLECTION_TYPE<>();  // no capacity, final size known\n  LOOP (E e : SOURCE) {\n    out.ADD(TRANSFORM(e));                   // one insertion per source element\n  }\n  return out;\n}",
+    "type_and_flow_constraints": [
+      "COLLECTION_TYPE has a capacity constructor, such as ArrayList, HashMap, HashSet, LinkedHashMap, ArrayDeque or StringBuilder.",
+      "The final size is known or tightly bounded before the loop, for example SOURCE.size(), an array length or a count argument.",
+      "The loop inserts about one element per iteration, and SOURCE can be large or the method is frequently invoked."
+    ],
+    "matching_rules": [
+      "Match creation of a collection with its no-argument constructor, followed by a loop adding to it.",
+      "Verify the loop bound is available before the collection is created.",
+      "Verify insertions happen on all or nearly all iterations."
+    ],
+    "negative_constraints": [
+      "Exclude collections created with a capacity or a source collection.",
+      "Exclude loops with selective filters, where the final size is unknown or much smaller than the source.",
+      "Exclude collections that normally hold only a few elements, such as fixed tiny loops.",
+      "Exclude LinkedList and other structures with no capacity setting."
+    ],
+    "signals": [
+      "new ArrayList<>(), new HashMap<>(), new HashSet<>() or new StringBuilder() followed by a loop calling add(, put( or append( once per element.",
+      "The loop iterates over a collection or array whose size() or length is available before the new collection is created.",
+      "Reject when: a capacity is passed, insertions are conditional on a selective filter, or only a few elements are ever added."
+    ],
+    "canonical_examples": [
+      "List<String> names(List<User> users) {\n  // Final size is users.size(), but the list resizes as it grows\n  List<String> out = new ArrayList<>();\n  for (User u : users) {\n    out.add(u.getName());\n  }\n  return out;\n}"
+    ]
+  },
+  {
+    "family_id": "F21",
+    "root_cause": "Inefficient or bad API usage: exceptions used for normal control flow on a frequently executed path",
+    "generalized_template": "HOT_PATH_METHOD(INPUT) {\n  try {\n    return OPERATION_THAT_THROWS_ON_EXPECTED_INPUT(INPUT);\n  } catch (EXPECTED_EXCEPTION e) {\n    return FALLBACK;   // expected outcome, exception discarded\n  }\n}",
+    "type_and_flow_constraints": [
+      "The exception represents an expected outcome (invalid text, missing element, end of data), not a real failure.",
+      "The catch block returns a default, continues a loop or takes a normal alternative path, and discards the exception.",
+      "The site is inside a loop or a frequently invoked method, and the exceptional outcome can be common.",
+      "A cheaper check exists, or could be written, to test the condition first."
+    ],
+    "matching_rules": [
+      "Match a try/catch where the catch block only returns a value, continues or sets a flag.",
+      "Or match new EXCEPTION(...) thrown and caught within the same method or a direct caller to leave a loop or signal a result.",
+      "Verify the condition is expected in normal operation."
+    ],
+    "negative_constraints": [
+      "Exclude catch blocks that log, wrap, rethrow or otherwise report a real failure.",
+      "Exclude APIs with no practical cheaper check, such as most I/O or class loading failures on rare paths.",
+      "Exclude rare paths where the exception is not expected to occur often.",
+      "Exclude preallocated exceptions without stack traces when used deliberately for performance."
+    ],
+    "signals": [
+      "catch (NumberFormatException around Integer.parseInt(, Long.parseLong( or Double.parseDouble( used to test whether text is numeric.",
+      "catch (NoSuchElementException, IndexOutOfBoundsException, ArrayIndexOutOfBoundsException or NullPointerException used in place of a bounds, presence or null check.",
+      "A catch block that only returns a default, sets a flag or calls continue, inside a loop or per-call method.",
+      "throw new used to break out of a loop or return a result within the same method.",
+      "Reject when: the catch logs, wraps or rethrows a real failure, or the exception is rare."
+    ],
+    "canonical_examples": [
+      "int parseOrDefault(String text, int fallback) {\n  try {\n    return Integer.parseInt(text);\n  } catch (NumberFormatException e) {\n    // Non-numeric text is expected here\n    return fallback;\n  }\n}"
+    ]
+  },
+  {
+    "family_id": "F22",
+    "root_cause": "Inefficient or bad API usage: Stream pipeline overhead on a hot path with small inputs or boxed elements",
+    "generalized_template": "HOT_PATH_METHOD(DATA) {\n  return STREAM_OF(DATA)   // new pipeline per call\n      [.map(BOXING_OR_TRIVIAL_FN)]\n      [.filter(PREDICATE)]\n      .TERMINAL();          // simple result, a plain loop would do\n}",
+    "type_and_flow_constraints": [
+      "STREAM_OF is java.util.stream.Stream creation such as collection.stream(), Arrays.stream or Stream.of. It is not an I/O stream such as InputStream or OutputStream.",
+      "The pipeline is built on every call, inside a loop or in a frequently invoked method.",
+      "The work is simple enough to express as a plain loop: sum, count, any-match, or simple mapping."
+    ],
+    "matching_rules": [
+      "Match a java.util.stream pipeline inside a loop body or frequently invoked method.",
+      "Or match boxed numeric pipelines: Stream<Integer> or map(Integer::valueOf), reduce or Collectors.summingInt where IntStream or a primitive loop fits.",
+      "Verify the terminal operation is simple and no parallelism is needed."
+    ],
+    "negative_constraints": [
+      "Exclude InputStream, OutputStream and other I/O streams.",
+      "Exclude streams on rarely executed paths such as startup, configuration or error handling.",
+      "Exclude parallel streams on large data, where the stream provides a real benefit.",
+      "Exclude complex pipelines (grouping, flatMap chains) on cold paths where readability is the deliberate choice.",
+      "Exclude primitive streams on large data with no loop nesting, where overhead is minor."
+    ],
+    "signals": [
+      ".stream(), Arrays.stream( or Stream.of( inside a loop body or a per-call method on a hot path.",
+      "Boxed numeric pipelines: mapToObj(, boxed(), map(Integer::valueOf), reduce(0, Integer::sum) or Collectors.summingInt(.",
+      ".stream().filter(...).findFirst(), anyMatch( or count() on a small collection, called very often.",
+      "Reject when: this is an I/O stream, the code path is rarely executed, or the method does not run frequently."
+    ],
+    "canonical_examples": [
+      "int total(List<Integer> values) {\n  // Called per request: new pipeline and unboxing on every call\n  return values.stream().reduce(0, Integer::sum);\n}"
+    ]
   }
 ]

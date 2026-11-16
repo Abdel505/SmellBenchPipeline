@@ -1,11 +1,65 @@
 #!/bin/bash
+#: Usage: bash scripts/run-benchmarks.sh [jmh_regex]                   (shortcut: runbench)
+#: Builds SUT + benchmarks, runs JMH, compares vs data/best-result.json, writes a dashboard.
+#: No regex = all benchmarks in data/coverage-matrix.csv.
+#:
+#: Commands:
+#:   RUN_AMBER=0 runbench                                            # all matrix benchmarks, plain JMH
+#:   RUN_AMBER=0 runbench ClassLoadingStrategyBenchmark_opened       # one benchmark class
+#:   RUN_AMBER=0 runbench 'ClassLoadingStrategyBenchmark_(opened|with_Factory)'
+#:   RUN_AMBER=0 JMH_FORKS=1 JMH_WARMUP_ITER=1 JMH_MEASURE_ITER=2 runbench <regex>   # quick smoke test
+#:   RUN_AMBER=0 JMH_FORKS=3 JMH_MEASURE_ITER=10 CONFIG_OVERRIDE=1 runbench <regex>  # new baseline
+#:   runbench <regex>                                                # AMBER mode (server on :5001)
+#:
+#: Env: RUN_AMBER=1 (default, needs AMBER server) | 0
+#:      JMH_FORKS=5  JMH_WARMUP_ITER=3  JMH_WARMUP_TIME=1s  JMH_MEASURE_ITER=5  JMH_MEASURE_TIME=1s
+#:      (the 4 warmup/measure vars are rejected when RUN_AMBER=1)
+#:      AMBER_MODEL=oscnn  AMBER_HOST=localhost  AMBER_PORT=5001  AMBER_TIMEOUT=1m  AMBER_VERBOSE=NORMAL
+#:      AMBER_JMH_EXTRA="-p x=1"  CONFIG_OVERRIDE=1 (accept a forks/iterations change as baseline)
 set -euo pipefail
+
+# -h / --help prints the "#:" block above and exits.
+source "$(dirname "$0")/lib/help.sh"
+maybe_show_help "${1:-}"
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 BENCH_REPORTS="${ROOT_DIR}/bench-reports"
 OUTFILE="${ROOT_DIR}/data/jmh-result.json"
 BEST_FILE="${ROOT_DIR}/data/best-result.json"
 export RUN_AMBER="${RUN_AMBER:-1}"
+
+# --- Pin a Gradle-8.8-compatible JDK ---
+# Gradle 8.8's embedded Kotlin DSL compiler can't parse version strings from JDKs
+# newer than it was built for -- it fails with "IllegalArgumentException: <version>"
+# before any task runs, on whatever `java` happens to be first on JAVA_HOME/PATH.
+# Pin a known-compatible JDK (17-21) instead of depending on the machine's default.
+pin_compatible_jdk() {
+  local major
+  major="$(java -version 2>&1 | sed -n '1s/^[^"]*"\([0-9]*\).*/\1/p')"
+  if [[ -z "${major}" || "${major}" -le 22 ]]; then
+    return 0
+  fi
+
+  local candidates=("${JAVA_HOME_21_X64:-}" "${JAVA_HOME_17_X64:-}")
+  shopt -s nullglob
+  candidates+=(/c/Program\ Files/Java/jdk-21* /c/Program\ Files/Java/jdk-17* \
+               /c/Program\ Files/Eclipse\ Adoptium/jdk-21* /c/Program\ Files/Eclipse\ Adoptium/jdk-17*)
+  shopt -u nullglob
+
+  for candidate in "${candidates[@]}"; do
+    if [[ -n "${candidate}" && -x "${candidate}/bin/java" ]]; then
+      export JAVA_HOME="${candidate}"
+      export PATH="${JAVA_HOME}/bin:${PATH}"
+      echo "[run-benchmarks] Active JDK was ${major} (unsupported by Gradle 8.8) -- switched JAVA_HOME to ${JAVA_HOME}" >&2
+      return 0
+    fi
+  done
+
+  echo "[run-benchmarks] ERROR: active JDK is ${major}, which Gradle 8.8 cannot run on, and no compatible JDK (17 or 21) was found on this machine." >&2
+  echo "[run-benchmarks]   Install a JDK 17-21 and set JAVA_HOME to it before rerunning." >&2
+  exit 1
+}
+pin_compatible_jdk
 
 # --- Reject conflicting iteration/time overrides when RUN_AMBER=1 ---
 # app/build.gradle.kts hardcodes -wi 500 -w 100ms -i 100 -r 100ms whenever RUN_AMBER=1
@@ -105,7 +159,7 @@ fi
 
 cd "${ROOT_DIR}"
 
-echo "[run-benchmarks] Running JMH benchmarks via Gradle jmhRun..."
+echo "[run-benchmarks] Running JMH benchmarks (mvnw + javac + org.openjdk.jmh.Main)..."
 echo "[run-benchmarks] RUN_AMBER=${RUN_AMBER} (set RUN_AMBER=1 to enable AMBER server flags)"
 echo "[run-benchmarks] AMBER_INCLUDE=${AMBER_INCLUDE_LABEL:-${AMBER_INCLUDE:-<all benchmarks>}}"
 
@@ -165,10 +219,71 @@ if [[ -n "${BLOCKED_INFO}" ]]; then
   echo "[run-benchmarks] Proceeding, AMBER_INCLUDE=${AMBER_INCLUDE_LABEL}"
 fi
 
-# Gradle jmhRun handles classpath + BenchmarkList correctly.
-# AMBER flags (-hmodel/-hhost/-hport) are passed through env vars and added
-# by the jmhRun task only when RUN_AMBER=1.
-./gradlew :app:jmhRun
+# --- Build + run JMH directly (replaces the deleted app/ Gradle jmhRun task) ---
+SUT_DIR="${ROOT_DIR}/sut/byte-buddy"
+BENCH_SRC="${SUT_DIR}/byte-buddy-benchmark/src/main/java"
+JMH_OUT="${ROOT_DIR}/build/jmh-classes"
+M2="${HOME}/.m2/repository"
+
+# Windows java/javac need C:/... paths and ';' as classpath separator.
+case "$(uname -s)" in
+  MINGW*|MSYS*|CYGWIN*) winpath() { cygpath -m "$1"; }; SEP=";"; MVNW="./mvnw.cmd" ;;
+  *)                    winpath() { echo "$1"; };       SEP=":"; MVNW="./mvnw" ;;
+esac
+
+# 0) Restore generated benchmarks from benchmarks/ (a fresh SUT clone, e.g. CI, has none).
+source "${ROOT_DIR}/scripts/lib/bench_store.sh"
+bench_store_pull
+
+# 1) Compile the checked-out SUT. Stale maven-status caches break on the non-ASCII path, so drop them.
+echo "[run-benchmarks] Compiling byte-buddy-dep..."
+rm -rf "${SUT_DIR}"/byte-buddy-*/target/maven-status
+(cd "${SUT_DIR}" && MAVEN_OPTS="${MAVEN_OPTS:-} -Dfile.encoding=UTF-8" "${MVNW}" -q -pl byte-buddy-dep -am compile)
+
+# Third-party jars used by handwritten benchmarks; versions taken from the SUT's root pom.
+pom_prop() { sed -n "s|.*<$1>\([^<]*\)</$1>.*|\1|p" "${SUT_DIR}/pom.xml" | head -1; }
+CGLIB_V="$(pom_prop version.cglib)"
+JAVASSIST_V="$(pom_prop version.javassist)"
+
+# Download a jar into ~/.m2 if missing (fresh CI runner): $1=groupId $2=artifactId $3=version.
+ensure_jar() {
+  local jar="${M2}/${1//.//}/$2/$3/$2-$3.jar"
+  [[ -f "$jar" ]] || (cd "${SUT_DIR}" && "${MVNW}" -q dependency:get -Dartifact="$1:$2:$3")
+}
+ensure_jar cglib cglib-nodep "${CGLIB_V}"
+ensure_jar org.javassist javassist "${JAVASSIST_V}"
+
+AMBER_CORE="$(winpath "${ROOT_DIR}/libs/jmh-core-1.37-all.jar")"
+AMBER_PROC="$(winpath "${ROOT_DIR}/libs/jmh-generator-annprocess-1.37-amber.jar")"
+CP="${AMBER_CORE}${SEP}$(winpath "${SUT_DIR}/byte-buddy-dep/target/classes")"
+CP+="${SEP}$(winpath "${M2}/cglib/cglib-nodep/${CGLIB_V}/cglib-nodep-${CGLIB_V}.jar")"
+CP+="${SEP}$(winpath "${M2}/org/javassist/javassist/${JAVASSIST_V}/javassist-${JAVASSIST_V}.jar")"
+
+# 2) Compile benchmarks with the AMBER annotation processor (stock one -> "unexpected tag = I").
+#    Fresh output dir each run so no stale BenchmarkList entries survive.
+echo "[run-benchmarks] Compiling benchmarks..."
+rm -rf "${JMH_OUT}" && mkdir -p "${JMH_OUT}"
+find "${BENCH_SRC}" -name '*.java' | while read -r f; do echo "\"$(winpath "$f")\""; done > "${JMH_OUT}/sources.txt"
+javac -nowarn --release 17 -encoding UTF-8 \
+  -cp "${CP}" -processorpath "${AMBER_PROC}${SEP}${AMBER_CORE}" \
+  -d "$(winpath "${JMH_OUT}")" "@$(winpath "${JMH_OUT}/sources.txt")"
+
+# 3) Run JMH. Same flags/defaults as the old jmhRun task; AMBER flags only when RUN_AMBER=1.
+JMH_ARGS=(-rf json -rff "$(winpath "${OUTFILE}")" -f "${JMH_FORKS:-5}" -t 1
+          -to "${AMBER_TIMEOUT:-1m}" -v "${AMBER_VERBOSE:-NORMAL}")
+if [[ "${RUN_AMBER}" == "1" ]]; then
+  JMH_ARGS+=(-wi 500 -w 100ms -i 100 -r 100ms
+             -hmodel "${AMBER_MODEL:-oscnn}" -hhost "${AMBER_HOST:-localhost}" -hport "${AMBER_PORT:-5001}")
+else
+  JMH_ARGS+=(-wi "${JMH_WARMUP_ITER:-3}" -w "${JMH_WARMUP_TIME:-1s}"
+             -i "${JMH_MEASURE_ITER:-5}" -r "${JMH_MEASURE_TIME:-1s}")
+fi
+# shellcheck disable=SC2206  # intentional word-split of extra flags
+[[ -n "${AMBER_JMH_EXTRA}" ]] && JMH_ARGS+=(${AMBER_JMH_EXTRA})
+
+rm -f "${OUTFILE}"  # so the existence check below can't pass on a stale result
+java -cp "$(winpath "${JMH_OUT}")${SEP}${CP}" org.openjdk.jmh.Main \
+  ${AMBER_INCLUDE:+"${AMBER_INCLUDE}"} "${JMH_ARGS[@]}"
 
 if [[ ! -f "${OUTFILE}" ]]; then
   echo "[run-benchmarks] ERROR: expected ${OUTFILE} was not produced." >&2

@@ -1,5 +1,20 @@
 #!/bin/bash
+#: Usage: bash scripts/generate_benchmark.sh <java_source_file> <method_id>   (shortcut: genbench)
+#: Asks the Chat2Benchmark LLM for a JMH benchmark of one method (up to 10 attempts),
+#: compiles + validates it, and writes it next to the production class's package in
+#: sut/byte-buddy/byte-buddy-benchmark/src/main/java/.
+#:
+#: Needs in .env: BENCH_API_KEY, BENCH_ENDPOINT (optional BENCH_MODEL)
+#:
+#: Commands:
+#:   genbench sut/byte-buddy/byte-buddy-dep/src/main/java/net/bytebuddy/dynamic/loading/ClassLoadingStrategy.java 'opened()'
+#:   genbench <file.java> 'load(ClassLoader,Map)'   # overloads: quote the param-qualified id
+#:   genbench <file.java> getJavaVersion            # bare name also works
 set -euo pipefail
+
+# -h / --help prints the "#:" block above and exits.
+source "$(dirname "$0")/lib/help.sh"
+maybe_show_help "${1:-}"
 
 # --- Load local secrets if .env exists ---
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -20,6 +35,13 @@ fi
 # --- Env validation ---
 : "${BENCH_API_KEY:?BENCH_API_KEY is required}"
 : "${BENCH_ENDPOINT:?BENCH_ENDPOINT is required}"
+
+# Stored benchmarks must be in the SUT before compiling (skip if the caller already pulled).
+source "${ROOT_DIR}/scripts/lib/bench_store.sh"
+[[ -n "${BENCH_STORE_PULLED:-}" ]] || bench_store_pull
+
+# Maven wrapper: mvnw.cmd on Windows (Git Bash), mvnw elsewhere (CI).
+case "$(uname -s)" in MINGW*|MSYS*|CYGWIN*) MVNW="./mvnw.cmd" ;; *) MVNW="./mvnw" ;; esac
 
 # --- Path derivation ---
 SOURCE_FILE="$(realpath "$1")"
@@ -47,14 +69,17 @@ source "${ROOT_DIR}/scripts/lib/bench_naming.sh"
 METHOD_ID_SAFE="$(sanitize_method_id "$METHOD_ID")"
 
 # Per-method bench class and target file — lands in the real Byte Buddy
-# benchmark module (Maven), not the demo app's test tree.
+# benchmark module (Maven), not the demo app's test tree, and in the SAME
+# PACKAGE as the production class (see bench_dir_for in bench_naming.sh), so
+# the benchmark can use protected / package-private types of that package.
 BENCH_CLASS="${CLASS_NAME}Benchmark_${METHOD_ID_SAFE}"
-TARGET_DIR="sut/byte-buddy/byte-buddy-benchmark/src/main/java/net/bytebuddy/benchmark"
+PACKAGE_NAME="$(bench_package_for "$SOURCE_FILE")"
+TARGET_DIR="$(bench_dir_for "$SOURCE_FILE")"
 TARGET="${TARGET_DIR}/${BENCH_CLASS}.java"
 JAR="$(realpath "libs/chat2benchmark.jar")"
 BENCH_MODEL="${BENCH_MODEL:-llama-3.3-70b-versatile}"
 MAX_ATTEMPTS=10
-PACKAGE_NAME="net.bytebuddy.benchmark"
+MAX_ACCESS_FIXES=3 # private-access rewrite + recompile rounds per attempt
 
 # JMH runner imports required by the generated main() method; Chat2Benchmark
 # may omit these even when it generates a main() block.
@@ -103,6 +128,17 @@ log() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*"; }
 # generation attempt.
 source "${ROOT_DIR}/scripts/lib/benchmark_validation.sh"
 
+# Rejected attempts are kept for inspection instead of being lost: the file is
+# copied to pipeline-output/rejected-benchmarks/ (outside the Maven module, so
+# it is never compiled) before being removed from the benchmark module.
+REJECTED_DIR="${ROOT_DIR}/pipeline-output/rejected-benchmarks"
+reject_target() {
+  local reason="$1"
+  mkdir -p "$REJECTED_DIR"
+  cp -f "$TARGET" "${REJECTED_DIR}/${BENCH_CLASS}_attempt${attempt}_${reason}.java" 2>/dev/null || true
+  rm -f "$TARGET"
+}
+
 log "Starting benchmark generation for ${CLASS_NAME}.${METHOD}"
 log "Source  : $SOURCE_FILE"
 log "Target  : $TARGET"
@@ -122,10 +158,10 @@ for ((attempt = 1; attempt <= MAX_ATTEMPTS; attempt++)); do
   if [[ -f "$GENERATED" ]]; then
     log "Chat2Benchmark produced output — post-processing and moving to target location"
 
-    # Fix: ensure the package declaration is net.bytebuddy.benchmark, matching
-    # where the file will be moved to — never copy the package from the
-    # production source file (Chat2Benchmark usually omits the line, but may
-    # also copy the source's own package if it does add one).
+    # Fix: ensure the package declaration is the production class's package
+    # (PACKAGE_NAME), matching the folder TARGET_DIR the file will live in.
+    # Chat2Benchmark usually omits the line, and may write a different one
+    # when it does add it, so it is always injected or rewritten.
     if ! grep -q "^package " "$GENERATED"; then
       log "  Injecting missing package declaration: package ${PACKAGE_NAME};"
       { echo "package ${PACKAGE_NAME};"; echo ""; cat "$GENERATED"; } > "${GENERATED}.fixed"
@@ -136,44 +172,44 @@ for ((attempt = 1; attempt <= MAX_ATTEMPTS; attempt++)); do
     fi
 
     # Fix: import every production class Chat2Benchmark references by simple
-    # name only. This used to only matter for the class under test, which
-    # worked because the benchmark was placed in the *same* package as the
-    # production class — now that benchmarks always live in
-    # net.bytebuddy.benchmark (a different package), ANY class from the SUT's
-    # source tree that the generated code references also needs its own
-    # explicit import, or the compile fails with "cannot find symbol". These
-    # classes are NOT necessarily siblings in the same directory/package as
-    # the class under test — e.g. ClassFileLocator lives in
+    # name only. The benchmark shares the package of the class under test, so
+    # classes of THAT package need no import and are skipped — but classes
+    # from any OTHER SUT package still need an explicit import, or the compile
+    # fails with "cannot find symbol". Those classes are NOT necessarily
+    # siblings of the class under test — e.g. ClassFileLocator lives in
     # net/bytebuddy/dynamic/, a sub-package of ClassFileVersion's net/bytebuddy/
     # — so this scans the whole SUT source root (src/main/java) recursively,
     # not just the source file's own directory.
-    PRODUCTION_PACKAGE="$(dirname "$SOURCE_FILE" | sed 's|.*/main/java/||' | tr '/' '.')"
+    #
+    # A class counts as referenced only when its name is NOT preceded by a "."
+    # — "ClassLoadingStrategy.Default" names a nested type (no import needed),
+    # and must not pull in an unrelated top-level class that happens to be
+    # called "Default" (e.g. net.bytebuddy.implementation.bind.annotation.Default).
     JAVA_SRC_ROOT="$(echo "$SOURCE_FILE" | sed -E 's|(.*/main/java)/.*|\1|')"
-    if [[ "$PRODUCTION_PACKAGE" != "$PACKAGE_NAME" ]]; then
-      while IFS= read -r CANDIDATE_FILE; do
-        CANDIDATE_CLASS="$(basename "$CANDIDATE_FILE" .java)"
-        CANDIDATE_PACKAGE="$(dirname "$CANDIDATE_FILE" | sed "s|${JAVA_SRC_ROOT}/||" | tr '/' '.')"
-        CANDIDATE_IMPORT="import ${CANDIDATE_PACKAGE}.${CANDIDATE_CLASS};"
-        if grep -qw "$CANDIDATE_CLASS" "$GENERATED"; then
-          # Chat2Benchmark sometimes guesses its own import for this class,
-          # and guesses the wrong package (e.g. "net.bytebuddy.ClassFileLocator"
-          # when the class actually lives in "net.bytebuddy.dynamic"). An
-          # import naming a nonexistent class fails the build even if the
-          # correct import is also present elsewhere in the file, so strip any
-          # existing import of this class name that isn't the correct one.
-          CANDIDATE_IMPORT_ESCAPED="${CANDIDATE_IMPORT//./\\.}"
-          sed -i -E "\|^import [a-zA-Z0-9_.]+\.${CANDIDATE_CLASS};\$|{ \|^${CANDIDATE_IMPORT_ESCAPED}\$| !d }" "$GENERATED"
+    while IFS= read -r CANDIDATE_FILE; do
+      CANDIDATE_CLASS="$(basename "$CANDIDATE_FILE" .java)"
+      CANDIDATE_PACKAGE="$(dirname "$CANDIDATE_FILE" | sed "s|${JAVA_SRC_ROOT}/||" | tr '/' '.')"
+      [[ "$CANDIDATE_PACKAGE" == "$PACKAGE_NAME" ]] && continue
+      CANDIDATE_IMPORT="import ${CANDIDATE_PACKAGE}.${CANDIDATE_CLASS};"
+      if grep -qE "(^|[^.A-Za-z0-9_\$])${CANDIDATE_CLASS}([^A-Za-z0-9_\$]|\$)" "$GENERATED"; then
+        # Chat2Benchmark sometimes guesses its own import for this class,
+        # and guesses the wrong package (e.g. "net.bytebuddy.ClassFileLocator"
+        # when the class actually lives in "net.bytebuddy.dynamic"). An
+        # import naming a nonexistent class fails the build even if the
+        # correct import is also present elsewhere in the file, so strip any
+        # existing import of this class name that isn't the correct one.
+        CANDIDATE_IMPORT_ESCAPED="${CANDIDATE_IMPORT//./\\.}"
+        sed -i -E "\|^import [a-zA-Z0-9_.]+\.${CANDIDATE_CLASS};\$|{ \|^${CANDIDATE_IMPORT_ESCAPED}\$| !d }" "$GENERATED"
 
-          if ! grep -qF "$CANDIDATE_IMPORT" "$GENERATED"; then
-            log "  Injecting missing import for referenced class: ${CANDIDATE_IMPORT}"
-            awk -v imp="$CANDIDATE_IMPORT" '
-              /^import / && !done { print imp; done=1 }
-              { print }
-            ' "$GENERATED" > "${GENERATED}.fixed" && mv "${GENERATED}.fixed" "$GENERATED"
-          fi
+        if ! grep -qF "$CANDIDATE_IMPORT" "$GENERATED"; then
+          log "  Injecting missing import for referenced class: ${CANDIDATE_IMPORT}"
+          awk -v imp="$CANDIDATE_IMPORT" '
+            /^import / && !done { print imp; done=1 }
+            { print }
+          ' "$GENERATED" > "${GENERATED}.fixed" && mv "${GENERATED}.fixed" "$GENERATED"
         fi
-      done < <(find "$JAVA_SRC_ROOT" -name "*.java")
-    fi
+      fi
+    done < <(find "$JAVA_SRC_ROOT" -name "*.java")
 
     # Fix: inject any of the JMH runner imports (declared above) that are missing.
     MISSING_RUNNER_IMPORTS=""
@@ -233,19 +269,70 @@ for ((attempt = 1; attempt <= MAX_ATTEMPTS; attempt++)); do
 
     mv "$GENERATED_RENAMED" "$TARGET"
 
+    # Fix: reject @Benchmark method names that differ only in case (e.g.
+    # "foo_withHints" vs "foo_WithHints"). JMH generates one public
+    # <BenchClass>_<method>_jmhTest class per @Benchmark method, and on a
+    # case-insensitive filesystem (Windows) two such names land in the same
+    # file, so the compile fails with "class ... is public, should be declared
+    # in a file named ...". Checked before Maven so the retry is cheap.
+    # Comments/strings are blanked first; annotations (on their own line or
+    # inline before the declaration) are stripped so "@Fork(1)" etc. under
+    # each @Benchmark aren't mistaken for method names.
+    CASE_DUPS="$(strip_comments_and_strings "$(cat "$TARGET")" | awk '
+      /@Benchmark([^A-Za-z0-9_]|$)/ { armed = 1; sub(/.*@Benchmark/, "") }
+      armed {
+        gsub(/@[A-Za-z_][A-Za-z0-9_.]*[ \t]*(\([^)]*\))?/, "")
+        if ($0 ~ /^[ \t]*$/) next
+        if (match($0, /[A-Za-z_$][A-Za-z0-9_$]*[ \t]*\(/)) {
+          name = substr($0, RSTART, RLENGTH)
+          sub(/[ \t]*\($/, "", name)
+          print tolower(name)
+        }
+        armed = 0
+      }
+    ' | sort | uniq -d | paste -sd, -)"
+    if [[ -n "$CASE_DUPS" ]]; then
+      log "Case-duplicate @Benchmark method names on attempt $attempt (${CASE_DUPS}) — removing bad file"
+      reject_target "case-duplicate"
+      continue
+    fi
+
+    # Fix: drop this class's JMH-generated sources/classes left over from
+    # earlier attempts. Without a `clean`, they persist under target/, and on
+    # Windows a regenerated file keeps the OLD name's casing, producing the
+    # same "should be declared in a file named ..." compile error.
+    # JMH writes these under <benchmark package>/jmh_generated/, which is now
+    # the production package (PACKAGE_NAME), not net/bytebuddy/benchmark.
+    PACKAGE_PATH="${PACKAGE_NAME//.//}"
+    rm -f "sut/byte-buddy/byte-buddy-benchmark/target/generated-sources/annotations/${PACKAGE_PATH}/jmh_generated/${BENCH_CLASS}_"* \
+          "sut/byte-buddy/byte-buddy-benchmark/target/classes/${PACKAGE_PATH}/jmh_generated/${BENCH_CLASS}_"*
+
     log "Validating with Maven compile (byte-buddy-benchmark module)..."
-    if (cd sut/byte-buddy && mvn -q -pl byte-buddy-benchmark -am compile 2>&1); then
+    COMPILED=0
+    for ((fix_round = 0; ; fix_round++)); do
+      if COMPILE_OUT="$(cd sut/byte-buddy && "$MVNW" -q -pl byte-buddy-benchmark -am compile 2>&1)"; then
+        COMPILED=1
+        break
+      fi
+      echo "$COMPILE_OUT"
+      # Private constructor calls → reflection via BenchAccess, then recompile (no new LLM call).
+      (( fix_round < MAX_ACCESS_FIXES )) && grep -q "has private access" <<< "$COMPILE_OUT" || break
+      printf '%s\n' "$COMPILE_OUT" | java scripts/lib/PrivateAccessFixer.java "$TARGET" || break
+      log "  Rewrote private constructor call(s) to BenchAccess — recompiling"
+    done
+    if (( COMPILED )); then
       if benchmark_calls_target "$TARGET" "$METHOD" "$METHOD_ID" "$SOURCE_FILE"; then
-        log "  Method-target check: PASS — @Benchmark method calls ${METHOD}()"
+        log "  Method-target check: PASS — every @Benchmark method calls ${METHOD}()"
         log "SUCCESS — benchmark written to $TARGET"
+        bench_store_push   # keep benchmarks/ in sync (also for standalone genbench runs)
         exit 0
       else
-        log "Method-target check FAILED on attempt $attempt — @Benchmark method does not call ${METHOD}(); removing bad file"
-        rm -f "$TARGET"
+        log "Method-target check FAILED on attempt $attempt — ${BV_FAILURE_REASON:-@Benchmark method does not call ${METHOD}()}; removing bad file"
+        reject_target "method-target"
       fi
     else
       log "Compile failed on attempt $attempt — removing bad file"
-      rm -f "$TARGET"
+      reject_target "compile"
     fi
   else
     log "No output from Chat2Benchmark on attempt $attempt (expected: $GENERATED)"

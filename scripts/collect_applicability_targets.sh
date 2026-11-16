@@ -1,5 +1,23 @@
 #!/bin/bash
+#: Usage: bash scripts/collect_applicability_targets.sh [added.txt] [modified.txt] [deleted.txt]   (shortcut: collect)
+#: Extracts the source of each added/modified method -> pipeline-output/applicability-targets.json
+#:
+#: Run from SmellBenchPipeline/ after:  source sut.env   (else every method is skipped)
+#:
+#: Commands:
+#:   bash scripts/collect_applicability_targets.sh                               # added + modified (default)
+#:   METHOD_SCOPE=modified bash scripts/collect_applicability_targets.sh         # modified only
+#:   METHOD_SCOPE=added bash scripts/collect_applicability_targets.sh            # added only
+#:   bash scripts/collect_applicability_targets.sh <added.txt> <modified.txt>    # custom input files
+#:
+#: Defaults: inputs pipeline-output/{added,modified,deleted}_methods.txt, METHOD_SCOPE=both
+#:
+#: Shortcut (after source sut.env): collect [args]   e.g. collect -h, METHOD_SCOPE=modified collect
 set -euo pipefail
+
+# -h / --help prints the "#:" block above and exits.
+source "$(dirname "$0")/lib/help.sh"
+maybe_show_help "${1:-}"
 
 # collect_applicability_targets.sh
 # Reads added/modified_methods.txt, loads full Java source per method,
@@ -7,13 +25,31 @@ set -euo pipefail
 #
 # Input format (per line):  com/pipeline/demo/StringUtils.joinWithSeparator
 # Output: pipeline-output/applicability-targets.json
+#
+# METHOD_SCOPE: added | modified | both (default: both) — selects which change
+# lists feed the pipeline. Deleted methods are not affected (handled by
+# update_coverage_matrix.sh regardless of scope).
 
 ADDED_FILE="${1:-pipeline-output/added_methods.txt}"
 MODIFIED_FILE="${2:-pipeline-output/modified_methods.txt}"
 DELETED_FILE="${3:-pipeline-output/deleted_methods.txt}"
 OUTPUT_FILE="pipeline-output/applicability-targets.json"
+METHOD_SCOPE="${METHOD_SCOPE:-both}"
 
 log() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] [collect_applicability_targets] $*"; }
+
+# --- Resolve METHOD_SCOPE (case-insensitive, whitespace-trimmed) ---
+METHOD_SCOPE="$(echo "$METHOD_SCOPE" | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')"
+case "$METHOD_SCOPE" in
+    added)    input_files=("$ADDED_FILE") ;;
+    modified) input_files=("$MODIFIED_FILE") ;;
+    both)     input_files=("$ADDED_FILE" "$MODIFIED_FILE") ;;
+    *)
+        log "ERROR: invalid METHOD_SCOPE '${METHOD_SCOPE}' — expected added, modified or both."
+        exit 1
+        ;;
+esac
+log "Method scope: ${METHOD_SCOPE}"
 
 # Prevent Git-Bash/MSYS from rewriting leading "/" in env var values (e.g. the
 # "/byte-buddy-dep/..." entries below) into a Windows path like "C:/Program Files/Git/..."
@@ -21,11 +57,11 @@ log() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] [collect_applicability_targets] $*"
 export MSYS_NO_PATHCONV=1
 export MSYS2_ARG_CONV_EXCL='*'
 
-# --- Collect all unique entries from all three input files ---
+# --- Collect all unique entries from the in-scope input files ---
 declare -A seen_entries
 entries=()
 
-for input_file in "$ADDED_FILE" "$MODIFIED_FILE"; do
+for input_file in "${input_files[@]}"; do
     if [[ ! -f "$input_file" ]]; then
         log "Skipping missing file: $input_file"
         continue
@@ -278,12 +314,14 @@ for entry in entries:
     if java_file not in result:
         result[java_file] = {
             "class": snippet,
-            "methods": [method]
+            "methods": [method],
+            "method_sources": {method: snippet}  # one method's code only, keyed by signature
         }
         print(f"  [ADDED] {java_file} :: {method}", flush=True)
     else:
         if method not in result[java_file]["methods"]:
             result[java_file]["methods"].append(method)
+            result[java_file]["method_sources"][method] = snippet
             # Append this method's window to the existing snippet
             result[java_file]["class"] += f"\n\n// --- method: {method} ---\n{snippet}"
             print(f"  [ADDED method] {java_file} :: {method}", flush=True)

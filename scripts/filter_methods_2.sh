@@ -1,5 +1,16 @@
 #!/bin/bash
+#: Usage: bash scripts/filter_methods_2.sh                  (shortcut: filter)
+#: Splits pipeline-output/applicability-results.json into
+#:   pipeline-output/smelly_methods.txt  (>=1 smell family applies)
+#:   pipeline-output/clean_methods.txt   (no smell family applies)
+#:
+#: Commands:
+#:   filter                 # run after: smells
 set -euo pipefail
+
+# -h / --help prints the "#:" block above and exits.
+source "$(dirname "$0")/lib/help.sh"
+maybe_show_help "${1:-}"
 
 # filter_methods_2.sh
 # Reads applicability check results from pipeline-output/applicability-results.json

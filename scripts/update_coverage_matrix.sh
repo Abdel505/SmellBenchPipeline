@@ -1,5 +1,21 @@
 #!/bin/bash
+#: Usage: bash scripts/update_coverage_matrix.sh [smelly.txt] [deleted.txt]   (shortcut: matrix)
+#: Generates benchmarks for smelly methods (via generate_benchmark.sh), removes them for
+#: deleted methods, and updates data/coverage-matrix.csv.
+#:
+#: Run after: source sut.env   (SUT_SRC_ROOT; default app/src/main/java no longer exists)
+#:
+#: Commands:
+#:   matrix                                   # all smelly + deleted methods
+#:   METHOD='load(ClassLoader,Map)' matrix    # only that method (deleted ones skipped)
+#:   matrix my_smelly.txt my_deleted.txt      # custom input files
+#:
+#: Defaults: pipeline-output/smelly_methods.txt, pipeline-output/deleted_methods.txt
 set -euo pipefail
+
+# -h / --help prints the "#:" block above and exits.
+source "$(dirname "$0")/lib/help.sh"
+maybe_show_help "${1:-}"
 
 # update_coverage_matrix.sh
 # Processes smelly (added/modified) and deleted methods against the coverage matrix.
@@ -10,18 +26,26 @@ set -euo pipefail
 #   smelly_file  : lines in "java_file | method" format  (default: pipeline-output/smelly_methods.txt)
 #   deleted_file : lines in FQN format                   (default: pipeline-output/deleted_methods.txt)
 #
+# METHOD: optional exact method signature from smelly_file, e.g. "load(ClassLoader,Map)".
+#         Only that method is processed, and deleted methods are skipped.
+#
 # MODIFIED uses atomic backup-then-swap to preserve old state on generation failure.
 # Each method gets its own benchmark file: ${CLASS_NAME}Benchmark_${method}.java
 
 SMELLY_FILE="${1:-pipeline-output/smelly_methods.txt}"
 DELETED_FILE="${2:-pipeline-output/deleted_methods.txt}"
+METHOD="$(echo "${METHOD:-}" | xargs)"
 
 SUT_SRC_ROOT="${SUT_SRC_ROOT:-app/src/main/java}"
 
 MATRIX="data/coverage-matrix.csv"
-BENCH_DIR="sut/byte-buddy/byte-buddy-benchmark/src/main/java/net/bytebuddy/benchmark"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${SCRIPT_DIR}/lib/bench_naming.sh"
+
+# Restore stored benchmarks first (fresh SUT clone has none); generate_benchmark.sh skips its own pull.
+source "${SCRIPT_DIR}/lib/bench_store.sh"
+bench_store_pull
+export BENCH_STORE_PULLED=1
 
 log() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*"; }
 
@@ -67,15 +91,16 @@ bench_class_for() {
 }
 
 # Physical path of the benchmark file for a given production file and method.
-# Benchmarks all live flat under net.bytebuddy.benchmark, not under the
-# production class's own package — must match generate_benchmark.sh's TARGET.
+# Benchmarks live in the benchmark module but in the production class's own
+# package (bench_dir_for in scripts/lib/bench_naming.sh) — the same helper
+# generate_benchmark.sh uses for TARGET, so the two can't disagree.
 bench_file_for() {
     local java_file="$1"
     local method="$2"
     local class_name method_safe
     class_name="$(basename "$java_file" .java)"
     method_safe="$(sanitize_method_id "$method")"
-    echo "${BENCH_DIR}/${class_name}Benchmark_${method_safe}.java"
+    echo "$(bench_dir_for "$java_file")/${class_name}Benchmark_${method_safe}.java"
 }
 
 # Look up benchmark_class from matrix; prints nothing if not found
@@ -165,8 +190,10 @@ handle_deleted() {
     # Remove from best-result.json (persistent — not overwritten by next run)
     local best_file="data/best-result.json"
     if [[ -f "$best_file" ]]; then
+        # JMH names results "<benchmark package>.<class>.<method>", and the
+        # benchmark package is the production package (bench_package_for).
         local package_path
-        package_path="$(dirname "$java_file" | sed 's|.*/main/java/||' | tr '/' '.')"
+        package_path="$(bench_package_for "$java_file")"
         jq --arg bench "${package_path}.${old_bench_class}." \
            '[.[] | select(.benchmark | startswith($bench) | not)]' \
            "$best_file" > "${best_file}.tmp" \
@@ -184,6 +211,26 @@ log "Smelly file : ${SMELLY_FILE}"
 log "Deleted file: ${DELETED_FILE}"
 log "Matrix      : ${MATRIX}"
 
+# Fail before touching anything if METHOD is not in the smelly file
+if [[ -n "$METHOD" ]]; then
+    log "Method      : ${METHOD}"
+    method_found=0
+    if [[ -f "$SMELLY_FILE" ]]; then
+        while IFS= read -r line <&3 || [[ -n "$line" ]]; do
+            [[ -z "$line" ]] && continue
+            parsed="$(parse_filter_entry "$line")"
+            if [[ "$(echo "$parsed" | cut -d'|' -f2)" == "$METHOD" ]]; then
+                method_found=1
+                break
+            fi
+        done 3< "$SMELLY_FILE"
+    fi
+    if [[ $method_found -eq 0 ]]; then
+        log "ERROR: METHOD '${METHOD}' not found in ${SMELLY_FILE} — use the exact signature from that file."
+        exit 1
+    fi
+fi
+
 ERRORS=0
 
 # --- Step 1: build a set of deleted java_file|method keys ---
@@ -191,7 +238,9 @@ ERRORS=0
 # We process them first so they cannot be re-added by the smelly loop.
 declare -A DELETED_SET
 
-if [[ -f "$DELETED_FILE" && -s "$DELETED_FILE" ]]; then
+if [[ -n "$METHOD" ]]; then
+    log "METHOD is set — skipping deleted methods."
+elif [[ -f "$DELETED_FILE" && -s "$DELETED_FILE" ]]; then
     log "--- Processing DELETED methods ---"
     while IFS= read -r line <&3 || [[ -n "$line" ]]; do
         [[ -z "$line" ]] && continue
@@ -218,6 +267,8 @@ if [[ -f "$SMELLY_FILE" && -s "$SMELLY_FILE" ]]; then
         method="$(echo "$parsed"   | cut -d'|' -f2)"
         key="${java_file}|${method}"
 
+        [[ -n "$METHOD" && "$method" != "$METHOD" ]] && continue
+
         if [[ -n "${DELETED_SET[$key]+_}" ]]; then
             log "  [SKIP] ${method} was deleted — not re-adding"
             continue
@@ -232,6 +283,9 @@ if [[ -f "$SMELLY_FILE" && -s "$SMELLY_FILE" ]]; then
 else
     log "No smelly methods."
 fi
+
+# Save adds/deletes back to benchmarks/ (tracked).
+bench_store_push
 
 log "=== Done === errors: ${ERRORS}"
 [[ $ERRORS -eq 0 ]]
