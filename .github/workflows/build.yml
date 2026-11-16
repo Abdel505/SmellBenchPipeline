@@ -41,6 +41,7 @@ jobs:
   pipeline:
     name: Detect, Smell-check & Generate Benchmarks
     runs-on: ubuntu-latest
+    environment: Secrets
 
     steps:
       - name: Checkout Repository
