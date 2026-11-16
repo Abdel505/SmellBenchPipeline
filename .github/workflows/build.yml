@@ -17,20 +17,30 @@ on:
       max_methods:
         description: "Methods to check with the LLM: all, or the first N"
         type: string
-        default: all
+        default: '2'
       max_templates:
         description: "Smell templates to check per method: all, or the first N"
         type: string
-        default: all
+        default: '2'
+
+# One pipeline run per branch at a time (both jobs write data/ and push).
+concurrency:
+  group: pipeline-${{ github.ref }}
+  cancel-in-progress: false
+
+# Same values as sut.env, shared by every step.
+env:
+  SUT_GIT_DIR: sut/byte-buddy
+  SUT_SRC_FILTER: "byte-buddy-dep/src/main/java.*\\.java$"
+  SUT_SRC_STRIP: "byte-buddy-dep/src/main/java/"
+  SUT_SRC_ROOT: "${{ github.workspace }}/sut/byte-buddy/byte-buddy-dep/src/main/java"
 
 jobs:
 
-  # ─── JOB 1 ───────────────────────────────────────────
-  build:
-    name: Build Project
+  # ─── JOB 1: detect → collect → smells → filter → matrix ─────────────
+  pipeline:
+    name: Detect, Smell-check & Generate Benchmarks
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
 
     steps:
       - name: Checkout Repository
@@ -38,6 +48,7 @@ jobs:
         with:
           fetch-depth: 0
 
+      # fetch-depth 2: detect diffs HEAD~1..HEAD of the SUT.
       - name: Checkout byte-buddy (SUT)
         uses: actions/checkout@v4
         with:
@@ -48,149 +59,69 @@ jobs:
       - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
-          distribution: 'temurin'
+          distribution: temurin
           java-version: '17'
-
-      - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v3
-
-      - name: Set execute permission for gradlew
-        run: chmod +x gradlew
-
-      - name: Clean Project
-        run: ./gradlew clean
-
-      - name: Build Project
-        run: ./gradlew build
-
-  # ─── JOB 2 ───────────────────────────────────────────
-  detect-and-collect:
-    name: Detect Changes & Collect Targets
-    runs-on: ubuntu-latest
-    needs: build
-    permissions:
-      contents: write
-
-    steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Checkout byte-buddy (SUT)
-        uses: actions/checkout@v4
-        with:
-          repository: raphw/byte-buddy
-          path: sut/byte-buddy
-          fetch-depth: 2
-
-      - name: Set execute permissions
-        run: |
-          chmod +x scripts/detect_changed_methods.sh
-          chmod +x scripts/collect_applicability_targets.sh
-
-      - name: Detect Changed Methods
-        run: bash scripts/detect_changed_methods.sh
-        env:
-          ACTIONS_TOKEN: ${{ secrets.ACTIONS_TOKEN }}
-          SUT_GIT_DIR: sut/byte-buddy
-          SUT_SRC_FILTER: "byte-buddy-dep/src/main/java.*\\.java$"
-          SUT_SRC_STRIP: "byte-buddy-dep/src/main/java/"
-          SUT_SRC_ROOT: "${{ github.workspace }}/sut/byte-buddy/byte-buddy-dep/src/main/java"
-
-      - name: Collect Applicability Targets
-        run: bash scripts/collect_applicability_targets.sh
-        env:
-          SUT_SRC_ROOT: "${{ github.workspace }}/sut/byte-buddy/byte-buddy-dep/src/main/java"
-          METHOD_SCOPE: ${{ inputs.method_scope || 'both' }}
-
-  # ─── JOB 3 ───────────────────────────────────────────
-  smell-check:
-    name: LLM Smell Check
-    runs-on: ubuntu-latest
-    needs: detect-and-collect
-
-    steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
+          cache: maven
 
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+          cache: pip
+          cache-dependency-path: smell-checker/requirements.txt
 
       - name: Install smell-checker dependencies
         run: pip install -r smell-checker/requirements.txt
 
-      - name: Check Smell Applicability (LLM)
+      - name: Detect changed methods
+        run: bash scripts/detect_changed_methods.sh
+
+      - name: Collect applicability targets
+        run: bash scripts/collect_applicability_targets.sh
+        env:
+          METHOD_SCOPE: ${{ inputs.method_scope || 'both' }}
+
+      - name: Check smell applicability (LLM)
         run: python smell-checker/smell_applicability_checker.py
         env:
           LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
           LLM_ENDPOINT: ${{ secrets.LLM_ENDPOINT }}
           LLM_MODEL: ${{ secrets.LLM_MODEL }}
-          MAX_METHODS: ${{ inputs.max_methods || 'all' }}
-          MAX_TEMPLATES: ${{ inputs.max_templates || 'all' }}
+          # Push runs use the fallback ('2'); manual runs use the inputs (type 'all' for everything).
+          MAX_METHODS: ${{ inputs.max_methods || '2' }}
+          MAX_TEMPLATES: ${{ inputs.max_templates || '2' }}
 
-      - name: Set execute permission for filter script
-        run: chmod +x scripts/filter_methods_2.sh
-
-      - name: Run LLM Smell Filter
+      - name: Filter smelly methods
         run: bash scripts/filter_methods_2.sh
 
-  # ─── JOB 4 ───────────────────────────────────────────
-  coverage:
-    name: Update Coverage Matrix
-    runs-on: ubuntu-latest
-    needs: smell-check
-    permissions:
-      contents: write
-
-    steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Checkout byte-buddy (SUT)
-        uses: actions/checkout@v4
-        with:
-          repository: raphw/byte-buddy
-          path: sut/byte-buddy
-          fetch-depth: 2
-
-      - name: Set up JDK 17
-        uses: actions/setup-java@v4
-        with:
-          distribution: 'temurin'
-          java-version: '17'
-
-      - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v3
-
-      - name: Set execute permission for gradlew
-        run: chmod +x gradlew
-
-      - name: Set execute permissions for scripts
-        run: |
-          chmod +x scripts/update_coverage_matrix.sh
-          chmod +x scripts/generate_benchmark.sh
-          chmod +x tools/dashboard/generate_dashboard.sh
-
-      - name: Update Coverage Matrix
+      # Restores benchmarks/ into the SUT, generates new ones, saves them back to benchmarks/.
+      - name: Update coverage matrix (generate benchmarks)
         run: bash scripts/update_coverage_matrix.sh
         env:
           BENCH_API_KEY: ${{ secrets.BENCH_API_KEY }}
           BENCH_ENDPOINT: ${{ secrets.BENCH_ENDPOINT }}
           BENCH_MODEL: ${{ secrets.BENCH_MODEL }}
-          SUT_SRC_ROOT: "${{ github.workspace }}/sut/byte-buddy/byte-buddy-dep/src/main/java"
 
-  # ─── JOB 5 ───────────────────────────────────────────
+      # Jobs run on separate machines: hand the results to job 2.
+      - name: Upload pipeline state
+        uses: actions/upload-artifact@v4
+        with:
+          name: pipeline-state
+          path: |
+            pipeline-output/
+            data/coverage-matrix.csv
+            data/best-result.json
+            benchmarks/
+          if-no-files-found: warn
+          retention-days: 7
+
+  # ─── JOB 2: runbench (plain JMH) → commit results ──────────────────
   benchmarks:
-    name: Run Benchmarks with AMBER
+    name: Run Benchmarks & Commit Results
     runs-on: ubuntu-latest
-    needs: smell-check
+    needs: pipeline
+    permissions:
+      contents: write
 
     steps:
       - name: Checkout Repository
@@ -208,83 +139,49 @@ jobs:
       - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
-          distribution: 'temurin'
+          distribution: temurin
           java-version: '17'
+          cache: maven
 
-      - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v3
+      # config_guard / bootstrap / dashboard helpers use only the standard library.
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
 
-      - name: Set execute permission for gradlew
-        run: chmod +x gradlew
+      - name: Download pipeline state
+        uses: actions/download-artifact@v4
+        with:
+          name: pipeline-state
+          path: .
 
-      - name: Set execute permissions for scripts
-        run: chmod +x scripts/run-benchmarks.sh
-
-      - name: Pull AMBER Docker image
-        run: docker pull ${{ secrets.DOCKER_USERNAME }}/jpt-service:latest
-
-      - name: Start AMBER service
+      # An empty matrix would make run-benchmarks.sh fall back to ALL byte-buddy benchmarks.
+      - name: Run JMH benchmarks (coverage-matrix)
         run: |
-          docker run -d \
-            --name amber \
-            -p 5001:5001 \
-            ${{ secrets.DOCKER_USERNAME }}/jpt-service:latest
-
-      - name: Wait for AMBER to be ready
-        run: |
-          echo "Waiting for AMBER service..."
-          for i in $(seq 1 120); do
-            if curl -sf http://localhost:5001; then
-              echo "AMBER is up!"
-              exit 0
-            fi
-            echo "Attempt $i/120 - not ready yet, waiting 10s..."
-            sleep 10
-          done
-          echo "AMBER failed to start after 1200 seconds"
-          exit 1
-
-      - name: Run JMH Benchmarks with AMBER
-        run: bash scripts/run-benchmarks.sh "net.bytebuddy.benchmark.ClassFileVersionBenchmark.getJavaVersion"
+          if [[ ! -s data/coverage-matrix.csv ]]; then
+            echo "Coverage matrix is empty — nothing to benchmark."; exit 0
+          fi
+          bash scripts/run-benchmarks.sh
         env:
-          AMBER_MODEL: oscnn
-          JMH_FORKS: "5"
-          JMH_WARMUP_ITER: "1"
+          RUN_AMBER: "0"
+          # Must match the stored baseline in best-result.json, or benchmarks are skipped
+          # as CONFIG_MISMATCH (set CONFIG_OVERRIDE: "1" once to rebaseline).
+          JMH_FORKS: "3"
+          JMH_MEASURE_ITER: "3"
+          JMH_WARMUP_ITER: "3"
           JMH_WARMUP_TIME: "1s"
-          JMH_MEASURE_ITER: "2"
           JMH_MEASURE_TIME: "1s"
           AMBER_TIMEOUT: "1m"
-          RUN_AMBER: "1"
-          AMBER_HOST: "localhost"
-          AMBER_PORT: "5001"
-
-      - name: Stop AMBER service
-        if: always()
-        run: docker stop amber && docker rm amber
-
-  # ─── JOB 6 ───────────────────────────────────────────
-  commit-and-upload:
-    name: Commit Results & Upload Artifacts
-    runs-on: ubuntu-latest
-    needs: [coverage, benchmarks]
-    permissions:
-      contents: write
-
-    steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
       - name: Commit and push results
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add data/coverage-matrix.csv data/jmh-result.json \
-                  data/best-result.json bench-reports/ app/src/test/java/ || true
+          git add data/coverage-matrix.csv data/jmh-result.json data/best-result.json \
+                  bench-reports/ benchmarks/ || true
           git diff --cached --quiet || \
             git commit -m "chore: update benchmark results [skip ci]"
-          git push origin main
+          git push origin HEAD:${{ github.ref_name }}
 
       - name: Upload benchmark artifacts
         if: always()

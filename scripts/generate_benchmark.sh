@@ -36,6 +36,13 @@ fi
 : "${BENCH_API_KEY:?BENCH_API_KEY is required}"
 : "${BENCH_ENDPOINT:?BENCH_ENDPOINT is required}"
 
+# Stored benchmarks must be in the SUT before compiling (skip if the caller already pulled).
+source "${ROOT_DIR}/scripts/lib/bench_store.sh"
+[[ -n "${BENCH_STORE_PULLED:-}" ]] || bench_store_pull
+
+# Maven wrapper: mvnw.cmd on Windows (Git Bash), mvnw elsewhere (CI).
+case "$(uname -s)" in MINGW*|MSYS*|CYGWIN*) MVNW="./mvnw.cmd" ;; *) MVNW="./mvnw" ;; esac
+
 # --- Path derivation ---
 SOURCE_FILE="$(realpath "$1")"
 if [[ ! -f "$SOURCE_FILE" ]]; then
@@ -303,7 +310,7 @@ for ((attempt = 1; attempt <= MAX_ATTEMPTS; attempt++)); do
     log "Validating with Maven compile (byte-buddy-benchmark module)..."
     COMPILED=0
     for ((fix_round = 0; ; fix_round++)); do
-      if COMPILE_OUT="$(cd sut/byte-buddy && ./mvnw.cmd -q -pl byte-buddy-benchmark -am compile 2>&1)"; then
+      if COMPILE_OUT="$(cd sut/byte-buddy && "$MVNW" -q -pl byte-buddy-benchmark -am compile 2>&1)"; then
         COMPILED=1
         break
       fi
@@ -317,6 +324,7 @@ for ((attempt = 1; attempt <= MAX_ATTEMPTS; attempt++)); do
       if benchmark_calls_target "$TARGET" "$METHOD" "$METHOD_ID" "$SOURCE_FILE"; then
         log "  Method-target check: PASS — every @Benchmark method calls ${METHOD}()"
         log "SUCCESS — benchmark written to $TARGET"
+        bench_store_push   # keep benchmarks/ in sync (also for standalone genbench runs)
         exit 0
       else
         log "Method-target check FAILED on attempt $attempt — ${BV_FAILURE_REASON:-@Benchmark method does not call ${METHOD}()}; removing bad file"

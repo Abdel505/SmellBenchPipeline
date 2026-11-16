@@ -42,6 +42,11 @@ MATRIX="data/coverage-matrix.csv"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${SCRIPT_DIR}/lib/bench_naming.sh"
 
+# Restore stored benchmarks first (fresh SUT clone has none); generate_benchmark.sh skips its own pull.
+source "${SCRIPT_DIR}/lib/bench_store.sh"
+bench_store_pull
+export BENCH_STORE_PULLED=1
+
 log() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*"; }
 
 # ---------------------------------------------------------------------------
@@ -278,6 +283,9 @@ if [[ -f "$SMELLY_FILE" && -s "$SMELLY_FILE" ]]; then
 else
     log "No smelly methods."
 fi
+
+# Save adds/deletes back to benchmarks/ (tracked).
+bench_store_push
 
 log "=== Done === errors: ${ERRORS}"
 [[ $ERRORS -eq 0 ]]

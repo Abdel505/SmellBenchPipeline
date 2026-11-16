@@ -231,6 +231,10 @@ case "$(uname -s)" in
   *)                    winpath() { echo "$1"; };       SEP=":"; MVNW="./mvnw" ;;
 esac
 
+# 0) Restore generated benchmarks from benchmarks/ (a fresh SUT clone, e.g. CI, has none).
+source "${ROOT_DIR}/scripts/lib/bench_store.sh"
+bench_store_pull
+
 # 1) Compile the checked-out SUT. Stale maven-status caches break on the non-ASCII path, so drop them.
 echo "[run-benchmarks] Compiling byte-buddy-dep..."
 rm -rf "${SUT_DIR}"/byte-buddy-*/target/maven-status
@@ -240,6 +244,14 @@ rm -rf "${SUT_DIR}"/byte-buddy-*/target/maven-status
 pom_prop() { sed -n "s|.*<$1>\([^<]*\)</$1>.*|\1|p" "${SUT_DIR}/pom.xml" | head -1; }
 CGLIB_V="$(pom_prop version.cglib)"
 JAVASSIST_V="$(pom_prop version.javassist)"
+
+# Download a jar into ~/.m2 if missing (fresh CI runner): $1=groupId $2=artifactId $3=version.
+ensure_jar() {
+  local jar="${M2}/${1//.//}/$2/$3/$2-$3.jar"
+  [[ -f "$jar" ]] || (cd "${SUT_DIR}" && "${MVNW}" -q dependency:get -Dartifact="$1:$2:$3")
+}
+ensure_jar cglib cglib-nodep "${CGLIB_V}"
+ensure_jar org.javassist javassist "${JAVASSIST_V}"
 
 AMBER_CORE="$(winpath "${ROOT_DIR}/libs/jmh-core-1.37-all.jar")"
 AMBER_PROC="$(winpath "${ROOT_DIR}/libs/jmh-generator-annprocess-1.37-amber.jar")"
