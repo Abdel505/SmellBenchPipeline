@@ -157,12 +157,18 @@ jobs:
           path: .
 
       # An empty matrix would make run-benchmarks.sh fall back to ALL byte-buddy benchmarks.
-      - name: Run JMH benchmarks (coverage-matrix)
+      - name: Run JMH benchmark (first coverage-matrix entry)
         run: |
           if [[ ! -s data/coverage-matrix.csv ]]; then
             echo "Coverage matrix is empty — nothing to benchmark."; exit 0
           fi
-          bash scripts/run-benchmarks.sh
+          # Run only the first matrix row's benchmark (3rd column), not all of them.
+          FIRST_BENCH="$(head -n 1 data/coverage-matrix.csv | cut -d'|' -f3 | tr -d ' \r')"
+          if [[ -z "$FIRST_BENCH" ]]; then
+            echo "First matrix row has no benchmark — nothing to run."; exit 0
+          fi
+          echo "Benchmarking only: $FIRST_BENCH"
+          bash scripts/run-benchmarks.sh "$FIRST_BENCH"
         env:
           RUN_AMBER: "0"
           # Must match the stored baseline in best-result.json, or benchmarks are skipped
@@ -178,8 +184,9 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          # Only the durable state; per-run reports go to the artifact below.
-          git add data/coverage-matrix.csv data/best-result.json benchmarks/
+          # State + reports, so results are browsable on GitHub (never "git add .").
+          git add data/coverage-matrix.csv data/best-result.json benchmarks/ \
+                  bench-reports/ pipeline-output/
           git diff --cached --quiet || \
             git commit -m "chore: update benchmark results [skip ci]"
           git push origin HEAD:${{ github.ref_name }}

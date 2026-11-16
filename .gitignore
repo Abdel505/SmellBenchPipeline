@@ -21,9 +21,9 @@ app/bin/
 !libs/*.jar
 !ju-to-jmh/*.jar
 
-# Pipeline outputs — per-run, regenerated each time (CI: download the run artifact).
-# Kept tracked on purpose: benchmarks/, data/coverage-matrix.csv, data/best-result.json.
-pipeline-output/
+# Raw JMH output of one run (CI: kept in the run artifact).
+# Tracked on purpose (committed by CI): benchmarks/, bench-reports/, pipeline-output/,
+# data/coverage-matrix.csv, data/best-result.json.
 data/jmh-result.json
 !bench-reports/amber/.gitkeep
 !bench-reports/standard/.gitkeep

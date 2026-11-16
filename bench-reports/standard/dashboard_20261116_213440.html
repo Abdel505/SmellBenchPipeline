@@ -1,0 +1,702 @@
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>AMBER Report - ClassLoadingStrategyBenchmark_opened</title>
+  <style>
+    :root{
+      --bg:#ffffff; --card:#ffffff; --border:#eaeaea; --muted:#6b7280; --text:#111827;
+      --pill:#fafafa; --pill-border:#e7e7e7;
+      --good:#0a7; --bad:#d33; --mid:#777;
+      --shadow:0 6px 22px rgba(0,0,0,.06); --radius:14px;
+    }
+    body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;margin:24px;background:var(--bg);color:var(--text);}
+    .wrap{max-width:1100px;margin:0 auto;}
+    .topbar{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:14px;}
+    h1{font-size:22px;margin:0;letter-spacing:.2px;}
+    .subtitle{color:var(--muted);font-size:12px;margin-top:4px;}
+    .meta{display:flex;gap:10px;flex-wrap:wrap;margin:14px 0;}
+    .pill{padding:6px 10px;border:1px solid var(--pill-border);border-radius:999px;font-size:12px;background:var(--pill);}
+    .grid{display:grid;grid-template-columns:1fr;gap:14px;}
+    .card{border:1px solid var(--border);border-radius:var(--radius);padding:14px;background:var(--card);box-shadow:var(--shadow);}
+    .muted{color:var(--muted);}
+    .mono{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;font-size:12px;}
+    .title-row{display:flex;align-items:baseline;justify-content:space-between;gap:12px;flex-wrap:wrap;}
+    h2{font-size:16px;margin:0;}
+    .kpi{display:flex;gap:10px;flex-wrap:wrap;margin-top:10px;}
+    .kpi .pill{background:#fcfcfc;}
+    .sticky{border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;}
+    table{border-collapse:collapse;width:100%;}
+    th,td{border-bottom:1px solid #f0f0f0;padding:10px;text-align:left;vertical-align:top;}
+    th{background:#fafafa;font-weight:650;}
+    .right{text-align:right;}
+    .sticky thead th{position:sticky;top:0;z-index:1;}
+
+    .delta{font-weight:800;}
+    .delta.pos{color:var(--good);}
+    .delta.neg{color:var(--bad);}
+    .delta.zero{color:var(--mid);}
+
+    .rowhint{color:var(--muted);font-size:12px;margin-top:8px;}
+    .empty{padding:14px;border:1px dashed var(--border);border-radius:var(--radius);background:#fcfcfc;color:var(--muted);}
+    pre.debug{margin:0;padding:12px;border:1px solid var(--border);border-radius:var(--radius);background:#fcfcfc;overflow:auto;max-height:520px;}
+  </style>
+</head>
+
+<body>
+<div class="wrap">
+  <div class="topbar">
+    <div>
+      <h1>AMBER Benchmark report</h1>
+      <div class="subtitle">Report locale (file:// OK) • JSON embeddato (niente fetch)</div>
+    </div>
+    <div class="meta">
+      <div class="pill">kind: <b>modified</b></div>
+      <div class="pill">sha: <b>6f3a9c5</b></div>
+      <div class="pill">ts: <b>20261116_213440</b></div>
+      <div class="pill">prod: <b>ClassLoadingStrategy</b></div>
+      <div class="pill">test: <b>ClassLoadingStrategyBenchmark_opened</b></div>
+    </div>
+  </div>
+
+  <div class="grid">
+    <div class="card">
+      <div class="muted">Source JSON</div>
+      <div class="mono" style="margin-top:6px;">/c/Users/Pc/OneDrive - Università di Salerno/Desktop/Filter_project/EvoBench_3/SmellBenchPipeline/data/jmh-result.json</div>
+
+      <div class="kpi">
+        <div class="pill">Formato: <b id="kpi-format">-</b></div>
+        <div class="pill">Righe: <b id="kpi-rows">-</b></div>
+        <div class="pill">Summary: <b id="kpi-summary">-</b></div>
+      </div>
+
+      <div class="rowhint">
+        In modified, se il compare è presente: mostro prev/curr/delta% (verde migliora, rosso peggiora).
+      </div>
+
+    </div>
+    <div class="rowhint" id="kpi-bootstrap-path" style="display:none;">
+      <span class="muted">Bootstrap JSON:</span> <span class="mono" id="boot-path"></span>
+    </div>
+
+    <!-- payload embed (NO fetch) -->
+    <script id="payload" type="text/plain">[
+  {
+    "commit_id": "6f3a9c5",
+    "jmhVersion": "1.37",
+    "benchmark": "net.bytebuddy.dynamic.loading.ClassLoadingStrategyBenchmark_opened.openedChildFirst",
+    "mode": "thrpt",
+    "threads": 1,
+    "forks": 3,
+    "jvm": "C:\\Program Files\\Microsoft\\jdk-21.0.12.101-hotspot\\bin\\java.exe",
+    "jvmArgs": [],
+    "jdkVersion": "21.0.12.1",
+    "vmName": "OpenJDK 64-Bit Server VM",
+    "vmVersion": "21.0.12.1+1-LTS",
+    "warmupIterations": 3,
+    "warmupTime": "1 s",
+    "warmupBatchSize": 1,
+    "measurementIterations": 3,
+    "measurementTime": "1 s",
+    "measurementBatchSize": 1,
+    "primaryMetric": {
+      "score": 154350876.2596848,
+      "scoreError": 31332878.354756754,
+      "scoreConfidence": [
+        123017997.90492804,
+        185683754.61444154
+      ],
+      "scorePercentiles": {
+        "0.0": 118948165.87546092,
+        "50.0": 160794666.29271433,
+        "90.0": 180915602.37307444,
+        "95.0": 180915602.37307444,
+        "99.0": 180915602.37307444,
+        "99.9": 180915602.37307444,
+        "99.99": 180915602.37307444,
+        "99.999": 180915602.37307444,
+        "99.9999": 180915602.37307444,
+        "100.0": 180915602.37307444
+      },
+      "scoreUnit": "ops/s",
+      "rawData": [
+        [
+          160794666.29271433,
+          163612327.74386978,
+          168685918.1385505
+        ],
+        [
+          149802510.19848877,
+          135046207.68971467,
+          148871941.7246211
+        ],
+        [
+          180915602.37307444,
+          162480546.30066863,
+          118948165.87546092
+        ]
+      ]
+    },
+    "secondaryMetrics": {}
+  },
+  {
+    "commit_id": "6f3a9c5",
+    "jmhVersion": "1.37",
+    "benchmark": "net.bytebuddy.dynamic.loading.ClassLoadingStrategyBenchmark_opened.openedChildFirstPersistent",
+    "mode": "thrpt",
+    "threads": 1,
+    "forks": 3,
+    "jvm": "C:\\Program Files\\Microsoft\\jdk-21.0.12.101-hotspot\\bin\\java.exe",
+    "jvmArgs": [],
+    "jdkVersion": "21.0.12.1",
+    "vmName": "OpenJDK 64-Bit Server VM",
+    "vmVersion": "21.0.12.1+1-LTS",
+    "warmupIterations": 3,
+    "warmupTime": "1 s",
+    "warmupBatchSize": 1,
+    "measurementIterations": 3,
+    "measurementTime": "1 s",
+    "measurementBatchSize": 1,
+    "primaryMetric": {
+      "score": 142594799.08192438,
+      "scoreError": 22521670.496302817,
+      "scoreConfidence": [
+        120073128.58562157,
+        165116469.5782272
+      ],
+      "scorePercentiles": {
+        "0.0": 124455681.6445124,
+        "50.0": 144218659.53179607,
+        "90.0": 167185562.46846747,
+        "95.0": 167185562.46846747,
+        "99.0": 167185562.46846747,
+        "99.9": 167185562.46846747,
+        "99.99": 167185562.46846747,
+        "99.999": 167185562.46846747,
+        "99.9999": 167185562.46846747,
+        "100.0": 167185562.46846747
+      },
+      "scoreUnit": "ops/s",
+      "rawData": [
+        [
+          140621237.64398348,
+          167185562.46846747,
+          155340876.38977128
+        ],
+        [
+          144218659.53179607,
+          125645870.82123774,
+          136456978.5466443
+        ],
+        [
+          124455681.6445124,
+          145114115.44246134,
+          144314209.24844536
+        ]
+      ]
+    },
+    "secondaryMetrics": {}
+  },
+  {
+    "commit_id": "6f3a9c5",
+    "jmhVersion": "1.37",
+    "benchmark": "net.bytebuddy.dynamic.loading.ClassLoadingStrategyBenchmark_opened.openedInjection",
+    "mode": "thrpt",
+    "threads": 1,
+    "forks": 3,
+    "jvm": "C:\\Program Files\\Microsoft\\jdk-21.0.12.101-hotspot\\bin\\java.exe",
+    "jvmArgs": [],
+    "jdkVersion": "21.0.12.1",
+    "vmName": "OpenJDK 64-Bit Server VM",
+    "vmVersion": "21.0.12.1+1-LTS",
+    "warmupIterations": 3,
+    "warmupTime": "1 s",
+    "warmupBatchSize": 1,
+    "measurementIterations": 3,
+    "measurementTime": "1 s",
+    "measurementBatchSize": 1,
+    "primaryMetric": {
+      "score": 975154444.8063216,
+      "scoreError": 80253272.09014733,
+      "scoreConfidence": [
+        894901172.7161742,
+        1055407716.896469
+      ],
+      "scorePercentiles": {
+        "0.0": 897564112.2539663,
+        "50.0": 989388613.3216587,
+        "90.0": 1032702609.9909543,
+        "95.0": 1032702609.9909543,
+        "99.0": 1032702609.9909543,
+        "99.9": 1032702609.9909543,
+        "99.99": 1032702609.9909543,
+        "99.999": 1032702609.9909543,
+        "99.9999": 1032702609.9909543,
+        "100.0": 1032702609.9909543
+      },
+      "scoreUnit": "ops/s",
+      "rawData": [
+        [
+          1016019040.428137,
+          928404474.3033609,
+          922004783.1320316
+        ],
+        [
+          897564112.2539663,
+          983021188.3557038,
+          990487322.9613802
+        ],
+        [
+          1016797858.5097024,
+          1032702609.9909543,
+          989388613.3216587
+        ]
+      ]
+    },
+    "secondaryMetrics": {}
+  },
+  {
+    "commit_id": "6f3a9c5",
+    "jmhVersion": "1.37",
+    "benchmark": "net.bytebuddy.dynamic.loading.ClassLoadingStrategyBenchmark_opened.openedWrapper",
+    "mode": "thrpt",
+    "threads": 1,
+    "forks": 3,
+    "jvm": "C:\\Program Files\\Microsoft\\jdk-21.0.12.101-hotspot\\bin\\java.exe",
+    "jvmArgs": [],
+    "jdkVersion": "21.0.12.1",
+    "vmName": "OpenJDK 64-Bit Server VM",
+    "vmVersion": "21.0.12.1+1-LTS",
+    "warmupIterations": 3,
+    "warmupTime": "1 s",
+    "warmupBatchSize": 1,
+    "measurementIterations": 3,
+    "measurementTime": "1 s",
+    "measurementBatchSize": 1,
+    "primaryMetric": {
+      "score": 159653444.41177905,
+      "scoreError": 16035980.677084414,
+      "scoreConfidence": [
+        143617463.73469463,
+        175689425.08886346
+      ],
+      "scorePercentiles": {
+        "0.0": 146827519.2265758,
+        "50.0": 161022788.00133282,
+        "90.0": 172816593.84498575,
+        "95.0": 172816593.84498575,
+        "99.0": 172816593.84498575,
+        "99.9": 172816593.84498575,
+        "99.99": 172816593.84498575,
+        "99.999": 172816593.84498575,
+        "99.9999": 172816593.84498575,
+        "100.0": 172816593.84498575
+      },
+      "scoreUnit": "ops/s",
+      "rawData": [
+        [
+          167042646.9123469,
+          172816593.84498575,
+          171181363.97499272
+        ],
+        [
+          162192592.2250155,
+          154900065.63769525,
+          161022788.00133282
+        ],
+        [
+          151647921.00353515,
+          149249508.87953162,
+          146827519.2265758
+        ]
+      ]
+    },
+    "secondaryMetrics": {}
+  },
+  {
+    "commit_id": "6f3a9c5",
+    "jmhVersion": "1.37",
+    "benchmark": "net.bytebuddy.dynamic.loading.ClassLoadingStrategyBenchmark_opened.openedWrapperPersistent",
+    "mode": "thrpt",
+    "threads": 1,
+    "forks": 3,
+    "jvm": "C:\\Program Files\\Microsoft\\jdk-21.0.12.101-hotspot\\bin\\java.exe",
+    "jvmArgs": [],
+    "jdkVersion": "21.0.12.1",
+    "vmName": "OpenJDK 64-Bit Server VM",
+    "vmVersion": "21.0.12.1+1-LTS",
+    "warmupIterations": 3,
+    "warmupTime": "1 s",
+    "warmupBatchSize": 1,
+    "measurementIterations": 3,
+    "measurementTime": "1 s",
+    "measurementBatchSize": 1,
+    "primaryMetric": {
+      "score": 137375473.7759836,
+      "scoreError": 30843693.325054016,
+      "scoreConfidence": [
+        106531780.45092958,
+        168219167.10103762
+      ],
+      "scorePercentiles": {
+        "0.0": 103595570.92603743,
+        "50.0": 143716781.28225225,
+        "90.0": 161632217.66478133,
+        "95.0": 161632217.66478133,
+        "99.0": 161632217.66478133,
+        "99.9": 161632217.66478133,
+        "99.99": 161632217.66478133,
+        "99.999": 161632217.66478133,
+        "99.9999": 161632217.66478133,
+        "100.0": 161632217.66478133
+      },
+      "scoreUnit": "ops/s",
+      "rawData": [
+        [
+          140690936.52726662,
+          117485116.49755152,
+          103595570.92603743
+        ],
+        [
+          161632217.66478133,
+          125004731.82014434,
+          151602498.74598047
+        ],
+        [
+          145067149.00572652,
+          143716781.28225225,
+          147584261.51411167
+        ]
+      ]
+    },
+    "secondaryMetrics": {}
+  }
+]</script>
+    <script id="payload_bootstrap" type="text/plain">{}</script>
+    <script id="payload_verdicts" type="text/plain">[
+  {
+    "benchmark": "net.bytebuddy.dynamic.loading.ClassLoadingStrategyBenchmark_opened.openedChildFirst",
+    "params": "{}",
+    "verdict": "REBASELINED",
+    "curr_forks": 3,
+    "curr_measurementIterations": 3,
+    "best_forks": 3,
+    "best_measurementIterations": 10
+  },
+  {
+    "benchmark": "net.bytebuddy.dynamic.loading.ClassLoadingStrategyBenchmark_opened.openedChildFirstPersistent",
+    "params": "{}",
+    "verdict": "REBASELINED",
+    "curr_forks": 3,
+    "curr_measurementIterations": 3,
+    "best_forks": 3,
+    "best_measurementIterations": 10
+  },
+  {
+    "benchmark": "net.bytebuddy.dynamic.loading.ClassLoadingStrategyBenchmark_opened.openedInjection",
+    "params": "{}",
+    "verdict": "REBASELINED",
+    "curr_forks": 3,
+    "curr_measurementIterations": 3,
+    "best_forks": 3,
+    "best_measurementIterations": 10
+  },
+  {
+    "benchmark": "net.bytebuddy.dynamic.loading.ClassLoadingStrategyBenchmark_opened.openedWrapper",
+    "params": "{}",
+    "verdict": "REBASELINED",
+    "curr_forks": 3,
+    "curr_measurementIterations": 3,
+    "best_forks": 3,
+    "best_measurementIterations": 10
+  },
+  {
+    "benchmark": "net.bytebuddy.dynamic.loading.ClassLoadingStrategyBenchmark_opened.openedWrapperPersistent",
+    "params": "{}",
+    "verdict": "REBASELINED",
+    "curr_forks": 3,
+    "curr_measurementIterations": 3,
+    "best_forks": 3,
+    "best_measurementIterations": 10
+  }
+]
+</script>
+
+    <div id="content" class="card"></div>
+
+    <noscript>
+      <div class="card"><b>Errore:</b> JavaScript è disabilitato nel browser.</div>
+    </noscript>
+  </div>
+</div>
+
+<script>
+  function fmt(n) {
+    if (n === null || n === undefined) return "-";
+    const num = Number(n);
+    if (Number.isNaN(num)) return "-";
+    const abs = Math.abs(num);
+    if (abs >= 1000) return num.toFixed(2);
+    if (abs >= 10) return num.toFixed(3);
+    return num.toFixed(6);
+  }
+  function fmtPct(n) {
+    if (n === null || n === undefined || Number.isNaN(n)) return "-";
+    const sign = (n > 0) ? "+" : "";
+    return sign + n.toFixed(3);
+  }
+  function classifyDelta(d) {
+    if (d === null || d === undefined || Number.isNaN(d)) return "zero";
+    if (d > 0) return "pos";
+    if (d < 0) return "neg";
+    return "zero";
+  }
+  function fmt2(n) {
+    if (n === null || n === undefined || Number.isNaN(n)) return "-";
+    return Number(n).toFixed(2);
+  }
+
+  function formatBootstrapResult(bootEntry) {
+    // Flat schema: { verdict, delta_pct, mean_prev, mean_curr, note, ... }
+    if (!bootEntry) return { text: 'no data', cls: 'zero' };
+    var verdict = bootEntry.verdict || 'INSUFFICIENT_DATA';
+    var delta = (typeof bootEntry.delta_pct === 'number') ? bootEntry.delta_pct : null;
+    if (verdict === 'INSUFFICIENT_DATA') {
+      return { text: 'insufficient data', cls: 'zero' };
+    }
+    if (verdict === 'NOT_SIGNIFICANT') {
+      return { text: 'no significant change (' + fmtPct(delta) + '%)', cls: 'zero' };
+    }
+    // SIGNIFICANT — avgt mode: delta_pct < 0 = curr faster = improvement
+    if (delta !== null) {
+      if (delta < 0) return { text: 'improvement: ' + fmtPct(delta) + '%', cls: 'pos' };
+      if (delta > 0) return { text: 'regression: +' + fmtPct(delta) + '%', cls: 'neg' };
+    }
+    return { text: verdict, cls: 'zero' };
+  }
+  function readJsonFromScript(id) {
+    const el = document.getElementById(id);
+    if (!el) return null;
+    const raw = (el.textContent || "").trim();
+    if (!raw) return null;
+    try { return JSON.parse(raw); } catch (_) { return null; }
+  }
+
+  function buildBootstrapMap(bootArr) {
+    // bootArr: [{ benchmark, bootstrap:{ok,ci95,...}, verdict }, ...]
+    const m = new Map();
+    if (!Array.isArray(bootArr)) return m;
+    for (const e of bootArr) {
+      const name = e && e.benchmark;
+      if (!name) continue;
+      m.set(name, e);
+    }
+    return m;
+  }
+  function buildVerdictMap(verdictArr) {
+    // verdictArr: [{ benchmark, verdict: NEW|MATCH|CONFIG_MISMATCH|REBASELINED, curr_forks, best_forks, ... }, ...]
+    const m = new Map();
+    if (!Array.isArray(verdictArr)) return m;
+    for (const e of verdictArr) {
+      const name = e && e.benchmark;
+      if (!name) continue;
+      m.set(name, e);
+    }
+    return m;
+  }
+  function formatConfigVerdict(v) {
+    if (!v) return null;
+    if (v.verdict === 'CONFIG_MISMATCH') {
+      return { text: 'config mismatch — comparison refused', cls: 'zero' };
+    }
+    if (v.verdict === 'REBASELINED') {
+      return { text: 'config overridden — comparison skipped', cls: 'zero' };
+    }
+    return null;
+  }
+  function renderAddedOrModified(jmhArr, bootstrapMap /* optional */, verdictMap /* optional */) {
+    const rows = jmhArr.map(x => {
+      const benchmark = x?.benchmark || "";
+      const score = x?.primaryMetric?.score;
+      const err   = x?.primaryMetric?.scoreError;
+      const unit  = x?.primaryMetric?.scoreUnit || "";
+      const bootE = bootstrapMap && benchmark ? bootstrapMap.get(benchmark) : null;
+      const verdictE = verdictMap && benchmark ? verdictMap.get(benchmark) : null;
+      return {
+        benchmark,
+        score, err, unit,
+        prev: bootE ? bootE.mean_prev : null,
+        curr: bootE ? bootE.mean_curr : score,
+        delta_pct: bootE ? bootE.delta_pct : null,
+        boot: bootE,
+        hasCmp: !!bootE,
+        configVerdict: formatConfigVerdict(verdictE)
+      };
+    }).sort((a,b) => (b.score ?? -Infinity) - (a.score ?? -Infinity));
+
+    const hasCompareCols = !!(bootstrapMap && bootstrapMap.size > 0);
+
+    return `
+      <div class="title-row">
+        <h2>Risultati</h2>
+        <div class="subtitle"> ${hasCompareCols ? "Mostro prev/curr dal compare. Il campo result usa il bootstrap (CI95)." : "Nessun compare agganciato."}</div>
+      </div>
+
+      ${rows.length ? `
+        <div class="sticky" style="margin-top:12px;">
+          <table>
+            <thead>
+                <tr>
+                  <th>benchmark</th>
+                  <th class="right">prev</th>
+                  <th class="right">curr</th>
+                  <th class="right">error</th>
+                  <th>unit</th>
+                  <th>result</th>
+                </tr>
+            </thead>
+            <tbody>
+  ${rows.map(r => {
+      // se il benchmark è nel compare => risultato bootstrap
+      if (r.hasCmp) {
+        const res = formatBootstrapResult(r.boot);
+        const cls = res.cls;
+        return `
+      <tr>
+        <td class="mono">${r.benchmark}</td>
+        <td class="right">${fmt(r.prev)}</td>
+        <td class="right">${fmt(r.curr)}</td>
+        <td class="right">${fmt(r.err)}</td>
+        <td>${r.unit}</td>
+        <td class="delta ${cls}">${res.text}</td>
+      </tr>
+    `;
+      }
+
+      // benchmark non presente nel compare: se config_guard ha un verdetto (CONFIG_MISMATCH/REBASELINED)
+      // lo mostro invece di un "-" muto; altrimenti è davvero un benchmark nuovo, nessuna baseline.
+      const cv = r.configVerdict;
+      return `
+  <tr>
+    <td class="mono">${r.benchmark}</td>
+    <td class="right">-</td>
+    <td class="right">${fmt(r.score)}</td>
+    <td class="right">${fmt(r.err)}</td>
+    <td>${r.unit}</td>
+    <td class="${cv ? 'delta ' + cv.cls : ''}">${cv ? cv.text : '-'}</td>
+  </tr>
+`;
+    }).join("")}
+</tbody>
+          </table>
+        </div>
+
+        <div class="rowhint">
+          <b>error</b> è l’incertezza stimata da JMH sullo score (es. intervallo/confidenza), non è “errore del programma”.
+        </div>
+      ` : `<div class="empty" style="margin-top:12px;">Nessun risultato nel JSON (array vuoto).</div>`}
+    `;
+  }
+
+  function renderCompareOnly(compareObj) {
+    const comps = (compareObj.comparisons || []).slice().sort((a,b) => (b.delta_pct ?? -Infinity) - (a.delta_pct ?? -Infinity));
+    return `
+      <div class="title-row">
+        <h2>Confronto (prev → curr)</h2>
+        <div class="subtitle">Delta%: verde = miglioramento, rosso = peggioramento</div>
+      </div>
+
+      <div class="sticky" style="margin-top:12px;">
+        <table>
+          <thead>
+            <tr>
+              <th>benchmark</th>
+              <th class="right">prev</th>
+              <th class="right">curr</th>
+              <th class="right">delta %</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${comps.map(c => {
+      const d = c?.delta_pct;
+      const cls = classifyDelta(d);
+      return `
+                <tr>
+                  <td class="mono">${c?.benchmark || ""}</td>
+                  <td class="right">${fmt(c?.prev)}</td>
+                  <td class="right">${fmt(c?.curr)}</td>
+                  <td class="right delta ${cls}">${fmtPct(d)}</td>
+                </tr>
+              `;
+    }).join("")}
+          </tbody>
+        </table>
+      </div>
+    `;
+  }
+
+  (function main() {
+    const content = document.getElementById("content");
+    const kpiFormat = document.getElementById("kpi-format");
+    const kpiRows = document.getElementById("kpi-rows");
+    const kpiSummary = document.getElementById("kpi-summary");
+
+    if (!content) { document.body.innerHTML = "<pre>ERRORE: #content non trovato</pre>"; return; }
+    content.innerHTML = `<div class="muted">Loading report...</div>`;
+
+    const kind = "modified";
+    const data = readJsonFromScript("payload");
+    const boot = readJsonFromScript("payload_bootstrap");
+    const verdicts = readJsonFromScript("payload_verdicts");
+
+    const bootPath = "";
+    if (bootPath && bootPath.trim().length > 0) {
+      const box = document.getElementById("kpi-bootstrap-path");
+      const span = document.getElementById("boot-path");
+      if (box && span) { box.style.display = "block"; span.textContent = bootPath; }
+    }
+
+    if (!data) {
+      kpiFormat.textContent = "empty/invalid";
+      kpiRows.textContent = "0";
+      kpiSummary.textContent = "-";
+      content.innerHTML = `<div class="empty"><b>Errore:</b> payload JSON vuoto o non parsabile</div>`;
+      return;
+    }
+
+    // Se il payload principale è già un compare object
+    const looksLikeCompare = (data && typeof data === "object" && !Array.isArray(data) && Array.isArray(data.comparisons));
+    if (looksLikeCompare || kind === "compare") {
+      kpiFormat.textContent = "compare object";
+      kpiRows.textContent = String((data.comparisons || []).length);
+      kpiSummary.textContent = `common=${data.common_count ?? "-"}`;
+      content.innerHTML = renderCompareOnly(data);
+      return;
+    }
+
+    // JMH array (added/modified)
+    if (Array.isArray(data)) {
+      const bootLooksOk = Array.isArray(boot);
+      const bootstrapMap = ((kind === "modified" || kind === "added") && bootLooksOk) ? buildBootstrapMap(boot) : null;
+      const verdictMap = Array.isArray(verdicts) ? buildVerdictMap(verdicts) : null;
+
+      content.innerHTML = renderAddedOrModified(data, bootstrapMap, verdictMap);
+      return;
+    }
+
+    // fallback debug
+    kpiFormat.textContent = "object/other";
+    kpiRows.textContent = (data && typeof data === "object") ? String(Object.keys(data).length) : "-";
+    kpiSummary.textContent = "debug";
+    content.innerHTML = `
+      <div class="title-row">
+        <h2>Payload (debug)</h2>
+        <div class="subtitle">Formato non previsto: lo mostro in chiaro</div>
+      </div>
+      <pre class="debug" style="margin-top:12px;">${JSON.stringify(data, null, 2)}</pre>
+    `;
+  })();
+</script>
+</body>
+</html>
