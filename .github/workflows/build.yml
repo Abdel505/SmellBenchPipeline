@@ -56,11 +56,11 @@ jobs:
           path: sut/byte-buddy
           fetch-depth: 2
 
-      - name: Set up JDK 17
+      - name: Set up JDK 21   # ast-generator.jar is compiled for Java 21
         uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: '17'
+          java-version: '21'
           cache: maven
 
       - name: Set up Python
@@ -136,11 +136,11 @@ jobs:
           path: sut/byte-buddy
           fetch-depth: 2
 
-      - name: Set up JDK 17
+      - name: Set up JDK 21   # ast-generator.jar is compiled for Java 21
         uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: '17'
+          java-version: '21'
           cache: maven
 
       # config_guard / bootstrap / dashboard helpers use only the standard library.
