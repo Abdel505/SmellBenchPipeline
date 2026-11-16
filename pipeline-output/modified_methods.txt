@@ -1,6 +1,0 @@
-net/bytebuddy/dynamic/loading/ClassLoadingStrategy.allowExistingTypes()
-net/bytebuddy/dynamic/loading/ClassLoadingStrategy.load(ClassLoader,Map)
-net/bytebuddy/dynamic/loading/ClassLoadingStrategy.opened()
-net/bytebuddy/dynamic/loading/ClassLoadingStrategy.with(Factory)
-net/bytebuddy/dynamic/loading/ClassLoadingStrategy.with(PackageDefinitionStrategy)
-net/bytebuddy/dynamic/loading/ClassLoadingStrategy.with(ProtectionDomain)
