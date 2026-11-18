@@ -1,0 +1,4 @@
+net/bytebuddy/build/Plugin
+net/bytebuddy/dynamic/DynamicType
+net/bytebuddy/implementation/bind/annotation/Origin
+net/bytebuddy/implementation/bytecode/Removal

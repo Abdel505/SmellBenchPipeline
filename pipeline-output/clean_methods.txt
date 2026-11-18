@@ -1,0 +1,2 @@
+/home/runner/work/SmellBenchPipeline/SmellBenchPipeline/sut/byte-buddy/byte-buddy-dep/src/main/java/net/bytebuddy/build/Plugin.java | accept(Callable,boolean) | modified
+/home/runner/work/SmellBenchPipeline/SmellBenchPipeline/sut/byte-buddy/byte-buddy-dep/src/main/java/net/bytebuddy/build/Plugin.java | builder(ByteBuddy,TypeDescription,ClassFileLocator) | modified

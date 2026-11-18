@@ -1,0 +1,4 @@
+byte-buddy-dep/src/main/java/net/bytebuddy/build/Plugin.java
+byte-buddy-dep/src/main/java/net/bytebuddy/dynamic/DynamicType.java
+byte-buddy-dep/src/main/java/net/bytebuddy/implementation/bind/annotation/Origin.java
+byte-buddy-dep/src/main/java/net/bytebuddy/implementation/bytecode/Removal.java

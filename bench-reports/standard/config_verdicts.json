@@ -1,11 +1,47 @@
 [
   {
-    "benchmark": "net.bytebuddy.benchmark.RandomStringBenchmark_hashOf_Object.hashOfObject",
+    "benchmark": "net.bytebuddy.dynamic.loading.ClassLoadingStrategyBenchmark_allowExistingTypes.allowExistingTypesChildFirst",
     "params": "{}",
-    "verdict": "REBASELINED",
-    "curr_forks": 1,
-    "curr_measurementIterations": 1,
-    "best_forks": 1,
-    "best_measurementIterations": 5
+    "verdict": "MATCH",
+    "curr_forks": 3,
+    "curr_measurementIterations": 3,
+    "best_forks": 3,
+    "best_measurementIterations": 3
+  },
+  {
+    "benchmark": "net.bytebuddy.dynamic.loading.ClassLoadingStrategyBenchmark_allowExistingTypes.allowExistingTypesChildFirstPersistent",
+    "params": "{}",
+    "verdict": "MATCH",
+    "curr_forks": 3,
+    "curr_measurementIterations": 3,
+    "best_forks": 3,
+    "best_measurementIterations": 3
+  },
+  {
+    "benchmark": "net.bytebuddy.dynamic.loading.ClassLoadingStrategyBenchmark_allowExistingTypes.allowExistingTypesInjection",
+    "params": "{}",
+    "verdict": "MATCH",
+    "curr_forks": 3,
+    "curr_measurementIterations": 3,
+    "best_forks": 3,
+    "best_measurementIterations": 3
+  },
+  {
+    "benchmark": "net.bytebuddy.dynamic.loading.ClassLoadingStrategyBenchmark_allowExistingTypes.allowExistingTypesWrapper",
+    "params": "{}",
+    "verdict": "MATCH",
+    "curr_forks": 3,
+    "curr_measurementIterations": 3,
+    "best_forks": 3,
+    "best_measurementIterations": 3
+  },
+  {
+    "benchmark": "net.bytebuddy.dynamic.loading.ClassLoadingStrategyBenchmark_allowExistingTypes.allowExistingTypesWrapperPersistent",
+    "params": "{}",
+    "verdict": "MATCH",
+    "curr_forks": 3,
+    "curr_measurementIterations": 3,
+    "best_forks": 3,
+    "best_measurementIterations": 3
   }
 ]

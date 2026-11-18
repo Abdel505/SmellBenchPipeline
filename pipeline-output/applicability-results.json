@@ -1,0 +1,24 @@
+[
+  {
+    "class_id": "C1",
+    "file_path": "/home/runner/work/SmellBenchPipeline/SmellBenchPipeline/sut/byte-buddy/byte-buddy-dep/src/main/java/net/bytebuddy/build/Plugin.java",
+    "method_signature": "accept(Callable,boolean)",
+    "applicable_families": [],
+    "templates_checked": [
+      "F1",
+      "F2"
+    ],
+    "check_failed": false
+  },
+  {
+    "class_id": "C2",
+    "file_path": "/home/runner/work/SmellBenchPipeline/SmellBenchPipeline/sut/byte-buddy/byte-buddy-dep/src/main/java/net/bytebuddy/build/Plugin.java",
+    "method_signature": "builder(ByteBuddy,TypeDescription,ClassFileLocator)",
+    "applicable_families": [],
+    "templates_checked": [
+      "F1",
+      "F2"
+    ],
+    "check_failed": false
+  }
+]

@@ -1,1 +1,292 @@
-[]
+[
+  {
+    "sut_commit_id": "efa9aa1",
+    "jmhVersion": "1.37",
+    "benchmark": "net.bytebuddy.dynamic.loading.ClassLoadingStrategyBenchmark_allowExistingTypes.allowExistingTypesChildFirst",
+    "mode": "thrpt",
+    "threads": 1,
+    "forks": 3,
+    "jvm": "/usr/lib/jvm/temurin-21-jdk-amd64/bin/java",
+    "jvmArgs": [],
+    "jdkVersion": "21.0.13",
+    "vmName": "OpenJDK 64-Bit Server VM",
+    "vmVersion": "21.0.13+9-LTS",
+    "warmupIterations": 3,
+    "warmupTime": "1 s",
+    "warmupBatchSize": 1,
+    "measurementIterations": 3,
+    "measurementTime": "1 s",
+    "measurementBatchSize": 1,
+    "primaryMetric": {
+      "score": 334302419.55998737,
+      "scoreError": 2886267.6775759924,
+      "scoreConfidence": [
+        331416151.88241136,
+        337188687.2375634
+      ],
+      "scorePercentiles": {
+        "0.0": 330025118.08451843,
+        "50.0": 334571931.12833804,
+        "90.0": 335958020.36537516,
+        "95.0": 335958020.36537516,
+        "99.0": 335958020.36537516,
+        "99.9": 335958020.36537516,
+        "99.99": 335958020.36537516,
+        "99.999": 335958020.36537516,
+        "99.9999": 335958020.36537516,
+        "100.0": 335958020.36537516
+      },
+      "scoreUnit": "ops/s",
+      "rawData": [
+        [
+          335958020.36537516,
+          334639517.27987427,
+          335690804.1396102
+        ],
+        [
+          334918653.6025817,
+          330025118.08451843,
+          334136793.38341516
+        ],
+        [
+          334571931.12833804,
+          334507794.8393105,
+          334273143.2168632
+        ]
+      ]
+    },
+    "secondaryMetrics": {}
+  },
+  {
+    "sut_commit_id": "efa9aa1",
+    "jmhVersion": "1.37",
+    "benchmark": "net.bytebuddy.dynamic.loading.ClassLoadingStrategyBenchmark_allowExistingTypes.allowExistingTypesChildFirstPersistent",
+    "mode": "thrpt",
+    "threads": 1,
+    "forks": 3,
+    "jvm": "/usr/lib/jvm/temurin-21-jdk-amd64/bin/java",
+    "jvmArgs": [],
+    "jdkVersion": "21.0.13",
+    "vmName": "OpenJDK 64-Bit Server VM",
+    "vmVersion": "21.0.13+9-LTS",
+    "warmupIterations": 3,
+    "warmupTime": "1 s",
+    "warmupBatchSize": 1,
+    "measurementIterations": 3,
+    "measurementTime": "1 s",
+    "measurementBatchSize": 1,
+    "primaryMetric": {
+      "score": 317706846.71570516,
+      "scoreError": 38073522.31710412,
+      "scoreConfidence": [
+        279633324.39860106,
+        355780369.03280926
+      ],
+      "scorePercentiles": {
+        "0.0": 287573137.0330451,
+        "50.0": 331036433.3271486,
+        "90.0": 335834360.64340997,
+        "95.0": 335834360.64340997,
+        "99.0": 335834360.64340997,
+        "99.9": 335834360.64340997,
+        "99.99": 335834360.64340997,
+        "99.999": 335834360.64340997,
+        "99.9999": 335834360.64340997,
+        "100.0": 335834360.64340997
+      },
+      "scoreUnit": "ops/s",
+      "rawData": [
+        [
+          287573137.0330451,
+          288195324.26106334,
+          288346714.38405776
+        ],
+        [
+          335526974.9608059,
+          322175350.7362672,
+          334963445.95865446
+        ],
+        [
+          335709879.1368937,
+          335834360.64340997,
+          331036433.3271486
+        ]
+      ]
+    },
+    "secondaryMetrics": {}
+  },
+  {
+    "sut_commit_id": "efa9aa1",
+    "jmhVersion": "1.37",
+    "benchmark": "net.bytebuddy.dynamic.loading.ClassLoadingStrategyBenchmark_allowExistingTypes.allowExistingTypesInjection",
+    "mode": "thrpt",
+    "threads": 1,
+    "forks": 3,
+    "jvm": "/usr/lib/jvm/temurin-21-jdk-amd64/bin/java",
+    "jvmArgs": [],
+    "jdkVersion": "21.0.13",
+    "vmName": "OpenJDK 64-Bit Server VM",
+    "vmVersion": "21.0.13+9-LTS",
+    "warmupIterations": 3,
+    "warmupTime": "1 s",
+    "warmupBatchSize": 1,
+    "measurementIterations": 3,
+    "measurementTime": "1 s",
+    "measurementBatchSize": 1,
+    "primaryMetric": {
+      "score": 481641912.3721469,
+      "scoreError": 10685458.68620237,
+      "scoreConfidence": [
+        470956453.68594456,
+        492327371.05834925
+      ],
+      "scorePercentiles": {
+        "0.0": 465144098.8457962,
+        "50.0": 484145420.1844513,
+        "90.0": 485616055.3995108,
+        "95.0": 485616055.3995108,
+        "99.0": 485616055.3995108,
+        "99.9": 485616055.3995108,
+        "99.99": 485616055.3995108,
+        "99.999": 485616055.3995108,
+        "99.9999": 485616055.3995108,
+        "100.0": 485616055.3995108
+      },
+      "scoreUnit": "ops/s",
+      "rawData": [
+        [
+          465144098.8457962,
+          482391951.35491264,
+          481796793.02114224
+        ],
+        [
+          481567881.47158426,
+          485616055.3995108,
+          484257702.69708884
+        ],
+        [
+          484620299.0779896,
+          485237009.29684633,
+          484145420.1844513
+        ]
+      ]
+    },
+    "secondaryMetrics": {}
+  },
+  {
+    "sut_commit_id": "efa9aa1",
+    "jmhVersion": "1.37",
+    "benchmark": "net.bytebuddy.dynamic.loading.ClassLoadingStrategyBenchmark_allowExistingTypes.allowExistingTypesWrapper",
+    "mode": "thrpt",
+    "threads": 1,
+    "forks": 3,
+    "jvm": "/usr/lib/jvm/temurin-21-jdk-amd64/bin/java",
+    "jvmArgs": [],
+    "jdkVersion": "21.0.13",
+    "vmName": "OpenJDK 64-Bit Server VM",
+    "vmVersion": "21.0.13+9-LTS",
+    "warmupIterations": 3,
+    "warmupTime": "1 s",
+    "warmupBatchSize": 1,
+    "measurementIterations": 3,
+    "measurementTime": "1 s",
+    "measurementBatchSize": 1,
+    "primaryMetric": {
+      "score": 333720410.81868094,
+      "scoreError": 5993376.050520159,
+      "scoreConfidence": [
+        327727034.76816076,
+        339713786.8692011
+      ],
+      "scorePercentiles": {
+        "0.0": 326218418.1865028,
+        "50.0": 334481728.6926855,
+        "90.0": 336479188.45297134,
+        "95.0": 336479188.45297134,
+        "99.0": 336479188.45297134,
+        "99.9": 336479188.45297134,
+        "99.99": 336479188.45297134,
+        "99.999": 336479188.45297134,
+        "99.9999": 336479188.45297134,
+        "100.0": 336479188.45297134
+      },
+      "scoreUnit": "ops/s",
+      "rawData": [
+        [
+          334262326.4632355,
+          334481728.6926855,
+          334007655.1807666
+        ],
+        [
+          336479188.45297134,
+          326218418.1865028,
+          336213877.72742593
+        ],
+        [
+          336142601.0583781,
+          329427349.07321185,
+          336250552.5329504
+        ]
+      ]
+    },
+    "secondaryMetrics": {}
+  },
+  {
+    "sut_commit_id": "efa9aa1",
+    "jmhVersion": "1.37",
+    "benchmark": "net.bytebuddy.dynamic.loading.ClassLoadingStrategyBenchmark_allowExistingTypes.allowExistingTypesWrapperPersistent",
+    "mode": "thrpt",
+    "threads": 1,
+    "forks": 3,
+    "jvm": "/usr/lib/jvm/temurin-21-jdk-amd64/bin/java",
+    "jvmArgs": [],
+    "jdkVersion": "21.0.13",
+    "vmName": "OpenJDK 64-Bit Server VM",
+    "vmVersion": "21.0.13+9-LTS",
+    "warmupIterations": 3,
+    "warmupTime": "1 s",
+    "warmupBatchSize": 1,
+    "measurementIterations": 3,
+    "measurementTime": "1 s",
+    "measurementBatchSize": 1,
+    "primaryMetric": {
+      "score": 333881399.3165225,
+      "scoreError": 6660861.606786693,
+      "scoreConfidence": [
+        327220537.7097358,
+        340542260.92330915
+      ],
+      "scorePercentiles": {
+        "0.0": 323738238.86923164,
+        "50.0": 335575039.115583,
+        "90.0": 336164635.91675496,
+        "95.0": 336164635.91675496,
+        "99.0": 336164635.91675496,
+        "99.9": 336164635.91675496,
+        "99.99": 336164635.91675496,
+        "99.999": 336164635.91675496,
+        "99.9999": 336164635.91675496,
+        "100.0": 336164635.91675496
+      },
+      "scoreUnit": "ops/s",
+      "rawData": [
+        [
+          323738238.86923164,
+          335125298.9236445,
+          333548773.8465149
+        ],
+        [
+          336074650.0426811,
+          335575039.115583,
+          336164635.91675496
+        ],
+        [
+          335997907.69761133,
+          335644757.1658787,
+          333063292.27080184
+        ]
+      ]
+    },
+    "secondaryMetrics": {}
+  }
+]
